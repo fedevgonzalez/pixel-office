@@ -8,6 +8,8 @@ function createStandaloneApi(): { postMessage(msg: unknown): void } {
     ws = new WebSocket(`${proto}//${location.host}`)
     ws.onopen = () => {
       connected = true
+      // Re-send webviewReady on every reconnect so the server sends assets + agents
+      ws!.send(JSON.stringify({ type: 'webviewReady' }))
       for (const msg of pending) {
         ws!.send(JSON.stringify(msg))
       }
