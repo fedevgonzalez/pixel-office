@@ -577,12 +577,21 @@ function handleReporterMessage(ws, msg) {
       activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
       activeSubagentToolIds: new Map(), activeSubagentToolNames: new Map(),
       isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false,
-      isReplaying: false, folderName, machineId, remote: true,
+      isReplaying: true, folderName, machineId, remote: true,
     };
     agents.set(id, agent);
     remoteAgents.set(remoteKey, id);
     console.log(`Remote agent ${id} from ${machineId}: ${folderName}`);
     broadcast({ type: 'agentCreated', id, folderName });
+  } else if (msg.type === 'session-replay-done') {
+    const agentId = remoteAgents.get(remoteKey);
+    if (agentId == null) return;
+    const agent = agents.get(agentId);
+    if (agent) {
+      agent.isReplaying = false;
+      agent.replayedToolIds = new Set(agent.activeToolIds);
+      broadcastReplayState(agentId);
+    }
   } else if (msg.type === 'session-line') {
     const agentId = remoteAgents.get(remoteKey);
     if (agentId == null) return;

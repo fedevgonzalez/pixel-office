@@ -109,10 +109,18 @@ function readNewLines(filePath) {
     for (const line of lines) {
       if (!line.trim()) continue;
       send({ type: 'session-line', sessionId: session.sessionId, line });
-      // Check for /exit
+      // Check for /exit (must be a user message starting with the command tag)
       if (line.includes('<command-name>/exit</command-name>')) {
-        endSession(filePath);
-        return;
+        try {
+          const rec = JSON.parse(line);
+          if (rec.type === 'user') {
+            const c = rec.message?.content;
+            if (typeof c === 'string' && c.trimStart().startsWith('<command-name>/exit</command-name>')) {
+              endSession(filePath);
+              return;
+            }
+          }
+        } catch {}
       }
     }
   } catch {}
@@ -145,6 +153,7 @@ function startSession(filePath, projDir) {
   for (const line of replayLines) {
     send({ type: 'session-line', sessionId, line });
   }
+  send({ type: 'session-replay-done', sessionId });
 
   // Watch for new content
   try {
