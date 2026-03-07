@@ -21,6 +21,8 @@ const PNG_ALPHA_THRESHOLD = 128;
 const PERMISSION_EXEMPT_TOOLS = new Set([
   'Task', 'AskUserQuestion', 'ToolSearch',
   'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskUpdate', 'TaskStop',
+  // These tools can run for a long time without needing approval
+  'Bash', 'Agent', 'WebFetch', 'WebSearch',
 ]);
 function isPermissionExempt(name) {
   return PERMISSION_EXEMPT_TOOLS.has(name) || name.startsWith('mcp__');
@@ -164,6 +166,8 @@ function startWaitingTimer(agentId, delayMs) {
 }
 
 function startPermissionTimer(agentId) {
+  const agent = agents.get(agentId);
+  if (agent && agent.permissionMode === 'bypassPermissions') return;
   cancelTimer(permissionTimers, agentId);
   const t = setTimeout(() => {
     permissionTimers.delete(agentId);
@@ -230,6 +234,8 @@ function processLine(agentId, line) {
     } else if (record.type === 'progress') {
       processProgress(agentId, record);
     } else if (record.type === 'user') {
+      // Detect permission mode — if bypass, never show "needs approval"
+      if (record.permissionMode) agent.permissionMode = record.permissionMode;
       const content = record.message?.content;
       if (Array.isArray(content)) {
         const hasToolResult = content.some(b => b.type === 'tool_result');
@@ -577,7 +583,7 @@ function handleReporterMessage(ws, msg) {
       activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
       activeSubagentToolIds: new Map(), activeSubagentToolNames: new Map(),
       isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false,
-      isReplaying: true, folderName, machineId, remote: true,
+      isReplaying: true, folderName, machineId, remote: true, permissionMode: 'bypassPermissions',
     };
     agents.set(id, agent);
     remoteAgents.set(remoteKey, id);
