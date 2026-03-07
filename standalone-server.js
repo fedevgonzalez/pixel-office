@@ -126,6 +126,18 @@ function cancelTimer(map, id) {
   if (t) { clearTimeout(t); map.delete(id); }
 }
 
+function removeAgent(id, reason) {
+  const agent = agents.get(id);
+  if (!agent) return;
+  if (agent._watcher) { try { agent._watcher.close(); } catch {} }
+  if (agent._pollInterval) clearInterval(agent._pollInterval);
+  cancelTimer(waitingTimers, id);
+  cancelTimer(permissionTimers, id);
+  agents.delete(id);
+  broadcast({ type: 'agentClosed', id });
+  console.log(`Agent ${id} ${reason || 'removed'}`);
+}
+
 function clearAgentActivity(agent, agentId) {
   agent.activeToolIds.clear();
   agent.activeToolStatuses.clear();
@@ -256,6 +268,10 @@ function processLine(agentId, line) {
         // Detect /exit command or Goodbye! response as session termination
         if (content.includes('/exit') || content.includes('Goodbye!')) {
           agent.exitDetected = true;
+          if (!replaying) {
+            removeAgent(agentId);
+            return;
+          }
         }
         if (!replaying) {
           cancelTimer(waitingTimers, agentId);
@@ -708,18 +724,7 @@ async function handleClientMessage(ws, msg) {
       }
     }
   } else if (msg.type === 'closeAgent') {
-    const id = msg.id;
-    const agent = agents.get(id);
-    if (agent) {
-      // Stop file watching
-      if (agent._watcher) { try { agent._watcher.close(); } catch {} }
-      if (agent._pollInterval) clearInterval(agent._pollInterval);
-      cancelTimer(waitingTimers, id);
-      cancelTimer(permissionTimers, id);
-      agents.delete(id);
-      broadcast({ type: 'agentClosed', id });
-      console.log(`Agent ${id} closed by user`);
-    }
+    removeAgent(msg.id, 'closed by user');
   }
 }
 
