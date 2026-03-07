@@ -583,17 +583,17 @@ function scanAndAdoptAgents() {
       readNewLines(tempId);
       agents.delete(tempId);
 
-      // Session is idle/finished if: (1) turn_duration emitted with no active tools,
-      // or (2) /exit command detected (Goodbye! in transcript).
-      const isIdle = (tempAgent.isWaiting && tempAgent.activeToolIds.size === 0) || tempAgent.exitDetected;
-      if (isIdle) {
+      // Session is truly finished only if /exit detected.
+      // Idle sessions (waiting for user input) are still adopted if recent — the user may type at any time.
+      const isFinished = tempAgent.exitDetected;
+      if (isFinished) {
         try {
           const skipStat = fs.statSync(file);
           skippedFiles.set(file, skipStat.mtimeMs);
         } catch {
           skippedFiles.set(file, Date.now());
         }
-        console.log(`Skipped ${path.basename(file)} in ${path.basename(projDir)} (session finished)`);
+        console.log(`Skipped ${path.basename(file)} in ${path.basename(projDir)} (session exited)`);
         continue;
       }
 
