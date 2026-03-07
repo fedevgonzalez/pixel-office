@@ -266,7 +266,7 @@ function processLine(agentId, line) {
         }
       } else if (typeof content === 'string' && content.trim()) {
         // Detect /exit command (wrapped in <command-name> tags) as session termination
-        if (content.includes('<command-name>/exit</command-name>')) {
+        if (content.trimStart().startsWith('<command-name>/exit</command-name>')) {
           agent.exitDetected = true;
           if (!replaying) {
             removeAgent(agentId);

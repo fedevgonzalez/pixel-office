@@ -83,7 +83,7 @@ function hasExitCommand(filePath) {
         const record = JSON.parse(line);
         if (record.type === 'user') {
           const c = record.message?.content;
-          if (typeof c === 'string' && c.includes('<command-name>/exit</command-name>')) return true;
+          if (typeof c === 'string' && c.trimStart().startsWith('<command-name>/exit</command-name>')) return true;
         }
       } catch {}
     }
