@@ -585,7 +585,10 @@ function scanAndAdoptAgents() {
         }
       } catch { continue; }
 
-      // Always replay to check for /exit, regardless of age
+      // Skip files older than max age — no need to replay them
+      if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
+
+      // Replay recent files to check for /exit
       const tempAgent = {
         jsonlFile: file, projectDir: projDir, fileOffset: 0, lineBuffer: '',
         activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
@@ -611,9 +614,6 @@ function scanAndAdoptAgents() {
         console.log(`Skipped ${path.basename(file)} in ${path.basename(projDir)} (session exited)`);
         continue;
       }
-
-      // Skip old sessions that didn't /exit (idle too long to be relevant)
-      if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
 
       // Session is active — create a real agent
       knownFiles.add(file);
@@ -737,6 +737,28 @@ const MIME_TYPES = {
   '.svg': 'image/svg+xml', '.ttf': 'font/ttf', '.woff': 'font/woff', '.woff2': 'font/woff2',
 };
 
+// Pre-load all webview files into memory to avoid fs blocking the event loop
+const fileCache = new Map();
+function loadWebviewFiles(dir, prefix) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    const urlPath = prefix + '/' + entry.name;
+    if (entry.isDirectory()) {
+      loadWebviewFiles(fullPath, urlPath);
+    } else {
+      const ext = path.extname(entry.name);
+      const headers = { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' };
+      if (ext === '.html') headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      const data = fs.readFileSync(fullPath);
+      headers['Content-Length'] = data.length;
+      fileCache.set(urlPath, { data, headers });
+    }
+  }
+}
+loadWebviewFiles(path.join(distDir, 'webview'), '');
+console.log(`Cached ${fileCache.size} webview files in memory`);
+
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];
   if (urlPath === '/') urlPath = '/index.html';
@@ -777,18 +799,11 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // Serve from dist/webview/
-  const filePath = path.join(distDir, 'webview', urlPath);
-  if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
-    const ext = path.extname(filePath);
-    const headers = { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' };
-    // HTML: no cache (so rebuilds are picked up immediately)
-    // Assets with hash in filename: cache forever
-    if (ext === '.html') {
-      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
-    }
-    res.writeHead(200, headers);
-    fs.createReadStream(filePath).pipe(res);
+  // Serve from dist/webview/ (cached in memory)
+  const cached = fileCache.get(urlPath);
+  if (cached) {
+    res.writeHead(200, cached.headers);
+    res.end(cached.data);
     return;
   }
   res.writeHead(404);
