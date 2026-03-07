@@ -1,0 +1,80 @@
+{
+  "name": "pixel-agents",
+  "displayName": "Pixel Agents",
+  "description": "Pixel art office where your Claude Code agents come to life as animated characters",
+  "version": "1.0.2",
+  "publisher": "pablodelucca",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pablodelucca/pixel-agents"
+  },
+  "icon": "icon.png",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.105.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pixel-agents.showPanel",
+        "title": "Pixel Agents: Show Panel"
+      },
+      {
+        "command": "pixel-agents.exportDefaultLayout",
+        "title": "Pixel Agents: Export Layout as Default"
+      }
+    ],
+    "viewsContainers": {
+      "panel": [
+        {
+          "id": "pixel-agents-panel",
+          "title": "Pixel Agents",
+          "icon": "$(window)"
+        }
+      ]
+    },
+    "views": {
+      "pixel-agents-panel": [
+        {
+          "type": "webview",
+          "id": "pixel-agents.panelView",
+          "name": "Pixel Agents"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "build:webview": "cd webview-ui && npm run build",
+    "compile": "npm run check-types && npm run lint && node esbuild.js && npm run build:webview",
+    "build": "npm run compile",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production && npm run build:webview",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "import-tileset": "tsx scripts/import-tileset-cli.ts"
+  },
+  "devDependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
+    "@types/node": "22.x",
+    "@types/pngjs": "^6.0.5",
+    "@types/vscode": "^1.105.0",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "npm-run-all": "^4.1.5",
+    "pngjs": "^7.0.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "dependencies": {
+    "ws": "^8.19.0"
+  }
+}
