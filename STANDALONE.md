@@ -33,18 +33,23 @@ The server listens on `0.0.0.0:3300` and accepts both browser clients and report
 
 ### Reporter (each PC with Claude Code)
 
+Minimal setup — only 1 file + 1 dependency needed:
+
 ```bash
-npm install ws
+# One-time setup
+npm install -g ws
+
+# Run (Node 22+ doesn't need ws — has native WebSocket)
 node pixel-office-reporter.js ws://<server-ip>:3300/ws/report
 ```
 
 The reporter:
-1. Queries the local standalone server (`localhost:3300`) to know which sessions are active
-2. Reads the JSONL files locally (native file watching — fast and reliable)
+1. Scans `~/.claude/projects/` directly for active JSONL sessions
+2. Reads files locally (native file watching — fast and reliable)
 3. Sends updates via WebSocket to the central server
 4. Auto-reconnects if the connection drops
 
-**Note:** The reporter requires the local standalone server to be running (it uses its `/api/status` to determine active sessions).
+No other dependencies needed — the reporter is fully standalone.
 
 ### Environment Variables
 
@@ -52,7 +57,6 @@ The reporter:
 |---|---|---|
 | `PIXEL_OFFICE_SERVER` | `ws://192.168.68.100:3300/ws/report` | Central server WebSocket URL |
 | `PIXEL_OFFICE_MACHINE_ID` | `hostname` | Machine identifier (shown in logs) |
-| `PIXEL_OFFICE_LOCAL` | `http://localhost:3300` | Local standalone server URL |
 
 ### Auto-Launch (Windows)
 

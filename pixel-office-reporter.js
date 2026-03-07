@@ -12,16 +12,21 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const WebSocket = require('ws');
-
-const http = require('http');
+// Use native WebSocket (Node 22+) or fall back to 'ws' package
+let WebSocket = globalThis.WebSocket;
+if (!WebSocket) {
+  try { WebSocket = require('ws'); } catch {
+    console.error('Error: WebSocket not available. Install ws: npm install -g ws');
+    process.exit(1);
+  }
+}
 
 const SERVER_URL = process.argv[2] || process.env.PIXEL_OFFICE_SERVER || 'ws://192.168.68.100:3300/ws/report';
 const MACHINE_ID = process.env.PIXEL_OFFICE_MACHINE_ID || os.hostname();
-const LOCAL_SERVER = process.env.PIXEL_OFFICE_LOCAL || 'http://localhost:3300';
 const PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
+const AUTO_DETECT_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
 
 let ws = null;
 let connected = false;
@@ -164,81 +169,51 @@ function endSession(filePath) {
   log(`Ended: ${session.folderName}/${session.sessionId}`);
 }
 
-// --- Query local standalone server for active agents ---
-function fetchLocalAgents() {
-  return new Promise((resolve) => {
-    const url = `${LOCAL_SERVER}/api/status`;
-    http.get(url, { timeout: 3000 }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          resolve(parsed.agents || []);
-        } catch { resolve([]); }
-      });
-    }).on('error', () => resolve([]));
-  });
-}
-
-// --- Find JSONL file for a given folder name ---
-function findSessionFile(folderName) {
+// --- Scan for active JSONL sessions directly ---
+function scanLocalFiles() {
+  const activeFiles = new Set();
   let projectDirs;
   try {
     projectDirs = fs.readdirSync(PROJECTS_ROOT)
       .map(d => path.join(PROJECTS_ROOT, d))
       .filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
-  } catch { return null; }
+  } catch { return activeFiles; }
 
+  const now = Date.now();
   for (const projDir of projectDirs) {
-    const resolved = resolveFolderName(path.basename(projDir));
-    if (resolved !== folderName) continue;
     let files;
     try {
-      files = fs.readdirSync(projDir)
-        .filter(f => f.endsWith('.jsonl'))
-        .map(f => path.join(projDir, f));
+      files = fs.readdirSync(projDir).filter(f => f.endsWith('.jsonl')).map(f => path.join(projDir, f));
     } catch { continue; }
-    // Find the most recently modified non-exited file
-    let best = null;
-    let bestMtime = 0;
+
     for (const file of files) {
       try {
         const stat = fs.statSync(file);
-        if (stat.mtimeMs > bestMtime && !hasExitCommand(file)) {
-          best = { file, projDir };
-          bestMtime = stat.mtimeMs;
-        }
+        if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
+        if (hasExitCommand(file)) continue;
+        activeFiles.add(file);
       } catch {}
     }
-    if (best) return best;
   }
-  return null;
+  return activeFiles;
 }
 
-// --- Scan: sync with local standalone server ---
-async function scan() {
+// --- Scan: detect active sessions and report them ---
+function scan() {
   if (!connected) return;
 
-  const localAgents = await fetchLocalAgents();
-  const activeFolders = new Set(localAgents.map(a => a.folderName));
+  const activeFiles = scanLocalFiles();
 
-  // Start sessions for agents we're not tracking yet
-  for (const agent of localAgents) {
-    // Check if we already have a session for this folder
-    let alreadyTracking = false;
-    for (const [, session] of sessions) {
-      if (session.folderName === agent.folderName) { alreadyTracking = true; break; }
-    }
-    if (alreadyTracking) continue;
-
-    const found = findSessionFile(agent.folderName);
-    if (found) startSession(found.file, found.projDir);
+  // Start sessions for files we're not tracking yet
+  for (const file of activeFiles) {
+    if (sessions.has(file)) continue;
+    const projDir = path.dirname(file);
+    startSession(file, projDir);
   }
 
-  // End sessions for agents no longer on local server
-  for (const [filePath, session] of [...sessions]) {
-    if (!activeFolders.has(session.folderName)) {
+  // End sessions for files no longer active
+  for (const [filePath] of [...sessions]) {
+    if (!activeFiles.has(filePath)) {
       endSession(filePath);
     }
   }
