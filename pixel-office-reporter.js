@@ -26,7 +26,7 @@ const MACHINE_ID = process.env.PIXEL_OFFICE_MACHINE_ID || os.hostname();
 const PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
-const AUTO_DETECT_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 
 let ws = null;
 let connected = false;

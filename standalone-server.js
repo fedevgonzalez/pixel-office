@@ -10,7 +10,7 @@ const { PNG } = require('pngjs');
 
 const PORT = 3300;
 const SCAN_INTERVAL_MS = 5000;
-const AUTO_DETECT_MAX_AGE_MS = 30 * 60 * 1000; // 30 minutes
+const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const TOOL_DONE_DELAY_MS = 300;
 const TEXT_IDLE_DELAY_MS = 5000;
 const PERMISSION_TIMER_DELAY_MS = 7000;
