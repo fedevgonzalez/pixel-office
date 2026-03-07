@@ -21,6 +21,12 @@ while ($true) {
         $serverProcess = Start-Process -FilePath "node" -ArgumentList $serverScript -WorkingDirectory $scriptDir -PassThru -WindowStyle Hidden
         $wasRunning = $true
     }
+    elseif ($claudeRunning -and $wasRunning -and $serverProcess -and $serverProcess.HasExited) {
+        # Server died but Claude is still running - respawn it
+        Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Server exited (code $($serverProcess.ExitCode)), respawning..."
+        Start-Sleep -Seconds 1
+        $serverProcess = Start-Process -FilePath "node" -ArgumentList $serverScript -WorkingDirectory $scriptDir -PassThru -WindowStyle Hidden
+    }
     elseif (-not $claudeRunning -and $wasRunning) {
         # Claude Code stopped - kill the server after a grace period
         Start-Sleep -Seconds 10

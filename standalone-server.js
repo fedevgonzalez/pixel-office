@@ -750,6 +750,16 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // API: restart the server process (auto-launch.ps1 will respawn it)
+  if (urlPath === '/api/restart') {
+    const body = JSON.stringify({ ok: true, message: 'Restarting...' });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(body);
+    console.log('Restart requested via /api/restart');
+    setTimeout(() => process.exit(0), 500);
+    return;
+  }
+
   // API: status endpoint for remote monitoring
   if (urlPath === '/api/status') {
     const agentList = [];
