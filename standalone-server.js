@@ -575,9 +575,9 @@ function scanAndAdoptAgents() {
 
     for (const file of files) {
       if (knownFiles.has(file)) continue;
+      let stat;
       try {
-        const stat = fs.statSync(file);
-        if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
+        stat = fs.statSync(file);
         // Re-evaluate previously skipped files if they have new data
         if (skippedFiles.has(file)) {
           if (stat.mtimeMs <= (skippedFiles.get(file) || 0)) continue;
@@ -585,7 +585,7 @@ function scanAndAdoptAgents() {
         }
       } catch { continue; }
 
-      // First replay the file silently to check if the session is still active
+      // Always replay to check for /exit, regardless of age
       const tempAgent = {
         jsonlFile: file, projectDir: projDir, fileOffset: 0, lineBuffer: '',
         activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
@@ -599,8 +599,7 @@ function scanAndAdoptAgents() {
       readNewLines(tempId);
       agents.delete(tempId);
 
-      // Session is truly finished only if /exit detected.
-      // Idle sessions (waiting for user input) are still adopted if recent — the user may type at any time.
+      // Session is truly finished if /exit detected
       const isFinished = tempAgent.exitDetected;
       if (isFinished) {
         try {
@@ -612,6 +611,9 @@ function scanAndAdoptAgents() {
         console.log(`Skipped ${path.basename(file)} in ${path.basename(projDir)} (session exited)`);
         continue;
       }
+
+      // Skip old sessions that didn't /exit (idle too long to be relevant)
+      if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
 
       // Session is active — create a real agent
       knownFiles.add(file);
