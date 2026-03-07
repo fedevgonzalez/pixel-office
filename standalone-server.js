@@ -118,7 +118,11 @@ function formatToolStatus(toolName, input) {
       return desc ? `Subtask: ${desc.length > TASK_DESC_MAX ? desc.slice(0, TASK_DESC_MAX) + '\u2026' : desc}` : 'Running subtask';
     }
     case 'AskUserQuestion': return 'Waiting for your answer';
-    default: return `Using ${toolName}`;
+    default: {
+      // Strip MCP prefix: mcp__server-name__tool_name → tool_name
+      const display = toolName.startsWith('mcp__') ? toolName.replace(/^mcp__.+?__/, '') : toolName;
+      return `Using ${display}`;
+    }
   }
 }
 
@@ -591,11 +595,12 @@ function handleReporterMessage(ws, msg) {
     broadcast({ type: 'agentCreated', id, folderName });
   } else if (msg.type === 'session-replay-done') {
     const agentId = remoteAgents.get(remoteKey);
-    if (agentId == null) return;
+    if (agentId == null) { console.log(`session-replay-done: unknown key ${remoteKey}`); return; }
     const agent = agents.get(agentId);
     if (agent) {
       agent.isReplaying = false;
       agent.replayedToolIds = new Set(agent.activeToolIds);
+      console.log(`Agent ${agentId} (${agent.folderName}) replay done — ${agent.activeToolIds.size} active tools`);
       broadcastReplayState(agentId);
     }
   } else if (msg.type === 'session-line') {

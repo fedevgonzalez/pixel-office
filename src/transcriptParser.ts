@@ -47,7 +47,11 @@ export function formatToolStatus(toolName: string, input: Record<string, unknown
 		case 'AskUserQuestion': return 'Waiting for your answer';
 		case 'EnterPlanMode': return 'Planning';
 		case 'NotebookEdit': return `Editing notebook`;
-		default: return `Using ${toolName}`;
+		default: {
+			// Strip MCP prefix: mcp__server-name__tool_name → tool_name
+			const display = toolName.startsWith('mcp__') ? toolName.replace(/^mcp__.+?__/, '') : toolName;
+			return `Using ${display}`;
+		}
 	}
 }
 
