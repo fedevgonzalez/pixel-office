@@ -54,13 +54,13 @@ function broadcast(msg) {
 
 // --- Folder name resolution ---
 // Project dir hash: path separators (: \ /) replaced with dash
-// e.g. "G--GitHub-pixel-agents" from "G:\GitHub\pixel-agents"
+// e.g. "G--GitHub-pixel-office" from "G:\GitHub\pixel-office"
 // Try to reconstruct the real path and return basename
 function resolveFolderName(hashName) {
   const isWin = process.platform === 'win32';
   const sep = isWin ? '\\' : '/';
 
-  // On Windows: "G--GitHub-pixel-agents" → "G:\GitHub-pixel-agents" (drive letter reconstruction)
+  // On Windows: "G--GitHub-pixel-office" → "G:\GitHub-pixel-office" (drive letter reconstruction)
   // On Unix: "home-user-projects-foo" → "/home-user-projects-foo" (leading slash)
   let candidate;
   if (isWin) {
@@ -482,7 +482,7 @@ function loadDefaultLayout() {
   try { return JSON.parse(fs.readFileSync(file, 'utf-8')); } catch { return null; }
 }
 
-const LAYOUT_DIR = path.join(os.homedir(), '.pixel-agents');
+const LAYOUT_DIR = path.join(os.homedir(), '.pixel-office');
 const LAYOUT_FILE = path.join(LAYOUT_DIR, 'layout.json');
 
 function loadLayout() {
@@ -556,6 +556,59 @@ function broadcastReplayState(agentId) {
   }
 }
 
+// --- Remote reporter support ---
+// Reporters connect via WebSocket and send JSONL lines from remote machines.
+// Each reporter identifies with a machineId; we track remote agents separately.
+const reporterClients = new Map(); // ws -> { machineId }
+const remoteAgents = new Map(); // `${machineId}:${sessionId}` -> agentId
+
+function handleReporterMessage(ws, msg) {
+  const reporter = reporterClients.get(ws);
+  if (!reporter) return;
+  const { machineId } = reporter;
+  const remoteKey = `${machineId}:${msg.sessionId}`;
+
+  if (msg.type === 'session-start') {
+    if (remoteAgents.has(remoteKey)) return; // already tracked
+    const id = nextAgentId++;
+    const folderName = msg.folderName || msg.sessionId || machineId;
+    const agent = {
+      id, jsonlFile: `remote:${remoteKey}`, projectDir: '', fileOffset: 0, lineBuffer: '',
+      activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
+      activeSubagentToolIds: new Map(), activeSubagentToolNames: new Map(),
+      isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false,
+      isReplaying: false, folderName, machineId, remote: true,
+    };
+    agents.set(id, agent);
+    remoteAgents.set(remoteKey, id);
+    console.log(`Remote agent ${id} from ${machineId}: ${folderName}`);
+    broadcast({ type: 'agentCreated', id, folderName });
+  } else if (msg.type === 'session-line') {
+    const agentId = remoteAgents.get(remoteKey);
+    if (agentId == null) return;
+    processLine(agentId, msg.line);
+  } else if (msg.type === 'session-end') {
+    const agentId = remoteAgents.get(remoteKey);
+    if (agentId == null) return;
+    removeAgent(agentId, `remote session ended (${machineId})`);
+    remoteAgents.delete(remoteKey);
+  }
+}
+
+function cleanupReporter(ws) {
+  const reporter = reporterClients.get(ws);
+  if (!reporter) return;
+  const { machineId } = reporter;
+  for (const [remoteKey, agentId] of [...remoteAgents]) {
+    if (remoteKey.startsWith(machineId + ':')) {
+      removeAgent(agentId, `reporter disconnected (${machineId})`);
+      remoteAgents.delete(remoteKey);
+    }
+  }
+  reporterClients.delete(ws);
+  console.log(`Reporter disconnected: ${machineId}`);
+}
+
 // --- Auto-detect active JSONL sessions ---
 function scanAndAdoptAgents() {
   // Iterate over ALL subdirectories under projectsRoot
@@ -619,7 +672,7 @@ function scanAndAdoptAgents() {
       knownFiles.add(file);
       const id = nextAgentId++;
       // Derive folder name: try to find the actual directory on disk
-      // Hash format: path separators (: \ /) → dash (G:\GitHub\pixel-agents → G--GitHub-pixel-agents)
+      // Hash format: path separators (: \ /) → dash (G:\GitHub\pixel-office → G--GitHub-pixel-office)
       const dirBasename = path.basename(projDir);
       const folderName = resolveFolderName(dirBasename);
       const agent = {
@@ -812,7 +865,29 @@ const server = http.createServer((req, res) => {
 
 const wss = new WebSocket.Server({ server });
 
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
+  const urlPath = (req.url || '').split('?')[0];
+
+  // Reporter connections: /ws/report?machineId=xxx
+  if (urlPath === '/ws/report') {
+    const params = new URL(req.url, 'http://localhost').searchParams;
+    const machineId = params.get('machineId') || `unknown-${Date.now()}`;
+    reporterClients.set(ws, { machineId });
+    console.log(`Reporter connected: ${machineId}`);
+
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        handleReporterMessage(ws, msg);
+      } catch {}
+    });
+
+    ws.on('close', () => cleanupReporter(ws));
+    ws.on('error', () => cleanupReporter(ws));
+    return;
+  }
+
+  // Regular UI client connections
   wsClients.push(ws);
   console.log('WebSocket client connected');
 
@@ -834,7 +909,7 @@ wss.on('connection', (ws) => {
 });
 
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Pixel Agents web: http://localhost:${PORT} (listening on all interfaces)`);
+  console.log(`Pixel Office: http://localhost:${PORT} (listening on all interfaces)`);
   // Initial scan
   scanAndAdoptAgents();
   // Periodic scan for new sessions

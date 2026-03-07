@@ -44,7 +44,7 @@ The standalone server:
 |---|---|---|
 | Agent creation | "+ Agent" button launches terminal | Auto-detect only (no terminal creation) |
 | Terminal focus | Click agent to focus terminal | Not available |
-| Layout persistence | `~/.pixel-agents/layout.json` | Same file (shared) |
+| Layout persistence | `~/.pixel-office/layout.json` | Same file (shared) |
 | Agent detection | Terminal lifecycle + JSONL watching | JSONL scanning only |
 | Multi-project | Current workspace only | All projects under `~/.claude/projects/` |
 

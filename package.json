@@ -21,29 +21,29 @@
   "contributes": {
     "commands": [
       {
-        "command": "pixel-agents.showPanel",
-        "title": "Pixel Agents: Show Panel"
+        "command": "pixel-office.showPanel",
+        "title": "Pixel Office: Show Panel"
       },
       {
-        "command": "pixel-agents.exportDefaultLayout",
-        "title": "Pixel Agents: Export Layout as Default"
+        "command": "pixel-office.exportDefaultLayout",
+        "title": "Pixel Office: Export Layout as Default"
       }
     ],
     "viewsContainers": {
       "panel": [
         {
-          "id": "pixel-agents-panel",
-          "title": "Pixel Agents",
+          "id": "pixel-office-panel",
+          "title": "Pixel Office",
           "icon": "$(window)"
         }
       ]
     },
     "views": {
-      "pixel-agents-panel": [
+      "pixel-office-panel": [
         {
           "type": "webview",
-          "id": "pixel-agents.panelView",
-          "name": "Pixel Agents"
+          "id": "pixel-office.panelView",
+          "name": "Pixel Office"
         }
       ]
     }

@@ -13,7 +13,7 @@ Real-time visual dashboard for Claude Code agents. A pixel art virtual office wh
 - **Office layout editor** — design your office with floors, walls, and furniture
 - **Speech bubbles** — visual indicators for waiting/permission states
 - **Sub-agent visualization** — Task tool sub-agents spawn as separate characters
-- **Persistent layouts** — saved to `~/.pixel-agents/layout.json`, syncs across tabs
+- **Persistent layouts** — saved to `~/.pixel-office/layout.json`, syncs across tabs
 - **VS Code extension** — also works as a VS Code webview panel
 
 ## Quick Start (Standalone)

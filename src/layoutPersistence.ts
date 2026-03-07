@@ -80,7 +80,7 @@ export function migrateAndLoadLayout(
 }
 
 /**
- * Watch ~/.pixel-agents/layout.json for external changes (other VS Code windows).
+ * Watch ~/.pixel-office/layout.json for external changes (other VS Code windows).
  * Uses hybrid fs.watch + polling (same pattern as JSONL watching).
  */
 export function watchLayoutFile(
