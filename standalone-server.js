@@ -265,8 +265,8 @@ function processLine(agentId, line) {
           agent.hadToolsInTurn = false;
         }
       } else if (typeof content === 'string' && content.trim()) {
-        // Detect /exit command or Goodbye! response as session termination
-        if (content.includes('/exit') || content.includes('Goodbye!')) {
+        // Detect /exit command (wrapped in <command-name> tags) as session termination
+        if (content.includes('<command-name>/exit</command-name>')) {
           agent.exitDetected = true;
           if (!replaying) {
             removeAgent(agentId);
