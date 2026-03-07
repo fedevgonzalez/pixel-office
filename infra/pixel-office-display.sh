@@ -1,0 +1,107 @@
+#!/bin/bash
+# pixel-office-display.sh
+# Monitors Pixel Office server on Windows PC and switches the wall display.
+# When active agents are detected, starts X + Chrome in kiosk mode.
+# When agents disappear, stops X and returns to the Linux console.
+#
+# Requirements: xorg, xinit, google-chrome-stable, unclutter, curl
+# sudo apt install xorg xinit unclutter curl
+# google-chrome-stable installed via .deb (NOT snap)
+
+# --- Configuration ---
+PIXEL_OFFICE_HOST="${PIXEL_OFFICE_HOST:-localhost}"
+PIXEL_OFFICE_URL="http://${PIXEL_OFFICE_HOST}:3300?kiosk"
+STATUS_URL="http://${PIXEL_OFFICE_HOST}:3300/api/status"
+CHECK_INTERVAL=10  # seconds
+
+# --- State ---
+XINIT_PID=""
+IS_SHOWING=false
+
+log() {
+    echo "[$(date '+%H:%M:%S')] $1"
+}
+
+start_kiosk() {
+    if [ "$IS_SHOWING" = true ]; then return; fi
+    log "Starting X + Chrome kiosk..."
+
+    # Write xinitrc script
+    XINITRC="/tmp/pixel-office-xinitrc"
+    rm -f "$XINITRC"
+    printf '#!/bin/bash\n' > "$XINITRC"
+    printf 'unclutter -idle 1 -root &\n' >> "$XINITRC"
+    printf 'xset s off\nxset -dpms\nxset s noblank\n' >> "$XINITRC"
+    printf 'google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --js-flags="--max-old-space-size=512" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
+    chmod +x "$XINITRC"
+
+    # Start X on vt1
+    xinit "$XINITRC" -- :0 vt1 2>/tmp/pixel-office-xinit.log &
+    XINIT_PID=$!
+    IS_SHOWING=true
+    log "X + Chrome started (PID: $XINIT_PID)"
+}
+
+stop_kiosk() {
+    if [ "$IS_SHOWING" = false ]; then return; fi
+    log "Stopping X + Chrome kiosk..."
+
+    # Kill the xinit process tree
+    if [ -n "$XINIT_PID" ]; then
+        kill "$XINIT_PID" 2>/dev/null
+        wait "$XINIT_PID" 2>/dev/null
+    fi
+    # Cleanup any orphans
+    pkill -f "chrome.*kiosk" 2>/dev/null
+    pkill -f "google-chrome" 2>/dev/null
+    pkill -f "unclutter" 2>/dev/null
+    pkill Xorg 2>/dev/null
+
+    XINIT_PID=""
+    IS_SHOWING=false
+    log "X stopped, back to console"
+}
+
+check_server() {
+    local response
+    response=$(curl -s --connect-timeout 3 --max-time 5 "$STATUS_URL" 2>/dev/null)
+    if [ $? -ne 0 ]; then return 1; fi
+
+    local count
+    count=$(echo "$response" | grep -o '"count":[0-9]*' | grep -o '[0-9]*')
+    if [ -z "$count" ] || [ "$count" -eq 0 ]; then return 1; fi
+
+    return 0
+}
+
+cleanup() {
+    log "Shutting down..."
+    stop_kiosk
+    exit 0
+}
+
+trap cleanup SIGINT SIGTERM
+
+# --- Main loop ---
+log "Pixel Office display monitor started"
+log "Watching: $STATUS_URL"
+
+while true; do
+    if check_server; then
+        if [ "$IS_SHOWING" = false ]; then
+            log "Active agents detected!"
+        fi
+        start_kiosk
+    else
+        if [ "$IS_SHOWING" = true ]; then
+            # Grace period: check again before stopping
+            sleep 15
+            if ! check_server; then
+                log "Server/agents gone, switching back..."
+                stop_kiosk
+            fi
+        fi
+    fi
+
+    sleep "$CHECK_INTERVAL"
+done
