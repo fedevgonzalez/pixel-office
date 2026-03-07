@@ -1,49 +1,87 @@
 # Pixel Office
 
-Real-time visual dashboard for Claude Code agents. A pixel art virtual office where your AI agents come to life as animated characters.
+> A pixel art virtual office where your AI agents come to life.
 
-![Pixel Office screenshot](webview-ui/public/Screenshot.jpg)
+Real-time visual dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) agents. Watch your coding assistants work, wander, and wait — as animated characters in a customizable office.
 
-## Features
+![Pixel Office](webview-ui/public/Screenshot.jpg)
 
-- **Standalone web server** — runs without VS Code, just `node standalone-server.js`
-- **Kiosk mode** — wall-mounted display friendly with auto-framing camera and status sidebar
-- **Auto-discovery** — detects all active Claude Code agents across projects
-- **Live activity tracking** — characters animate based on what the agent is doing
-- **Office layout editor** — design your office with floors, walls, and furniture
-- **Speech bubbles** — visual indicators for waiting/permission states
-- **Sub-agent visualization** — Task tool sub-agents spawn as separate characters
-- **Persistent layouts** — saved to `~/.pixel-office/layout.json`, syncs across tabs
-- **VS Code extension** — also works as a VS Code webview panel
+## Why Pixel Office?
 
-## Quick Start (Standalone)
+When you're running multiple Claude Code sessions across projects (or machines), it's hard to know what's happening. Pixel Office gives you a single glanceable view:
+
+- **Who's working** — characters sit at desks typing when their agent is active
+- **Who's waiting** — speech bubbles appear when an agent needs your approval
+- **Who's idle** — characters wander the office between tasks
+- **What they're doing** — hover to see the current tool (Read, Edit, Bash, etc.)
+
+Perfect for a wall-mounted monitor, a second screen, or just a corner of your desktop.
+
+## Quick Start
 
 ```bash
-npm install
-cd webview-ui && npm install && cd ..
+npm install && cd webview-ui && npm install && cd ..
 npm run build
 node standalone-server.js
 ```
 
-Open http://localhost:3300 (editor) or http://localhost:3300/?kiosk (display mode).
+Open [http://localhost:3300](http://localhost:3300) — agents appear automatically as you start Claude Code sessions.
 
-## Quick Start (VS Code)
+For wall displays, use [http://localhost:3300/?kiosk](http://localhost:3300/?kiosk) (auto-framing camera, no UI controls).
 
-```bash
-npm run build
+## Multi-PC Setup
+
+Run a central server on your homeserver and report agents from any machine:
+
+```
+ ┌──────────┐     WebSocket      ┌──────────────┐     Browser      ┌─────────┐
+ │  Dev PC   │ ──────────────▶  │  Homeserver   │ ◀──────────────  │ Display │
+ │ reporter  │   ws://...:3300   │ standalone    │   http://...:3300│ (kiosk) │
+ └──────────┘                    └──────────────┘                   └─────────┘
 ```
 
-Press **F5** to launch the Extension Development Host.
+**On the central server:**
+```bash
+node standalone-server.js
+```
 
-## Tech Stack
+**On each dev machine:**
+```bash
+node pixel-office-reporter.js ws://<server-ip>:3300/ws/report
+```
 
-- **Server**: Node.js, WebSocket (ws)
-- **Extension**: TypeScript, VS Code Webview API, esbuild
-- **Webview**: React 19, TypeScript, Vite, Canvas 2D
+The reporter watches local `~/.claude/projects/` JSONL files and streams updates to the server. See [STANDALONE.md](STANDALONE.md) for full details.
+
+## Features
+
+| Feature | Description |
+|---|---|
+| Standalone server | No VS Code required — just Node.js |
+| Auto-discovery | Detects active Claude Code sessions across all projects |
+| Live activity | Characters animate based on current tool usage |
+| Sub-agents | Task tool spawns child characters near their parent |
+| Speech bubbles | Permission (amber dots) and waiting (green check) indicators |
+| Sound notifications | Audio chime when an agent finishes and needs attention |
+| Layout editor | Design your office with floors, walls, and 50+ furniture items |
+| Kiosk mode | Auto-framing camera, status sidebar, 15fps throttle |
+| Multi-PC | WebSocket reporters aggregate agents from multiple machines |
+| VS Code extension | Also works as a panel in VS Code |
+| Cross-tab sync | Layout changes sync across all open tabs/windows |
+
+## Layout Editor
+
+Toggle the editor to customize your office:
+
+- **Floor** — 7 tile patterns with HSB color controls
+- **Walls** — Auto-tiling with 16 bitmask variants
+- **Furniture** — Desks, chairs, monitors, bookshelves, plants, wall art...
+- **Rotate** (R) / **Toggle** (T) / **Pick** (eyedropper) / **Drag** to move
+- **Undo/Redo** (Ctrl+Z/Y) with 50-level history
+- **Export/Import** layouts as JSON
 
 ## Office Assets
 
-The office tileset is **[Office Interior Tileset (16x16)](https://donarg.itch.io/officetileset)** by **Donarg** ($2 USD on itch.io). Characters are based on **[Metro City](https://jik-a-4.itch.io/metrocity-free-topdown-character-pack)** by **JIK-A-4**.
+The office tileset is **[Office Interior Tileset (16x16)](https://donarg.itch.io/officetileset)** by **Donarg** ($2 on itch.io). Characters are based on **[Metro City](https://jik-a-4.itch.io/metrocity-free-topdown-character-pack)** by **JIK-A-4**.
 
 The tileset is not included in this repo. To import it:
 
@@ -51,12 +89,19 @@ The tileset is not included in this repo. To import it:
 npm run import-tileset
 ```
 
-The app works without it — you get characters and basic layout, but not the full furniture catalog.
+The app works without it — you get characters and a basic layout, but not the full furniture catalog.
+
+## Tech Stack
+
+- **Server**: Node.js, WebSocket (`ws`)
+- **Extension**: TypeScript, VS Code Webview API, esbuild
+- **Frontend**: React 19, TypeScript, Vite, Canvas 2D
+- **Rendering**: Pixel-perfect integer scaling, z-sorted isometric-style sprites
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full product roadmap.
+See [ROADMAP.md](ROADMAP.md) — next up: activity timeline, aggregate metrics, and push notifications.
 
 ## License
 
-[MIT License](LICENSE) — Based on [Pixel Agents](https://github.com/pablodelucca/pixel-agents) by Pablo De Lucca.
+[MIT](LICENSE) — Based on [Pixel Agents](https://github.com/pablodelucca/pixel-agents) by Pablo De Lucca.

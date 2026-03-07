@@ -9,12 +9,12 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 ## Tier 0 — Identity & Hard Fork
 
 ### Branding
-- [ ] New product name (candidates: Pixel Office, Agent Arena, CodeCrew, etc.)
+- [x] New product name: **Pixel Office**
 - [ ] New logo and icon
 - [ ] Color palette and visual identity
-- [ ] Landing page / README with product positioning
-- [ ] Clean repo (no fork relationship on GitHub)
-- [ ] Credit original: "Based on Pixel Agents by Pablo De Lucca (MIT)"
+- [x] Landing page / README with product positioning
+- [x] Clean repo (no fork relationship on GitHub)
+- [x] Credit original: "Based on Pixel Agents by Pablo De Lucca (MIT)"
 
 ---
 
@@ -39,9 +39,11 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - Bridges the gap: kiosk shows status, phone gets the alert
 
 ### Multi-Machine Support
-- Scan remote `~/.claude/projects/` via SSH tunnel or sync
-- Centralized panel: homeserver sees its own agents + dev PC agents
-- Label agents by machine of origin
+- [x] Centralized panel: homeserver sees its own agents + dev PC agents
+- [x] Label agents by machine of origin
+- [x] WebSocket reporter architecture (pixel-office-reporter.js)
+- [x] Auto-deploy via git pre-push hook
+- [ ] Scan remote `~/.claude/projects/` via SSH tunnel or sync (alternative to reporter)
 
 ---
 
