@@ -43,6 +43,9 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - [x] Label agents by machine of origin
 - [x] WebSocket reporter architecture (pixel-office-reporter.js)
 - [x] Auto-deploy via git pre-push hook
+- [x] Claude SDK virtual agents (finance-agent, news-agent, chat-agent via pixel-reporter.ts)
+- [x] Remote reporter replay mode (isReplaying + session-replay-done)
+- [x] Permission mode detection (bypassPermissions for SDK agents)
 - [ ] Scan remote `~/.claude/projects/` via SSH tunnel or sync (alternative to reporter)
 
 ---
@@ -142,3 +145,10 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - [x] Auto-launch script (Windows PowerShell)
 - [x] No-cache headers for HTML (prevents stale bundle after rebuild)
 - [x] Furniture asset loading in standalone server
+- [x] Memory-cached file serving (prevents event loop blocking)
+- [x] False /exit detection fix (context compaction summaries, live stream)
+- [x] MCP tool name display (strip `mcp__server__` prefix)
+- [x] 8-hour session age filter (idle sessions stay visible all day)
+- [x] Homeserver kiosk auto-display (systemd + X11 + Chrome)
+- [x] Passwordless sudo for service restarts
+- [x] Smart pre-push hook (only restarts server when code changes)
