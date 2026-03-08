@@ -68,17 +68,9 @@ check_server() {
     response=$(curl -s --connect-timeout 3 --max-time 5 "$STATUS_URL" 2>/dev/null)
     if [ $? -ne 0 ]; then return 1; fi
 
-    # Count agents that are actually doing something (not idle)
-    # Active = isWaiting:false OR activeTools > 0
-    local active=0
-    # Count agents with isWaiting:false
-    active=$(echo "$response" | grep -o '"isWaiting":false' | wc -l)
-    # Also count agents with activeTools > 0
-    local with_tools
-    with_tools=$(echo "$response" | grep -o '"activeTools":[1-9][0-9]*' | wc -l)
-    if [ "$with_tools" -gt "$active" ]; then active=$with_tools; fi
-
-    if [ "$active" -eq 0 ]; then return 1; fi
+    local count
+    count=$(echo "$response" | grep -o '"count":[0-9]*' | grep -o '[0-9]*')
+    if [ -z "$count" ] || [ "$count" -eq 0 ]; then return 1; fi
 
     return 0
 }
@@ -126,7 +118,7 @@ while true; do
     else
         if [ "$IS_SHOWING" = true ]; then
             # Grace period: check again before stopping
-            sleep 15
+            sleep 60
             if ! check_server; then
                 log "Server/agents gone, switching back..."
                 stop_kiosk

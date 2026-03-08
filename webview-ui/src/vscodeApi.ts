@@ -2,12 +2,15 @@ function createStandaloneApi(): { postMessage(msg: unknown): void } {
   const pending: unknown[] = []
   let ws: WebSocket | null = null
   let connected = false
+  let disconnectedSince: number | null = null
+  const RELOAD_AFTER_MS = 30_000 // full page reload after 30s disconnected
 
   function connect() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
     ws = new WebSocket(`${proto}//${location.host}`)
     ws.onopen = () => {
       connected = true
+      disconnectedSince = null
       // Re-send webviewReady on every reconnect so the server sends assets + agents
       ws!.send(JSON.stringify({ type: 'webviewReady' }))
       for (const msg of pending) {
@@ -23,9 +26,17 @@ function createStandaloneApi(): { postMessage(msg: unknown): void } {
     }
     ws.onclose = () => {
       connected = false
+      if (!disconnectedSince) disconnectedSince = Date.now()
       setTimeout(connect, 2000)
     }
   }
+
+  // Periodically check if we've been disconnected too long — full reload recovers from stale state
+  setInterval(() => {
+    if (disconnectedSince && Date.now() - disconnectedSince > RELOAD_AFTER_MS) {
+      window.location.reload()
+    }
+  }, 5000)
 
   connect()
 
