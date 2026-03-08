@@ -22,6 +22,9 @@ const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/p
 const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000;
 let galleryCache = null; // { data, fetchedAt }
 
+// Local gallery repo path for development (fallback when GitHub repo is private)
+const GALLERY_LOCAL_DIR = path.join(__dirname, '..', 'pixel-office-layouts');
+
 function fetchFromGitHub(urlPath) {
   const url = GALLERY_REPO_RAW_BASE + urlPath;
   return new Promise((resolve, reject) => {
@@ -37,7 +40,18 @@ function fetchFromGitHub(urlPath) {
         }).on('error', reject);
         return;
       }
-      if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); res.resume(); return; }
+      if (res.statusCode !== 200) {
+        res.resume();
+        // Fallback: try local gallery repo directory
+        const localPath = path.join(GALLERY_LOCAL_DIR, urlPath);
+        if (fs.existsSync(localPath)) {
+          console.log(`[gallery] GitHub 404, serving from local: ${localPath}`);
+          resolve(fs.readFileSync(localPath));
+        } else {
+          reject(new Error(`HTTP ${res.statusCode}`));
+        }
+        return;
+      }
       const chunks = [];
       res.on('data', (c) => chunks.push(c));
       res.on('end', () => resolve(Buffer.concat(chunks)));
