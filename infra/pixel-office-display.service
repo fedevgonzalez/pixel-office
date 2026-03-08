@@ -12,9 +12,10 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Cap memory at 2GB — prevents OOM killer from affecting other services
+# Memory limits — MemoryHigh is the soft throttle threshold.
+# Too low causes constant kernel throttling (freezes JS event loop).
 MemoryMax=2G
-MemoryHigh=1536M
+MemoryHigh=1800M
 
 [Install]
 WantedBy=multi-user.target
