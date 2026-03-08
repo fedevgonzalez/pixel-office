@@ -761,7 +761,9 @@ const WebSocket = require('ws');
 async function handleClientMessage(ws, msg) {
   if (msg.type === 'healthPong') {
     ws._healthPongAt = Date.now();
-    ws._renderHealthy = true;
+    ws._lastFrameAge = msg.frameAge ?? -1;
+    // Render is healthy only if rAF ran within the last 5 seconds
+    ws._renderHealthy = typeof msg.frameAge === 'number' && msg.frameAge >= 0 && msg.frameAge < 5;
     return;
   }
 
@@ -980,6 +982,7 @@ const server = http.createServer((req, res) => {
       lastPongAge: Math.round((now - (ws._lastPongAt || 0)) / 1000),
       alive: !!ws._isAlive,
       renderHealthy: ws._renderHealthy !== false, // true until proven otherwise
+      frameAge: ws._lastFrameAge ?? null,
       lastHealthPongAge: ws._healthPongAt ? Math.round((now - ws._healthPongAt) / 1000) : null,
     }));
     // Client is OK only if both WS pong AND JS render pong are recent

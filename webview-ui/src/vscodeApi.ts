@@ -23,9 +23,15 @@ function createStandaloneApi(): { postMessage(msg: unknown): void } {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data)
-        // App-level health ping — respond immediately to prove JS render thread is alive
+        // App-level health ping — respond with frame age to prove render pipeline is alive
         if (data.type === 'healthPing') {
-          ws!.send(JSON.stringify({ type: 'healthPong', ts: data.ts }))
+          // Dynamic import to avoid circular deps — lastFrameAt is updated every rAF
+          import('./office/engine/gameLoop.js').then(({ lastFrameAt }) => {
+            const frameAge = lastFrameAt > 0 ? Math.round((Date.now() - lastFrameAt) / 1000) : -1
+            ws!.send(JSON.stringify({ type: 'healthPong', ts: data.ts, frameAge }))
+          }).catch(() => {
+            ws!.send(JSON.stringify({ type: 'healthPong', ts: data.ts, frameAge: -1 }))
+          })
           return
         }
         window.dispatchEvent(new MessageEvent('message', { data }))
