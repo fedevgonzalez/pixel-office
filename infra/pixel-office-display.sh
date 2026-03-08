@@ -111,6 +111,12 @@ check_server() {
 check_processes_alive() {
     if [ "$IS_SHOWING" = false ]; then return 0; fi
 
+    # Skip during startup — processes need a few seconds to spawn
+    local now
+    now=$(date +%s)
+    local age=$((now - CHROME_STARTED_AT))
+    if [ "$age" -lt 10 ]; then return 0; fi
+
     # Check if xinit PID is still running
     if [ -n "$XINIT_PID" ] && ! kill -0 "$XINIT_PID" 2>/dev/null; then
         log "xinit process $XINIT_PID died unexpectedly"
