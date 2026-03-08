@@ -37,6 +37,7 @@ start_kiosk() {
     pkill -f "chrome.*kiosk" 2>/dev/null
     pkill -f "google-chrome" 2>/dev/null
     pkill -f "unclutter" 2>/dev/null
+    pkill -f "dbus-daemon.*--session" 2>/dev/null
     pkill Xorg 2>/dev/null
     sleep 1
 
@@ -74,10 +75,11 @@ stop_kiosk() {
         kill "$XINIT_PID" 2>/dev/null
         wait "$XINIT_PID" 2>/dev/null
     fi
-    # Cleanup any orphans
+    # Cleanup any orphans (including dbus-session leaked by dbus-run-session)
     pkill -f "chrome.*kiosk" 2>/dev/null
     pkill -f "google-chrome" 2>/dev/null
     pkill -f "unclutter" 2>/dev/null
+    pkill -f "dbus-daemon.*--session" 2>/dev/null
     pkill Xorg 2>/dev/null
 
     XINIT_PID=""
