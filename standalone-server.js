@@ -963,6 +963,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // API: client health — reports whether any browser client is responsive
+  // Used by the display script to detect frozen Chrome (replaces D-state grep)
+  if (urlPath === '/api/client-health') {
+    const now = Date.now();
+    const clients = wsClients.map(ws => ({
+      lastPongAge: Math.round((now - (ws._lastPongAt || 0)) / 1000),
+      alive: !!ws._isAlive,
+    }));
+    const anyAlive = clients.some(c => c.lastPongAge < 30);
+    const body = JSON.stringify({ ok: anyAlive, clients });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(body);
+    return;
+  }
+
   // API: status endpoint for remote monitoring
   if (urlPath === '/api/status') {
     const agentList = [];
@@ -1018,9 +1033,19 @@ wss.on('connection', (ws, req) => {
 
   // Regular UI client connections
   wsClients.push(ws);
+  ws._lastPongAt = Date.now();
+  ws._isAlive = true;
   console.log('WebSocket client connected');
 
+  ws.on('pong', () => {
+    ws._lastPongAt = Date.now();
+    ws._isAlive = true;
+  });
+
   ws.on('message', (data) => {
+    // Any message counts as proof of life
+    ws._lastPongAt = Date.now();
+    ws._isAlive = true;
     try {
       const msg = JSON.parse(data.toString());
       handleClientMessage(ws, msg);
@@ -1036,6 +1061,20 @@ wss.on('connection', (ws, req) => {
     wsClients = wsClients.filter(c => c !== ws);
   });
 });
+
+// Ping all UI clients every 15s to detect frozen browsers
+setInterval(() => {
+  for (const ws of wsClients) {
+    if (!ws._isAlive) {
+      // Client didn't respond to previous ping — connection is dead
+      console.log('WebSocket client unresponsive, terminating');
+      ws.terminate();
+      continue;
+    }
+    ws._isAlive = false;
+    try { ws.ping(); } catch {}
+  }
+}, 15000);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Pixel Office: http://localhost:${PORT} (listening on all interfaces)`);

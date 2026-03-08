@@ -113,20 +113,16 @@ check_chrome_health() {
 
     # 1. Check if any Chrome process is in D (uninterruptible sleep) state
     #    ps output: "PID STAT COMM" -> "1808528 D<l chrome" -> D comes before chrome
-    # Check for PERSISTENT D-state. Transient D-state (poll/read syscalls) is normal.
-    # Only restart if the same PID is still in D-state after a 5-second wait.
-    local chrome_d_state
-    chrome_d_state=$(ps -eo pid,stat,comm | grep chrome | grep -E "^[[:space:]]*[0-9]+ D" | head -1)
-    if [ -n "$chrome_d_state" ]; then
-        local d_pid
-        d_pid=$(echo "$chrome_d_state" | awk '{print $1}')
-        sleep 5
-        local still_d
-        still_d=$(ps -p "$d_pid" -o stat= 2>/dev/null | grep -c "^D")
-        if [ "$still_d" -gt 0 ]; then
-            local wchan
-            wchan=$(cat "/proc/$d_pid/wchan" 2>/dev/null || echo "unknown")
-            reason="Chrome frozen (D state, persistent 5s): PID $d_pid [wchan=$wchan]"
+    # 1. WebSocket ping/pong health check — most reliable freeze detection.
+    #    The server pings browser clients every 15s; /api/client-health reports
+    #    whether any client responded in the last 30s. A frozen Chrome can't pong.
+    local health_response
+    health_response=$(curl -s --connect-timeout 2 --max-time 3 "http://${PIXEL_OFFICE_HOST}:3300/api/client-health" 2>/dev/null)
+    if [ -n "$health_response" ]; then
+        local client_ok
+        client_ok=$(echo "$health_response" | grep -c '"ok":true')
+        if [ "$client_ok" -eq 0 ]; then
+            reason="Chrome unresponsive (no WebSocket pong in 30s)"
             needs_restart=true
         fi
     fi

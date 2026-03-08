@@ -27,10 +27,12 @@ const PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 min — sessions with no file changes are considered dead
 
 let ws = null;
 let connected = false;
 const sessions = new Map(); // filePath -> { sessionId, offset, watcher, pollInterval, folderName }
+const skippedFiles = new Map(); // filePath -> mtimeMs at time of skip (re-detect if mtime changes)
 
 function log(msg) {
   console.log(`[${new Date().toLocaleTimeString()}] ${msg}`);
@@ -200,6 +202,13 @@ function scanLocalFiles() {
         const stat = fs.statSync(file);
         if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
         if (hasExitCommand(file)) continue;
+        // Skip files that were idle-timed-out unless their mtime changed (new activity)
+        const skippedMtime = skippedFiles.get(file);
+        if (skippedMtime !== undefined) {
+          if (stat.mtimeMs <= skippedMtime) continue;
+          skippedFiles.delete(file); // new activity — allow re-detection
+          log(`Re-detected activity: ${path.basename(file, '.jsonl')}`);
+        }
         activeFiles.add(file);
       } catch {}
     }
@@ -220,11 +229,21 @@ function scan() {
     startSession(file, projDir);
   }
 
-  // End sessions for files no longer active
+  // End sessions for files no longer active or idle too long
   for (const [filePath] of [...sessions]) {
     if (!activeFiles.has(filePath)) {
       endSession(filePath);
+      continue;
     }
+    // End sessions whose JSONL hasn't been modified in IDLE_TIMEOUT_MS
+    try {
+      const stat = fs.statSync(filePath);
+      if (Date.now() - stat.mtimeMs > IDLE_TIMEOUT_MS) {
+        log(`Idle timeout: ${sessions.get(filePath)?.folderName || filePath}`);
+        skippedFiles.set(filePath, stat.mtimeMs); // prevent re-detection flapping
+        endSession(filePath);
+      }
+    } catch {}
   }
 }
 
