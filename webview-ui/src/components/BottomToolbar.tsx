@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { SettingsModal } from './SettingsModal.js'
+import { GalleryModal } from './GalleryModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
 
@@ -54,6 +55,7 @@ export function BottomToolbar({
 }: BottomToolbarProps) {
   const [hovered, setHovered] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
+  const [isGalleryOpen, setIsGalleryOpen] = useState(false)
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false)
   const [hoveredFolder, setHoveredFolder] = useState<number | null>(null)
   const folderPickerRef = useRef<HTMLDivElement>(null)
@@ -164,6 +166,23 @@ export function BottomToolbar({
       >
         Layout
       </button>
+      <button
+        onClick={() => setIsGalleryOpen((v) => !v)}
+        onMouseEnter={() => setHovered('gallery')}
+        onMouseLeave={() => setHovered(null)}
+        style={
+          isGalleryOpen
+            ? { ...btnActive }
+            : {
+                ...btnBase,
+                background: hovered === 'gallery' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
+              }
+        }
+        title="Browse community layouts"
+      >
+        Community
+      </button>
+      <GalleryModal isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} />
       <div style={{ position: 'relative' }}>
         <button
           onClick={() => setIsSettingsOpen((v) => !v)}

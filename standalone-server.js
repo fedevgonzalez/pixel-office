@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const https = require('https');
 const os = require('os');
 const { PNG } = require('pngjs');
 
@@ -17,6 +18,33 @@ const PERMISSION_TIMER_DELAY_MS = 7000;
 const BASH_CMD_MAX = 30;
 const TASK_DESC_MAX = 40;
 const PNG_ALPHA_THRESHOLD = 128;
+const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/pixel-office-layouts/main/';
+const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000;
+let galleryCache = null; // { data, fetchedAt }
+
+function fetchFromGitHub(urlPath) {
+  const url = GALLERY_REPO_RAW_BASE + urlPath;
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      if (res.statusCode === 301 || res.statusCode === 302) {
+        const loc = res.headers.location;
+        if (!loc) { reject(new Error('Redirect without location')); return; }
+        https.get(loc, (r2) => {
+          const chunks = [];
+          r2.on('data', (c) => chunks.push(c));
+          r2.on('end', () => resolve(Buffer.concat(chunks)));
+          r2.on('error', reject);
+        }).on('error', reject);
+        return;
+      }
+      if (res.statusCode !== 200) { reject(new Error(`HTTP ${res.statusCode}`)); res.resume(); return; }
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+}
 
 const PERMISSION_EXEMPT_TOOLS = new Set([
   'Task', 'AskUserQuestion', 'ToolSearch',
@@ -801,6 +829,48 @@ async function handleClientMessage(ws, msg) {
     }
   } else if (msg.type === 'closeAgent') {
     removeAgent(msg.id, 'closed by user');
+  } else if (msg.type === 'fetchGalleryManifest') {
+    (async () => {
+      try {
+        if (galleryCache && Date.now() - galleryCache.fetchedAt < GALLERY_CACHE_TTL_MS) {
+          ws.send(JSON.stringify({ type: 'galleryManifest', manifest: galleryCache.data }));
+          return;
+        }
+        const buf = await fetchFromGitHub('gallery.json');
+        const manifest = JSON.parse(buf.toString('utf-8'));
+        galleryCache = { data: manifest, fetchedAt: Date.now() };
+        ws.send(JSON.stringify({ type: 'galleryManifest', manifest }));
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'galleryManifest', manifest: null, error: String(e) }));
+      }
+    })();
+  } else if (msg.type === 'fetchGalleryScreenshot') {
+    (async () => {
+      try {
+        const buf = await fetchFromGitHub(msg.path);
+        const dataUrl = `data:image/png;base64,${buf.toString('base64')}`;
+        ws.send(JSON.stringify({ type: 'galleryScreenshot', path: msg.path, dataUrl }));
+      } catch {
+        ws.send(JSON.stringify({ type: 'galleryScreenshot', path: msg.path, dataUrl: '' }));
+      }
+    })();
+  } else if (msg.type === 'fetchGalleryLayout') {
+    (async () => {
+      try {
+        const buf = await fetchFromGitHub(msg.path);
+        const layout = JSON.parse(buf.toString('utf-8'));
+        ws.send(JSON.stringify({ type: 'galleryLayout', path: msg.path, layout }));
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'galleryLayout', path: msg.path, layout: null, error: String(e) }));
+      }
+    })();
+  } else if (msg.type === 'importGalleryLayout') {
+    if (msg.layout && msg.layout.version === 1 && Array.isArray(msg.layout.tiles)) {
+      saveLayout(msg.layout);
+      for (const client of wsClients) {
+        try { client.send(JSON.stringify({ type: 'layoutLoaded', layout: msg.layout })); } catch {}
+      }
+    }
   }
 }
 
@@ -853,6 +923,29 @@ const server = http.createServer((req, res) => {
     res.end(body);
     console.log('Restart requested via /api/restart');
     setTimeout(() => process.exit(0), 500);
+    return;
+  }
+
+  // API: community gallery proxy
+  if (urlPath === '/api/gallery') {
+    (async () => {
+      try {
+        if (galleryCache && Date.now() - galleryCache.fetchedAt < GALLERY_CACHE_TTL_MS) {
+          const body = JSON.stringify(galleryCache.data);
+          res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(body);
+          return;
+        }
+        const buf = await fetchFromGitHub('gallery.json');
+        const manifest = JSON.parse(buf.toString('utf-8'));
+        galleryCache = { data: manifest, fetchedAt: Date.now() };
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(buf);
+      } catch (e) {
+        res.writeHead(502, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: String(e) }));
+      }
+    })();
     return;
   }
 

@@ -15,7 +15,8 @@ import {
 } from './agentManager.js';
 import { ensureProjectScan, autoDetectActiveAgents } from './fileWatcher.js';
 import { loadFurnitureAssets, sendAssetsToWebview, loadFloorTiles, sendFloorTilesToWebview, loadWallTiles, sendWallTilesToWebview, loadCharacterSprites, sendCharacterSpritesToWebview, loadDefaultLayout } from './assetLoader.js';
-import { WORKSPACE_KEY_AGENT_SEATS, GLOBAL_KEY_SOUND_ENABLED } from './constants.js';
+import { WORKSPACE_KEY_AGENT_SEATS, GLOBAL_KEY_SOUND_ENABLED, GALLERY_REPO_RAW_BASE, GALLERY_CACHE_TTL_MS } from './constants.js';
+import * as https from 'https';
 import { writeLayoutToFile, readLayoutFromFile, watchLayoutFile } from './layoutPersistence.js';
 import type { LayoutWatcher } from './layoutPersistence.js';
 
@@ -43,7 +44,42 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
 	// Cross-window layout sync
 	layoutWatcher: LayoutWatcher | null = null;
 
+	// Gallery cache
+	private galleryCache: { data: unknown; fetchedAt: number } | null = null;
+
 	constructor(private readonly context: vscode.ExtensionContext) {}
+
+	private fetchFromGitHub(urlPath: string): Promise<Buffer> {
+		const url = GALLERY_REPO_RAW_BASE + urlPath;
+		return new Promise((resolve, reject) => {
+			https.get(url, (res) => {
+				if (res.statusCode === 301 || res.statusCode === 302) {
+					// Follow redirect
+					const redirectUrl = res.headers.location;
+					if (redirectUrl) {
+						https.get(redirectUrl, (res2) => {
+							const chunks: Buffer[] = [];
+							res2.on('data', (chunk: Buffer) => chunks.push(chunk));
+							res2.on('end', () => resolve(Buffer.concat(chunks)));
+							res2.on('error', reject);
+						}).on('error', reject);
+					} else {
+						reject(new Error('Redirect without location'));
+					}
+					return;
+				}
+				if (res.statusCode !== 200) {
+					reject(new Error(`HTTP ${res.statusCode}`));
+					res.resume();
+					return;
+				}
+				const chunks: Buffer[] = [];
+				res.on('data', (chunk: Buffer) => chunks.push(chunk));
+				res.on('end', () => resolve(Buffer.concat(chunks)));
+				res.on('error', reject);
+			}).on('error', reject);
+		});
+	}
 
 	private get extensionUri(): vscode.Uri {
 		return this.context.extensionUri;
@@ -276,6 +312,47 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
 				} catch {
 					vscode.window.showErrorMessage('Pixel Office: Failed to read or parse layout file.');
 				}
+			} else if (message.type === 'fetchGalleryManifest') {
+				try {
+					if (this.galleryCache && Date.now() - this.galleryCache.fetchedAt < GALLERY_CACHE_TTL_MS) {
+						this.webview?.postMessage({ type: 'galleryManifest', manifest: this.galleryCache.data });
+						return;
+					}
+					const buf = await this.fetchFromGitHub('gallery.json');
+					const manifest = JSON.parse(buf.toString('utf-8'));
+					this.galleryCache = { data: manifest, fetchedAt: Date.now() };
+					this.webview?.postMessage({ type: 'galleryManifest', manifest });
+				} catch (e) {
+					this.webview?.postMessage({ type: 'galleryManifest', manifest: null, error: String(e) });
+				}
+			} else if (message.type === 'fetchGalleryScreenshot') {
+				try {
+					const buf = await this.fetchFromGitHub(message.path as string);
+					const dataUrl = `data:image/png;base64,${buf.toString('base64')}`;
+					this.webview?.postMessage({ type: 'galleryScreenshot', path: message.path, dataUrl });
+				} catch {
+					this.webview?.postMessage({ type: 'galleryScreenshot', path: message.path, dataUrl: '' });
+				}
+			} else if (message.type === 'fetchGalleryLayout') {
+				try {
+					const buf = await this.fetchFromGitHub(message.path as string);
+					const layout = JSON.parse(buf.toString('utf-8'));
+					this.webview?.postMessage({ type: 'galleryLayout', path: message.path, layout });
+				} catch (e) {
+					this.webview?.postMessage({ type: 'galleryLayout', path: message.path, layout: null, error: String(e) });
+				}
+			} else if (message.type === 'importGalleryLayout') {
+				const imported = message.layout as Record<string, unknown>;
+				if (imported.version !== 1 || !Array.isArray(imported.tiles)) {
+					this.webview?.postMessage({ type: 'galleryImportResult', success: false, error: 'Invalid layout' });
+					return;
+				}
+				this.layoutWatcher?.markOwnWrite();
+				writeLayoutToFile(imported);
+				this.webview?.postMessage({ type: 'layoutLoaded', layout: imported });
+				this.webview?.postMessage({ type: 'galleryImportResult', success: true });
+			} else if (message.type === 'openExternal') {
+				vscode.env.openExternal(vscode.Uri.parse(message.url as string));
 			}
 		});
 

@@ -33,6 +33,10 @@ export const LAYOUT_FILE_POLL_INTERVAL_MS = 2000;
 // ── Settings Persistence ────────────────────────────────────
 export const GLOBAL_KEY_SOUND_ENABLED = 'pixel-office.soundEnabled';
 
+// ── Community Gallery ────────────────────────────────────────
+export const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/pixel-office-layouts/main/';
+export const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 // ── VS Code Identifiers ─────────────────────────────────────
 export const VIEW_ID = 'pixel-office.panelView';
 export const COMMAND_SHOW_PANEL = 'pixel-office.showPanel';
