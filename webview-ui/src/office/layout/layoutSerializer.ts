@@ -262,6 +262,11 @@ export function createDefaultLayout(): OfficeLayout {
     { uid: 'chair-r-bottom', type: FurnitureType.CHAIR, col: 14, row: 5 },
     { uid: 'chair-r-left', type: FurnitureType.CHAIR, col: 12, row: 4 },
     { uid: 'chair-r-right', type: FurnitureType.CHAIR, col: 15, row: 3 },
+    // Door (top wall, left room)
+    { uid: 'door-main', type: FurnitureType.DOOR, col: 8, row: 0 },
+    // Break room items (right room carpet area)
+    { uid: 'coffee-1', type: FurnitureType.COFFEE_MACHINE, col: 18, row: 7 },
+    { uid: 'couch-1', type: FurnitureType.BREAK_COUCH, col: 15, row: 9 },
   ]
 
   return { version: 1, cols: DEFAULT_COLS, rows: DEFAULT_ROWS, tiles, tileColors, furniture }

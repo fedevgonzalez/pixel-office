@@ -323,6 +323,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           hoveredTile: officeState.hoveredTile,
           seats: officeState.seats,
           characters: officeState.characters,
+          selectedPetId: officeState.selectedPetId,
+          hoveredPetId: officeState.hoveredPetId,
         }
 
         const { offsetX, offsetY } = renderFrame(
@@ -498,9 +500,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
       const tile = screenToTile(e.clientX, e.clientY)
       officeState.hoveredTile = tile
       const canvas = canvasRef.current
+      // Pet hover
+      const petHitId = pos ? officeState.getPetAt(pos.worldX, pos.worldY) : null
+      officeState.hoveredPetId = petHitId
+
       if (canvas) {
         let cursor = 'default'
-        if (hitId !== null) {
+        if (hitId !== null || petHitId !== null) {
           cursor = 'pointer'
         } else if (officeState.selectedAgentId !== null && tile) {
           // Check if hovering over a clickable seat (available or own)
@@ -682,11 +688,26 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           officeState.selectedAgentId = hitId
           officeState.cameraFollowId = hitId
         }
+        officeState.selectedPetId = null // deselect pet when clicking agent
         onClick(hitId) // still focus terminal
         return
       }
 
-      // No agent hit — check seat click while agent is selected
+      // Check pet hit
+      const hitPetId = officeState.getPetAt(pos.worldX, pos.worldY)
+      if (hitPetId !== null) {
+        officeState.selectedAgentId = null // deselect agent
+        officeState.cameraFollowId = null
+        if (officeState.selectedPetId === hitPetId) {
+          officeState.selectedPetId = null
+        } else {
+          officeState.selectedPetId = hitPetId
+          officeState.triggerPetReaction(hitPetId) // reaction on click
+        }
+        return
+      }
+
+      // No agent or pet hit — check seat click while agent is selected
       if (officeState.selectedAgentId !== null) {
         const selectedCh = officeState.characters.get(officeState.selectedAgentId)
         // Skip seat reassignment for sub-agents
@@ -724,6 +745,15 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         // Clicked empty space — deselect
         officeState.selectedAgentId = null
         officeState.cameraFollowId = null
+      }
+      // Also deselect pet if clicking empty space
+      if (officeState.selectedPetId !== null && hitPetId === null) {
+        // If pet is selected and user clicks walkable tile, send pet there
+        const tile = screenToTile(e.clientX, e.clientY)
+        if (tile) {
+          officeState.walkPetToTile(officeState.selectedPetId, tile.col, tile.row)
+        }
+        officeState.selectedPetId = null
       }
     },
     [officeState, onClick, screenToWorld, screenToTile, isEditMode],

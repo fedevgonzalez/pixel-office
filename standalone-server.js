@@ -9,7 +9,7 @@ const https = require('https');
 const os = require('os');
 const { PNG } = require('pngjs');
 
-const PORT = 3300;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3300;
 const SCAN_INTERVAL_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const TOOL_DONE_DELAY_MS = 300;
@@ -880,6 +880,9 @@ async function handleClientMessage(ws, msg) {
     })();
   } else if (msg.type === 'importGalleryLayout') {
     if (msg.layout && msg.layout.version === 1 && Array.isArray(msg.layout.tiles)) {
+      // Pets are personal — never import them from community layouts
+      const currentLayout = loadLayout();
+      msg.layout.pets = currentLayout?.pets || [];
       saveLayout(msg.layout);
       for (const client of wsClients) {
         try { client.send(JSON.stringify({ type: 'layoutLoaded', layout: msg.layout })); } catch {}

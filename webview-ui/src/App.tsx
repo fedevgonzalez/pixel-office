@@ -6,7 +6,7 @@ import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
 import { EditTool } from './office/types.js'
-import type { PlacedPet } from './office/types.js'
+import type { PlacedPet, PetColors } from './office/types.js'
 import { isRotatable } from './office/layout/furnitureCatalog.js'
 import { vscode } from './vscodeApi.js'
 import { useExtensionMessages } from './hooks/useExtensionMessages.js'
@@ -127,6 +127,7 @@ function App() {
   const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const [isDebugMode, setIsDebugMode] = useState(false)
+  const [petVersion, setPetVersion] = useState(0)
 
   const handleToggleDebugMode = useCallback(() => setIsDebugMode((prev) => !prev), [])
 
@@ -166,7 +167,8 @@ function App() {
       name: petData.name,
       col: tile.col,
       row: tile.row,
-      color: petData.color,
+      petColors: petData.petColors,
+      personality: petData.personality,
     }
     // Add to layout
     const layout = os.getLayout()
@@ -175,6 +177,25 @@ function App() {
     os.rebuildFromLayout(newLayout)
     // Save
     vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+    setPetVersion(v => v + 1)
+  }, [])
+
+  const handleDeletePet = useCallback((uid: string) => {
+    const os = getOfficeState()
+    const newLayout = os.deletePet(uid)
+    if (newLayout) {
+      vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+      setPetVersion(v => v + 1)
+    }
+  }, [])
+
+  const handleEditPet = useCallback((uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => {
+    const os = getOfficeState()
+    const newLayout = os.editPet(uid, updates)
+    if (newLayout) {
+      vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+      setPetVersion(v => v + 1)
+    }
   }, [])
 
   const handleClick = useCallback((agentId: number) => {
@@ -189,6 +210,8 @@ function App() {
 
   // Force dependency on editorTickForKeyboard to propagate keyboard-triggered re-renders
   void editorTickForKeyboard
+  // Force dependency on petVersion so modal re-renders after add/delete/edit
+  void petVersion
 
   // Show "Press R to rotate" hint when a rotatable item is selected or being placed
   const showRotateHint = editor.isEditMode && (() => {
@@ -269,7 +292,10 @@ function App() {
           isDebugMode={isDebugMode}
           onToggleDebugMode={handleToggleDebugMode}
           workspaceFolders={workspaceFolders}
+          pets={officeState.getLayout().pets || []}
           onAddPet={handleAddPet}
+          onDeletePet={handleDeletePet}
+          onEditPet={handleEditPet}
         />
       )}
 

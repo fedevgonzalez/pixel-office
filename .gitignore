@@ -8,3 +8,5 @@ node_modules
 /sprites-export
 .env
 .playwright-mcp
+*.png
+null

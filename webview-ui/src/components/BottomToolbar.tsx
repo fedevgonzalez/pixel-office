@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { SettingsModal } from './SettingsModal.js'
 import { GalleryModal } from './GalleryModal.js'
-import { PetCreatorModal } from './PetCreatorModal.js'
+import { PetManagerModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
-import type { PlacedPet } from '../office/types.js'
+import type { PlacedPet, PetColors } from '../office/types.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
 
 interface BottomToolbarProps {
@@ -13,7 +13,10 @@ interface BottomToolbarProps {
   isDebugMode: boolean
   onToggleDebugMode: () => void
   workspaceFolders: WorkspaceFolder[]
+  pets: PlacedPet[]
   onAddPet?: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
+  onDeletePet?: (uid: string) => void
+  onEditPet?: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => void
 }
 
 const panelStyle: React.CSSProperties = {
@@ -55,7 +58,10 @@ export function BottomToolbar({
   isDebugMode,
   onToggleDebugMode,
   workspaceFolders,
+  pets,
   onAddPet,
+  onDeletePet,
+  onEditPet,
 }: BottomToolbarProps) {
   const [hovered, setHovered] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -106,7 +112,7 @@ export function BottomToolbar({
             background:
               hovered === 'agent' || isFolderPickerOpen
                 ? 'var(--pixel-agent-hover-bg)'
-                : 'rgba(90, 200, 140, 0.22)',
+                : 'var(--pixel-agent-bg)',
             border: '2px solid var(--pixel-agent-border)',
             color: 'var(--pixel-agent-text)',
           }}
@@ -204,14 +210,16 @@ export function BottomToolbar({
       >
         Pets
       </button>
-      {isPetCreatorOpen && onAddPet && (
-        <PetCreatorModal
+      {isPetCreatorOpen && onAddPet && onDeletePet && onEditPet && (
+        <PetManagerModal
           isOpen={isPetCreatorOpen}
           onClose={() => setIsPetCreatorOpen(false)}
+          pets={pets}
           onCreatePet={(pet) => {
             onAddPet(pet)
-            setIsPetCreatorOpen(false)
           }}
+          onDeletePet={onDeletePet}
+          onEditPet={onEditPet}
         />
       )}
       <div style={{ position: 'relative' }}>

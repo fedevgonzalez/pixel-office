@@ -250,3 +250,218 @@ export function getPetSprites(species: string): PetSpriteSet {
     default: return CAT_SPRITES
   }
 }
+
+/** Derive light/dark body shades from a mid-tone hex color */
+function deriveBodyShades(midHex: string): { light: string; mid: string; dark: string } {
+  const r = parseInt(midHex.slice(1, 3), 16)
+  const g = parseInt(midHex.slice(3, 5), 16)
+  const b = parseInt(midHex.slice(5, 7), 16)
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)))
+  const toHex = (v: number) => clamp(v).toString(16).padStart(2, '0')
+  // Light: brighten by ~40%
+  const light = `#${toHex(r + (255 - r) * 0.4)}${toHex(g + (255 - g) * 0.4)}${toHex(b + (255 - b) * 0.4)}`
+  // Dark: darken by ~40%
+  const dark = `#${toHex(r * 0.6)}${toHex(g * 0.6)}${toHex(b * 0.6)}`
+  return { light, mid: midHex, dark }
+}
+
+/** Build a color replacement map for a pet sprite given custom colors */
+export function buildPetColorMap(
+  species: string,
+  petColors: { body?: string; eyes?: string; nose?: string },
+): Map<string, string> | null {
+  const hasAny = petColors.body || petColors.eyes || petColors.nose
+  if (!hasAny) return null
+
+  const isCat = species !== 'dog'
+  const map = new Map<string, string>()
+
+  if (petColors.body) {
+    const shades = deriveBodyShades(petColors.body)
+    if (isCat) {
+      map.set(W, shades.light)
+      map.set(G, shades.mid)
+      map.set(D, shades.dark)
+      map.set(T, shades.dark) // tail follows body dark
+    } else {
+      map.set(Dl, shades.light)
+      map.set(Dm, shades.mid)
+      map.set(Db, shades.dark)
+    }
+  }
+
+  if (petColors.eyes) {
+    if (isCat) {
+      map.set(E, petColors.eyes)
+    } else {
+      map.set(De, petColors.eyes)
+    }
+  }
+
+  if (petColors.nose) {
+    if (isCat) {
+      map.set(P, petColors.nose)
+    } else {
+      map.set(Dn, petColors.nose)
+    }
+  }
+
+  return map.size > 0 ? map : null
+}
+
+/** Apply palette swap to a sprite using a color replacement map */
+export function swapPetPalette(sprite: SpriteData, colorMap: Map<string, string>): SpriteData {
+  return sprite.map((row) =>
+    row.map((px) => {
+      if (px === '') return px
+      const lower = px.toLowerCase()
+      return colorMap.get(lower) ?? colorMap.get(px) ?? px
+    }),
+  )
+}
+
+/** Check if a pixel is a body color for the given species */
+function isBodyPixel(px: string, species: string): 'light' | 'mid' | 'dark' | null {
+  if (species === 'dog') {
+    if (px === Dl) return 'light'
+    if (px === Dm) return 'mid'
+    if (px === Db) return 'dark'
+    return null
+  }
+  // Cat (default)
+  if (px === W) return 'light'
+  if (px === G) return 'mid'
+  if (px === D || px === T) return 'dark'
+  return null
+}
+
+/** Determine if a pixel position should use the secondary (pattern) color */
+function shouldUseSecondary(row: number, col: number, pattern: string): boolean {
+  switch (pattern) {
+    case 'striped':
+      // Horizontal bands, 2px wide
+      return Math.floor(row / 2) % 2 === 1
+    case 'spotted':
+      // Scattered spots using pseudo-random hash
+      return ((row * 7 + col * 13) % 9) < 2
+    case 'bicolor':
+      // Left/right split
+      return col >= 8
+    case 'tuxedo':
+      // Center chest area (front view appearance)
+      return col >= 5 && col <= 10 && row >= 4
+    default:
+      return false
+  }
+}
+
+/**
+ * Combined palette swap + pattern application in a single pass.
+ * Handles body colors, eye/nose swap, and pattern overlay.
+ */
+export function colorPetSprite(
+  sprite: SpriteData,
+  species: string,
+  petColors: { body?: string; eyes?: string; nose?: string; pattern?: string; patternColor?: string },
+): SpriteData {
+  const hasBody = !!petColors.body
+  const hasEyes = !!petColors.eyes
+  const hasNose = !!petColors.nose
+  const hasPattern = !!petColors.pattern && petColors.pattern !== 'solid' && !!petColors.patternColor
+
+  if (!hasBody && !hasEyes && !hasNose && !hasPattern) return sprite
+
+  const primaryShades = hasBody ? deriveBodyShades(petColors.body!) : null
+  const secondaryShades = hasPattern ? deriveBodyShades(petColors.patternColor!) : null
+  const isCat = species !== 'dog'
+  const eyeSource = isCat ? E : De
+  const noseSource = isCat ? P : Dn
+
+  return sprite.map((row, rowIdx) =>
+    row.map((px, colIdx) => {
+      if (px === '') return px
+
+      // Check body pixel
+      const bodyShade = isBodyPixel(px, species)
+      if (bodyShade !== null) {
+        // Determine if pattern secondary applies
+        if (hasPattern && shouldUseSecondary(rowIdx, colIdx, petColors.pattern!)) {
+          if (bodyShade === 'light') return secondaryShades!.light
+          if (bodyShade === 'dark') return secondaryShades!.dark
+          return secondaryShades!.mid
+        }
+        // Primary body color
+        if (primaryShades) {
+          if (bodyShade === 'light') return primaryShades.light
+          if (bodyShade === 'dark') return primaryShades.dark
+          return primaryShades.mid
+        }
+      }
+
+      // Eye swap
+      if (px === eyeSource && hasEyes) return petColors.eyes!
+
+      // Nose swap
+      if (px === noseSource && hasNose) return petColors.nose!
+
+      return px
+    }),
+  )
+}
+
+// ── Pet bubble sprites ─────────────────────────────────────
+
+const R = '#ff4060' // red heart
+const RD = '#c03050' // dark red
+const H = '#60ff90' // happy green
+const HD = '#40c070' // dark happy green
+const ZC = '#a0c0ff' // zzz blue
+const ZD = '#6080c0' // zzz dark blue
+
+/** Small heart bubble (9x9) for cat reaction */
+export const PET_HEART_SPRITE: SpriteData = [
+  [_, _, _, _, _, _, _, _, _],
+  [_, _, R, R, _, R, R, _, _],
+  [_, R, R, R, R, R, R, R, _],
+  [_, R, R, R, R, R, R, R, _],
+  [_, _, R, R, R, R, R, _, _],
+  [_, _, _, RD, R, RD, _, _, _],
+  [_, _, _, _, RD, _, _, _, _],
+  [_, _, _, _, _, _, _, _, _],
+  [_, _, _, _, _, _, _, _, _],
+]
+
+/** Happy/wag bubble (9x9) for dog reaction */
+export const PET_HAPPY_SPRITE: SpriteData = [
+  [_, _, _, _, _, _, _, _, _],
+  [_, _, H, _, _, _, H, _, _],
+  [_, H, HD, H, _, H, HD, H, _],
+  [_, _, H, _, _, _, H, _, _],
+  [_, _, _, _, _, _, _, _, _],
+  [_, _, H, H, H, H, H, _, _],
+  [_, H, _, _, _, _, _, H, _],
+  [_, _, _, _, _, _, _, _, _],
+  [_, _, _, _, _, _, _, _, _],
+]
+
+/** Zzz bubble frame 1 (9x7) */
+export const PET_ZZZ_SPRITE_1: SpriteData = [
+  [_, _, _, _, _, _, _, _, _],
+  [_, _, _, _, _, ZC, ZC, _, _],
+  [_, _, _, _, _, _, ZC, _, _],
+  [_, _, _, _, _, ZC, _, _, _],
+  [_, _, _, ZD, ZD, ZC, ZC, _, _],
+  [_, _, _, _, ZD, _, _, _, _],
+  [_, _, _, ZD, ZD, _, _, _, _],
+]
+
+/** Zzz bubble frame 2 (9x7) — shifted slightly */
+export const PET_ZZZ_SPRITE_2: SpriteData = [
+  [_, _, _, _, _, _, _, _, _],
+  [_, _, _, _, ZC, ZC, _, _, _],
+  [_, _, _, _, _, ZC, _, _, _],
+  [_, _, _, _, ZC, _, _, _, _],
+  [_, _, ZD, ZD, ZC, ZC, _, _, _],
+  [_, _, _, ZD, _, _, _, _, _],
+  [_, _, ZD, ZD, _, _, _, _, _],
+]

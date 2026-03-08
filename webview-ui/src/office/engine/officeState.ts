@@ -12,10 +12,12 @@ import {
   CHARACTER_SITTING_OFFSET_PX,
   CHARACTER_HIT_HALF_WIDTH,
   CHARACTER_HIT_HEIGHT,
+  PET_HIT_HALF_WIDTH,
+  PET_HIT_HEIGHT,
 } from '../../constants.js'
-import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Pet } from '../types.js'
+import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Pet, FloorColor, PetColors } from '../types.js'
 import { createCharacter, updateCharacter } from './characters.js'
-import { createPet, updatePet } from './pets.js'
+import { createPet, updatePet, triggerPetReaction, perkUpPet, walkPetToTile as petWalkToTile } from './pets.js'
 import { matrixEffectSeeds } from './matrixEffect.js'
 import { isWalkable, getWalkableTiles, findPath } from '../layout/tileMap.js'
 import {
@@ -40,6 +42,10 @@ export class OfficeState {
   cameraFollowId: number | null = null
   hoveredAgentId: number | null = null
   hoveredTile: { col: number; row: number } | null = null
+  selectedPetId: string | null = null
+  hoveredPetId: string | null = null
+  /** Seconds since any agent was last active (for pet sleep behavior) */
+  officeIdleTime = 0
   /** Maps "parentId:toolId" → sub-agent character ID (negative) */
   subagentIdMap: Map<string, number> = new Map()
   /** Reverse lookup: sub-agent character ID → parent info */
@@ -191,6 +197,62 @@ export class OfficeState {
     return null
   }
 
+  /** Find the bottom tile of the nearest door furniture, or null if no doors exist */
+  private findNearestDoorTile(fromCol: number, fromRow: number): { col: number; row: number } | null {
+    let best: { col: number; row: number } | null = null
+    let bestDist = Infinity
+    for (const f of this.layout.furniture) {
+      const entry = getCatalogEntry(f.type)
+      if (!entry?.isDoor) continue
+      // Door bottom tile = f.col, f.row + footprintH - 1 (the walkable doorstep)
+      const doorCol = f.col
+      const doorRow = f.row + (entry.footprintH - 1)
+      const dist = Math.abs(doorCol - fromCol) + Math.abs(doorRow - fromRow)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = { col: doorCol, row: doorRow }
+      }
+    }
+    return best
+  }
+
+  /** Find any door tile (for spawning — just picks the first one) */
+  private findAnyDoorTile(): { col: number; row: number } | null {
+    for (const f of this.layout.furniture) {
+      const entry = getCatalogEntry(f.type)
+      if (!entry?.isDoor) continue
+      return { col: f.col, row: f.row + (entry.footprintH - 1) }
+    }
+    return null
+  }
+
+  /** Find walkable tiles adjacent to break room furniture (coffee machines, couches) */
+  getBreakRoomTiles(): Array<{ col: number; row: number }> {
+    const tiles: Array<{ col: number; row: number }> = []
+    const seen = new Set<string>()
+    for (const f of this.layout.furniture) {
+      const entry = getCatalogEntry(f.type)
+      if (!entry?.isBreakRoom) continue
+      // For interaction points (coffee machine), find adjacent walkable tiles
+      // For couches, find adjacent walkable tiles too
+      for (let dr = -1; dr <= entry.footprintH; dr++) {
+        for (let dc = -1; dc <= entry.footprintW; dc++) {
+          // Skip tiles inside the furniture footprint
+          if (dr >= 0 && dr < entry.footprintH && dc >= 0 && dc < entry.footprintW) continue
+          const col = f.col + dc
+          const row = f.row + dr
+          const key = `${col},${row}`
+          if (seen.has(key)) continue
+          if (isWalkable(col, row, this.tileMap, this.blockedTiles)) {
+            tiles.push({ col, row })
+            seen.add(key)
+          }
+        }
+      }
+    }
+    return tiles
+  }
+
   /**
    * Pick a diverse palette for a new agent based on currently active agents.
    * First 6 agents each get a unique skin (random order). Beyond 6, skins
@@ -265,9 +327,41 @@ export class OfficeState {
       ch.folderName = folderName
     }
     if (!skipSpawnEffect) {
-      ch.matrixEffect = 'spawn'
-      ch.matrixEffectTimer = 0
-      ch.matrixEffectSeeds = matrixEffectSeeds()
+      // Try door-based spawn: start at door, walk to seat
+      const doorTile = this.findAnyDoorTile()
+      if (doorTile && seatId) {
+        const seat = this.seats.get(seatId)!
+        // Position character at door
+        ch.tileCol = doorTile.col
+        ch.tileRow = doorTile.row
+        ch.x = doorTile.col * TILE_SIZE + TILE_SIZE / 2
+        ch.y = doorTile.row * TILE_SIZE + TILE_SIZE / 2
+        // Pathfind from door to seat
+        const path = this.withOwnSeatUnblocked(ch, () =>
+          findPath(doorTile.col, doorTile.row, seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles),
+        )
+        if (path.length > 0) {
+          ch.state = CharacterState.ENTERING
+          ch.path = path
+          ch.frame = 0
+          ch.frameTimer = 0
+          ch.moveProgress = 0
+        } else {
+          // No path from door to seat — fallback to matrix spawn at seat
+          ch.tileCol = seat.seatCol
+          ch.tileRow = seat.seatRow
+          ch.x = seat.seatCol * TILE_SIZE + TILE_SIZE / 2
+          ch.y = seat.seatRow * TILE_SIZE + TILE_SIZE / 2
+          ch.matrixEffect = 'spawn'
+          ch.matrixEffectTimer = 0
+          ch.matrixEffectSeeds = matrixEffectSeeds()
+        }
+      } else {
+        // No door — use matrix spawn effect
+        ch.matrixEffect = 'spawn'
+        ch.matrixEffectTimer = 0
+        ch.matrixEffectSeeds = matrixEffectSeeds()
+      }
     }
     this.characters.set(id, ch)
   }
@@ -276,6 +370,7 @@ export class OfficeState {
     const ch = this.characters.get(id)
     if (!ch) return
     if (ch.matrixEffect === 'despawn') return // already despawning
+    if (ch.state === CharacterState.LEAVING) return // already leaving via door
     // Free seat and clear selection immediately
     if (ch.seatId) {
       const seat = this.seats.get(ch.seatId)
@@ -283,11 +378,27 @@ export class OfficeState {
     }
     if (this.selectedAgentId === id) this.selectedAgentId = null
     if (this.cameraFollowId === id) this.cameraFollowId = null
-    // Start despawn animation instead of immediate delete
+    ch.bubbleType = null
+
+    // Try door-based despawn: walk to nearest door then remove
+    const doorTile = this.findNearestDoorTile(ch.tileCol, ch.tileRow)
+    if (doorTile) {
+      const path = findPath(ch.tileCol, ch.tileRow, doorTile.col, doorTile.row, this.tileMap, this.blockedTiles)
+      if (path.length > 0) {
+        ch.state = CharacterState.LEAVING
+        ch.path = path
+        ch.frame = 0
+        ch.frameTimer = 0
+        ch.moveProgress = 0
+        ch.isActive = false
+        return
+      }
+    }
+
+    // No door or no path — use matrix despawn effect
     ch.matrixEffect = 'despawn'
     ch.matrixEffectTimer = 0
     ch.matrixEffectSeeds = matrixEffectSeeds()
-    ch.bubbleType = null
   }
 
   /** Find seat uid at a given tile position, or null */
@@ -598,6 +709,10 @@ export class OfficeState {
     const ch = this.characters.get(id)
     if (ch) {
       ch.currentTool = tool
+      // Perk up nearby pets when agent uses a tool
+      if (tool) {
+        this.perkUpNearbyPets(ch.tileCol, ch.tileRow, 4)
+      }
     }
   }
 
@@ -638,8 +753,78 @@ export class OfficeState {
     }
   }
 
+  /** Get pet at pixel position (for hit testing). Returns uid or null. */
+  getPetAt(worldX: number, worldY: number): string | null {
+    // Sort pets by descending Y (front pets first for picking)
+    const sorted = [...this.pets.values()].sort((a, b) => b.y - a.y)
+    for (const pet of sorted) {
+      // Pet sprite is 16x16, anchored bottom-center
+      const left = pet.x - PET_HIT_HALF_WIDTH
+      const right = pet.x + PET_HIT_HALF_WIDTH
+      const top = pet.y - PET_HIT_HEIGHT
+      const bottom = pet.y
+      if (worldX >= left && worldX <= right && worldY >= top && worldY <= bottom) {
+        return pet.uid
+      }
+    }
+    return null
+  }
+
+  /** Delete a pet from the office and layout */
+  deletePet(uid: string): OfficeLayout | null {
+    this.pets.delete(uid)
+    if (this.selectedPetId === uid) this.selectedPetId = null
+    if (this.hoveredPetId === uid) this.hoveredPetId = null
+    const pets = (this.layout.pets || []).filter((p) => p.uid !== uid)
+    this.layout = { ...this.layout, pets }
+    return this.layout
+  }
+
+  /** Edit a pet's name, color, petColors, and/or personality */
+  editPet(uid: string, updates: { name?: string; color?: FloorColor; petColors?: PetColors; personality?: string }): OfficeLayout | null {
+    const pet = this.pets.get(uid)
+    if (!pet) return null
+    if (updates.name !== undefined) pet.name = updates.name
+    if (updates.color !== undefined) pet.color = updates.color
+    if (updates.petColors !== undefined) pet.petColors = updates.petColors
+    if (updates.personality !== undefined) pet.personality = updates.personality as Pet['personality']
+    // Update layout too
+    const layoutPet = (this.layout.pets || []).find((p) => p.uid === uid)
+    if (layoutPet) {
+      if (updates.name !== undefined) layoutPet.name = updates.name
+      if (updates.color !== undefined) layoutPet.color = updates.color
+      if (updates.petColors !== undefined) layoutPet.petColors = updates.petColors
+      if (updates.personality !== undefined) layoutPet.personality = updates.personality as Pet['personality']
+    }
+    return this.layout
+  }
+
+  /** Trigger a reaction on a pet (heart/happy bubble) */
+  triggerPetReaction(uid: string): void {
+    const pet = this.pets.get(uid)
+    if (pet) triggerPetReaction(pet)
+  }
+
+  /** Send a pet to walk toward a tile */
+  walkPetToTile(uid: string, col: number, row: number): boolean {
+    const pet = this.pets.get(uid)
+    if (!pet) return false
+    return petWalkToTile(pet, col, row, this.tileMap, this.blockedTiles)
+  }
+
+  /** Perk up nearby pets when an agent does something */
+  perkUpNearbyPets(agentCol: number, agentRow: number, radius: number): void {
+    for (const pet of this.pets.values()) {
+      const dist = Math.abs(pet.tileCol - agentCol) + Math.abs(pet.tileRow - agentRow)
+      if (dist <= radius) {
+        perkUpPet(pet)
+      }
+    }
+  }
+
   update(dt: number): void {
     const toDelete: number[] = []
+    const breakRoomTiles = this.getBreakRoomTiles()
     for (const ch of this.characters.values()) {
       // Handle matrix effect animation
       if (ch.matrixEffect) {
@@ -660,7 +845,7 @@ export class OfficeState {
 
       // Temporarily unblock own seat so character can pathfind to it
       this.withOwnSeatUnblocked(ch, () =>
-        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles)
+        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles, breakRoomTiles)
       )
 
       // Tick bubble timer for waiting bubbles
@@ -677,9 +862,24 @@ export class OfficeState {
       this.characters.delete(id)
     }
 
+    // Track office idle time and collect active agent positions
+    let anyActive = false
+    const activeAgentPositions: Array<{ col: number; row: number }> = []
+    for (const ch of this.characters.values()) {
+      if (ch.isActive) {
+        anyActive = true
+        activeAgentPositions.push({ col: ch.tileCol, row: ch.tileRow })
+      }
+    }
+    if (anyActive) {
+      this.officeIdleTime = 0
+    } else {
+      this.officeIdleTime += dt
+    }
+
     // Update pets
     for (const pet of this.pets.values()) {
-      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles)
+      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime)
     }
   }
 
@@ -691,8 +891,9 @@ export class OfficeState {
   getCharacterAt(worldX: number, worldY: number): number | null {
     const chars = this.getCharacters().sort((a, b) => b.y - a.y)
     for (const ch of chars) {
-      // Skip characters that are despawning
+      // Skip characters that are despawning or leaving
       if (ch.matrixEffect === 'despawn') continue
+      if (ch.state === CharacterState.LEAVING) continue
       // Character sprite is 16x24, anchored bottom-center
       // Apply sitting offset to match visual position
       const sittingOffset = ch.state === CharacterState.TYPE ? CHARACTER_SITTING_OFFSET_PX : 0

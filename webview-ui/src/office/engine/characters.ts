@@ -12,6 +12,9 @@ import {
   WANDER_MOVES_BEFORE_REST_MAX,
   SEAT_REST_MIN_SEC,
   SEAT_REST_MAX_SEC,
+  BREAK_ROOM_VISIT_CHANCE,
+  BREAK_ROOM_REST_MIN_SEC,
+  BREAK_ROOM_REST_MAX_SEC,
 } from '../../constants.js'
 
 /** Tools that show reading animation instead of typing */
@@ -88,6 +91,7 @@ export function updateCharacter(
   seats: Map<string, Seat>,
   tileMap: TileTypeVal[][],
   blockedTiles: Set<string>,
+  breakRoomTiles: Array<{ col: number; row: number }> = [],
 ): void {
   ch.frameTimer += dt
 
@@ -164,9 +168,15 @@ export function updateCharacter(
             }
           }
         }
-        if (walkableTiles.length > 0) {
-          const target = walkableTiles[Math.floor(Math.random() * walkableTiles.length)]
-          const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, tileMap, blockedTiles)
+        // Sometimes visit a break room item instead of random wandering
+        let wanderTarget: { col: number; row: number } | null = null
+        if (breakRoomTiles.length > 0 && Math.random() < BREAK_ROOM_VISIT_CHANCE) {
+          wanderTarget = breakRoomTiles[Math.floor(Math.random() * breakRoomTiles.length)]
+        } else if (walkableTiles.length > 0) {
+          wanderTarget = walkableTiles[Math.floor(Math.random() * walkableTiles.length)]
+        }
+        if (wanderTarget) {
+          const path = findPath(ch.tileCol, ch.tileRow, wanderTarget.col, wanderTarget.row, tileMap, blockedTiles)
           if (path.length > 0) {
             ch.path = path
             ch.moveProgress = 0
@@ -229,7 +239,13 @@ export function updateCharacter(
             }
           }
           ch.state = CharacterState.IDLE
-          ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC)
+          // Rest longer at break room tiles (coffee machine, couch)
+          const atBreakRoom = breakRoomTiles.some((t) => t.col === ch.tileCol && t.row === ch.tileRow)
+          if (atBreakRoom) {
+            ch.wanderTimer = randomRange(BREAK_ROOM_REST_MIN_SEC, BREAK_ROOM_REST_MAX_SEC)
+          } else {
+            ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC)
+          }
         }
         ch.frame = 0
         ch.frameTimer = 0
@@ -274,7 +290,94 @@ export function updateCharacter(
       }
       break
     }
+
+    case CharacterState.ENTERING: {
+      // Walking from door to seat — same movement as WALK
+      if (ch.frameTimer >= WALK_FRAME_DURATION_SEC) {
+        ch.frameTimer -= WALK_FRAME_DURATION_SEC
+        ch.frame = (ch.frame + 1) % 4
+      }
+
+      if (ch.path.length === 0) {
+        // Arrived at seat — sit down
+        const center = tileCenter(ch.tileCol, ch.tileRow)
+        ch.x = center.x
+        ch.y = center.y
+        if (ch.seatId) {
+          const seat = seats.get(ch.seatId)
+          if (seat) ch.dir = seat.facingDir
+        }
+        ch.state = ch.isActive ? CharacterState.TYPE : CharacterState.IDLE
+        ch.frame = 0
+        ch.frameTimer = 0
+        ch.wanderTimer = randomRange(WANDER_PAUSE_MIN_SEC, WANDER_PAUSE_MAX_SEC)
+        break
+      }
+
+      // Move toward next tile (same as WALK)
+      const enterNext = ch.path[0]
+      ch.dir = directionBetween(ch.tileCol, ch.tileRow, enterNext.col, enterNext.row)
+      ch.moveProgress += (WALK_SPEED_PX_PER_SEC / TILE_SIZE) * dt
+      const enterFrom = tileCenter(ch.tileCol, ch.tileRow)
+      const enterTo = tileCenter(enterNext.col, enterNext.row)
+      const enterT = Math.min(ch.moveProgress, 1)
+      ch.x = enterFrom.x + (enterTo.x - enterFrom.x) * enterT
+      ch.y = enterFrom.y + (enterTo.y - enterFrom.y) * enterT
+      if (ch.moveProgress >= 1) {
+        ch.tileCol = enterNext.col
+        ch.tileRow = enterNext.row
+        ch.x = enterTo.x
+        ch.y = enterTo.y
+        ch.path.shift()
+        ch.moveProgress = 0
+      }
+      break
+    }
+
+    case CharacterState.LEAVING: {
+      // Walking from current position to door — same movement as WALK
+      if (ch.frameTimer >= WALK_FRAME_DURATION_SEC) {
+        ch.frameTimer -= WALK_FRAME_DURATION_SEC
+        ch.frame = (ch.frame + 1) % 4
+      }
+
+      if (ch.path.length === 0) {
+        // Arrived at door — mark for removal (officeState handles deletion)
+        const center = tileCenter(ch.tileCol, ch.tileRow)
+        ch.x = center.x
+        ch.y = center.y
+        // Signal completion: set matrixEffect to 'despawn' so officeState removes this character
+        ch.matrixEffect = 'despawn'
+        ch.matrixEffectTimer = 0
+        ch.matrixEffectSeeds = matrixEffectSeeds()
+        break
+      }
+
+      // Move toward next tile (same as WALK)
+      const leaveNext = ch.path[0]
+      ch.dir = directionBetween(ch.tileCol, ch.tileRow, leaveNext.col, leaveNext.row)
+      ch.moveProgress += (WALK_SPEED_PX_PER_SEC / TILE_SIZE) * dt
+      const leaveFrom = tileCenter(ch.tileCol, ch.tileRow)
+      const leaveTo = tileCenter(leaveNext.col, leaveNext.row)
+      const leaveT = Math.min(ch.moveProgress, 1)
+      ch.x = leaveFrom.x + (leaveTo.x - leaveFrom.x) * leaveT
+      ch.y = leaveFrom.y + (leaveTo.y - leaveFrom.y) * leaveT
+      if (ch.moveProgress >= 1) {
+        ch.tileCol = leaveNext.col
+        ch.tileRow = leaveNext.row
+        ch.x = leaveTo.x
+        ch.y = leaveTo.y
+        ch.path.shift()
+        ch.moveProgress = 0
+      }
+      break
+    }
   }
+}
+
+/** Generate per-column random seeds for matrix effect stagger */
+function matrixEffectSeeds(): number[] {
+  return Array.from({ length: 16 }, () => Math.random())
 }
 
 /** Get the correct sprite frame for a character's current state and direction */
@@ -286,6 +389,8 @@ export function getCharacterSprite(ch: Character, sprites: CharacterSprites): Sp
       }
       return sprites.typing[ch.dir][ch.frame % 2]
     case CharacterState.WALK:
+    case CharacterState.ENTERING:
+    case CharacterState.LEAVING:
       return sprites.walk[ch.dir][ch.frame % 4]
     case CharacterState.IDLE:
       return sprites.walk[ch.dir][1]

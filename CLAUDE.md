@@ -26,9 +26,11 @@ webview-ui/src/               — React + TypeScript (Vite)
     useEditorActions.ts       — Editor state + callbacks
     useEditorKeyboard.ts      — Keyboard shortcut effect
   components/
-    BottomToolbar.tsx          — + Agent, Layout toggle, Settings button
+    BottomToolbar.tsx          — + Agent, Layout, Community, Pets, Settings buttons
     ZoomControls.tsx           — +/- zoom (top-right)
     SettingsModal.tsx          — Centered modal: settings, export/import layout, sound toggle, debug toggle
+    GalleryModal.tsx           — Community layout gallery: browse, preview, import from GitHub
+    PetCreatorModal.tsx        — Pet manager: list/create/edit pets with color, pattern, personality
     DebugView.tsx              — Debug overlay
   office/
     types.ts                  — Interfaces (OfficeLayout, FloorColor, Character, etc.) + re-exports constants from constants.ts
@@ -39,6 +41,7 @@ webview-ui/src/               — React + TypeScript (Vite)
     sprites/
       spriteData.ts           — Pixel data: characters (6 pre-colored from PNGs, fallback templates), furniture, tiles, bubbles
       spriteCache.ts          — SpriteData → offscreen canvas, per-zoom WeakMap cache, outline sprites
+      petSprites.ts           — Pet sprite data (cat/dog) + colorPetSprite() palette-swap
     editor/
       editorActions.ts        — Pure layout ops: paint, place, remove, move, rotate, toggleState, canPlace, expandLayout
       editorState.ts          — Imperative state: tools, ghost, selection, undo/redo, dirty, drag
@@ -48,8 +51,9 @@ webview-ui/src/               — React + TypeScript (Vite)
       layoutSerializer.ts     — OfficeLayout ↔ runtime (tileMap, furniture, seats, blocked)
       tileMap.ts              — Walkability, BFS pathfinding
     engine/
-      characters.ts           — Character FSM: idle/walk/type + wander AI
-      officeState.ts          — Game world: layout, characters, seats, selection, subagents
+      characters.ts           — Character FSM: idle/walk/type/entering/leaving + wander AI + break room visits
+      pets.ts                 — Pet FSM: idle/walk/sleep/play/sit + personality + reactions
+      officeState.ts          — Game world: layout, characters, pets, seats, doors, break room, selection, subagents
       gameLoop.ts             — rAF loop with delta time (capped 0.1s)
       renderer.ts             — Canvas: tiles, z-sorted entities, overlays, edit UI
       matrixEffect.ts         — Matrix-style spawn/despawn digital rain effect
@@ -99,6 +103,10 @@ JSONL transcripts at `~/.claude/projects/<project-hash>/<session-id>.jsonl`. Pro
 
 **Characters**: FSM states — active (pathfind to seat, typing/reading animation by tool type), idle (wander randomly with BFS, return to seat for rest after `wanderLimit` moves). 4-directional sprites, left = flipped right. Tool animations: typing (Write/Edit/Bash/Task) vs reading (Read/Grep/Glob/WebFetch). Sitting offset: characters shift down 6px when in TYPE state so they visually sit in their chair. Z-sort uses `ch.y + TILE_SIZE/2 + 0.5` so characters render in front of same-row furniture (chairs) but behind furniture at lower rows (desks, bookshelves). Chair z-sorting: non-back chairs use `zY = (row+1)*TILE_SIZE` (capped to first row) so characters at any seat tile render in front; back-facing chairs use `zY = (row+1)*TILE_SIZE + 1` so the chair back renders in front of the character. Chair tiles are blocked for all characters except their own assigned seat (per-character pathfinding via `withOwnSeatUnblocked`). **Diverse palette assignment**: `pickDiversePalette()` counts palettes of current non-sub-agent characters; picks randomly from least-used palette(s). First 6 agents each get a unique skin; beyond 6, skins repeat with a random hue shift (45–315°) via `adjustSprite()`. Character stores `palette` (0-5) + `hueShift` (degrees). Sprite cache keyed by `"palette:hueShift"`.
 
+**Door system**: Agents enter/exit through door furniture (`isDoor: true`). On spawn: character appears at door tile → ENTERING state → walks to seat. On despawn: character → LEAVING state → walks to nearest door → matrix despawn at door. `findAnyDoorTile()` / `findNearestDoorTile()` locate doors. Door has `canPlaceOnWalls: true, backgroundTiles: 2` so its tiles don't block walking. Fallback: matrix spawn/despawn when no door exists.
+
+**Break room**: Coffee machine (`isInteractionPoint`) and break couch (`isBreakRoom`) furniture. `getBreakRoomTiles()` finds walkable tiles adjacent to break room items. Idle agents have 25% chance to visit break room instead of random wander; rest 5-15s at break room tiles (vs 2-20s normal). Break room items in `break_room` editor category.
+
 **Spawn/despawn effect**: Matrix-style digital rain animation (0.3s). 16 vertical columns sweep top-to-bottom with staggered timing (per-column random seeds). Spawn: green rain reveals character pixels behind the sweep. Despawn: character pixels consumed by green rain trails. `matrixEffect` field on Character (`'spawn'`/`'despawn'`/`null`). Normal FSM is paused during effect. Despawning characters skip hit-testing. Restored agents (`existingAgents`) use `skipSpawnEffect: true` to appear instantly. `matrixEffect.ts` contains `renderMatrixEffect()` (per-pixel rendering) called from renderer instead of cached sprite draw.
 
 **Sub-agents**: Negative IDs (from -1 down). Created on `agentToolStart` with "Subtask:" prefix. Same palette + hueShift as parent. Click focuses parent terminal. Not persisted. Spawn at closest free seat to parent (Manhattan distance); fallback: closest walkable tile. **Sub-agent permission detection**: when a sub-agent runs a non-exempt tool, `startPermissionTimer` fires on the parent agent; if 5s elapse with no data, permission bubbles appear on both parent and sub-agent characters. `activeSubagentToolNames` (parentToolId → subToolId → toolName) tracks which sub-tools are active for the exempt check. Cleared when data resumes or Task completes.
@@ -106,6 +114,8 @@ JSONL transcripts at `~/.claude/projects/<project-hash>/<session-id>.jsonl`. Pro
 **Speech bubbles**: Permission ("..." amber dots) stays until clicked/cleared. Waiting (green checkmark) auto-fades 2s. Sprites in `spriteData.ts`.
 
 **Sound notifications**: Ascending two-note chime (E5 → E6) via Web Audio API plays when waiting bubble appears (`agentStatus: 'waiting'`). `notificationSound.ts` manages AudioContext lifecycle; `unlockAudio()` called on canvas mousedown to ensure context is resumed (webviews start suspended). Toggled via "Sound Notifications" checkbox in Settings modal. Enabled by default; persisted in extension `globalState` key `pixel-office.soundEnabled`, sent to webview as `settingsLoaded` on init.
+
+**Pets**: Decorative animals (cats, dogs) that live in the office. FSM states: idle/walk/sleep/play/sit with personality-weighted behavior selection (lazy, playful, chill, energetic). Per-part color customization via palette-swap (`PetColors`: body, eyes, nose hex + pattern type/color). Patterns: solid, striped, spotted, bicolor, tuxedo — applied positionally at render time. React to clicks (heart/happy bubble), perk up when agents use tools nearby (4-tile radius), auto-sleep when office idle >120s. Dogs follow active agents (30% chance, 6-tile max). Pet Creator modal: list/create/edit views with animated preview canvas. Persisted in `layout.pets[]`.
 
 **Seats**: Derived from chair furniture. `layoutToSeats()` creates a seat at every footprint tile of every chair. Multi-tile chairs (e.g. 2-tile couches) produce multiple seats keyed `uid` / `uid:1` / `uid:2`. Facing direction priority: 1) chair `orientation` from catalog (front→DOWN, back→UP, left→LEFT, right→RIGHT), 2) adjacent desk direction, 3) forward (DOWN). Click character → select (white outline) → click available seat → reassign.
 
@@ -133,7 +143,7 @@ Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Er
 
 **Loading**: `esbuild.js` copies `webview-ui/public/assets/` → `dist/assets/`. Loader checks bundled path first, falls back to workspace root. PNG → pngjs → SpriteData (2D hex array, alpha≥128 = opaque). `loadDefaultLayout()` reads `assets/default-layout.json` (JSON OfficeLayout) as fallback for new workspaces.
 
-**Catalog**: `furniture-catalog.json` with id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?. String-based type system (no enum constraint). Categories: desks, chairs, storage, electronics, decor, wall, misc. Wall-placeable items (`canPlaceOnWalls: true`) use the `wall` category and appear in a dedicated "Wall" tab in the editor. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`, `CRT_MONITOR_BACK`). `orientation` is stored on `FurnitureCatalogEntry` and used for chair z-sorting and seat facing direction.
+**Catalog**: `furniture-catalog.json` with id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?. String-based type system (no enum constraint). Categories: desks, chairs, storage, electronics, decor, wall, break_room, misc. Wall-placeable items (`canPlaceOnWalls: true`) use the `wall` category and appear in a dedicated "Wall" tab in the editor. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`, `CRT_MONITOR_BACK`). `orientation` is stored on `FurnitureCatalogEntry` and used for chair z-sorting and seat facing direction.
 
 **Rotation groups**: `buildDynamicCatalog()` builds `rotationGroups` Map from assets sharing a `groupId`. Flexible: supports 2+ orientations (e.g., front/back only). Editor palette shows 1 item per group (front orientation preferred). `getRotatedType()` cycles through available orientations.
 
@@ -211,3 +221,5 @@ All magic numbers and strings are centralized — never add inline constants to 
 - `WebviewViewProvider` (not `WebviewPanel`) — lives in panel area alongside terminal
 - Inline esbuild problem matcher (no extra extension needed)
 - Webview is separate Vite project with own `node_modules`/`tsconfig`
+
+---

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
+import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
 
 interface GalleryLayout {
   id: string
@@ -28,16 +29,12 @@ interface GalleryModalProps {
 
 const GALLERY_REPO_URL = 'https://github.com/fedevgonzalez/pixel-office-layouts'
 
-const menuItemBase: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  width: '100%',
-  padding: '6px 10px',
-  fontSize: '24px',
-  color: 'rgba(255, 255, 255, 0.8)',
-  background: 'transparent',
-  border: 'none',
+const actionBtnBase: React.CSSProperties = {
+  padding: '6px 16px',
+  fontSize: '20px',
+  color: 'var(--pixel-text)',
+  background: 'var(--pixel-btn-bg)',
+  border: '2px solid var(--pixel-border)',
   borderRadius: 0,
   cursor: 'pointer',
   textAlign: 'left',
@@ -141,6 +138,7 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
       {/* Dark backdrop */}
       <div
         onClick={onClose}
+        aria-hidden="true"
         style={{
           position: 'fixed',
           top: 0,
@@ -153,6 +151,9 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
       />
       {/* Modal */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Community Layouts"
         style={{
           position: 'fixed',
           top: '50%',
@@ -183,30 +184,31 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: '24px', color: 'rgba(255, 255, 255, 0.9)' }}>Community Layouts</span>
+          <span style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Community Layouts</span>
           <button
             onClick={onClose}
+            aria-label="Close gallery"
             onMouseEnter={() => setHovered('close')}
             onMouseLeave={() => setHovered(null)}
             style={{
-              background: hovered === 'close' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
+              background: hovered === 'close' ? 'var(--pixel-btn-hover-bg)' : 'transparent',
               border: 'none',
               borderRadius: 0,
-              color: 'rgba(255, 255, 255, 0.6)',
+              color: hovered === 'close' ? 'var(--pixel-close-hover)' : 'var(--pixel-close-text)',
               fontSize: '24px',
               cursor: 'pointer',
               padding: '4px 8px',
               lineHeight: 1,
             }}
           >
-            x
+            &#215;
           </button>
         </div>
 
         {/* Content */}
         <div style={{ overflow: 'auto', flex: 1, padding: '4px 8px' }}>
           {loading && (
-            <div style={{ textAlign: 'center', padding: '40px 0', fontSize: '22px', color: 'rgba(255, 255, 255, 0.6)' }}>
+            <div style={{ textAlign: 'center', padding: '40px 0', fontSize: '22px', color: 'var(--pixel-text-dim)' }}>
               <span className="pixel-agents-pulse">Loading gallery...</span>
             </div>
           )}
@@ -223,12 +225,8 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
                 onMouseEnter={() => setHovered('retry')}
                 onMouseLeave={() => setHovered(null)}
                 style={{
-                  ...menuItemBase,
-                  width: 'auto',
-                  display: 'inline-block',
-                  padding: '6px 16px',
-                  background: hovered === 'retry' ? 'rgba(255, 255, 255, 0.08)' : 'var(--pixel-btn-bg)',
-                  border: '2px solid var(--pixel-border)',
+                  ...actionBtnBase,
+                  background: hovered === 'retry' ? 'var(--pixel-btn-hover-bg)' : 'var(--pixel-btn-bg)',
                 }}
               >
                 Retry
@@ -239,11 +237,19 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
           {manifest && !loading && !error && (
             <>
               {manifest.layouts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px 0', fontSize: '22px', color: 'rgba(255, 255, 255, 0.5)' }}>
-                  No community layouts yet. Be the first to share!
+                <div style={{ textAlign: 'center', padding: '32px 16px' }}>
+                  <div style={{ fontSize: '36px', marginBottom: 10, opacity: 0.25, filter: 'grayscale(1)', userSelect: 'none' }}>
+                    🏢
+                  </div>
+                  <div style={{ fontSize: '22px', color: 'var(--pixel-text)', marginBottom: 6 }}>
+                    No community layouts yet
+                  </div>
+                  <div style={{ fontSize: '16px', color: 'var(--pixel-text-dim)', lineHeight: 1.5 }}>
+                    Be the first to share your office design!
+                  </div>
                 </div>
               ) : (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${GALLERY_CARD_MIN_WIDTH}px, 1fr))`, gap: GALLERY_CARD_GAP }}>
                   {manifest.layouts.map((layout) => (
                     <GalleryCard
                       key={layout.id}
@@ -274,7 +280,7 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: '20px', color: 'rgba(255, 255, 255, 0.4)' }}>
+          <span style={{ fontSize: '20px', color: 'var(--pixel-text-dim)' }}>
             {manifest ? `${manifest.layouts.length} layout${manifest.layouts.length !== 1 ? 's' : ''}` : ''}
           </span>
           <button
@@ -288,12 +294,13 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
             onMouseEnter={() => setHovered('share')}
             onMouseLeave={() => setHovered(null)}
             style={{
-              ...menuItemBase,
-              width: 'auto',
               padding: '4px 12px',
               fontSize: '20px',
-              background: hovered === 'share' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-              color: 'rgba(90, 200, 140, 0.8)',
+              background: hovered === 'share' ? 'var(--pixel-agent-hover-bg)' : 'transparent',
+              color: hovered === 'share' ? 'var(--pixel-agent-text)' : 'var(--pixel-green)',
+              border: 'none',
+              borderRadius: 0,
+              cursor: 'pointer',
             }}
           >
             Share Your Layout
@@ -323,7 +330,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
         background: 'rgba(255, 255, 255, 0.03)',
         border: '2px solid var(--pixel-border)',
         borderRadius: 0,
-        padding: 6,
+        padding: GALLERY_CARD_PADDING,
         display: 'flex',
         flexDirection: 'column',
         gap: 4,
@@ -345,22 +352,22 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
         {screenshotUrl ? (
           <img
             src={screenshotUrl}
-            alt={layout.name}
+            alt={layout.name || 'Community layout preview'}
             style={{ maxWidth: '100%', maxHeight: '100%', imageRendering: 'pixelated' }}
           />
         ) : (
-          <span style={{ fontSize: '20px', color: 'rgba(255, 255, 255, 0.2)' }}>No preview</span>
+          <span style={{ fontSize: '20px', color: 'rgba(255, 255, 255, 0.4)' }}>No preview</span>
         )}
       </div>
 
       {/* Info */}
-      <div style={{ padding: '2px 4px' }}>
-        <div style={{ fontSize: '22px', color: 'rgba(255, 255, 255, 0.9)', marginBottom: 2 }}>{layout.name}</div>
-        <div style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.5)', marginBottom: 4 }}>
+      <div style={{ padding: '4px 8px' }}>
+        <div style={{ fontSize: '22px', color: 'var(--pixel-text)', marginBottom: 2 }}>{layout.name}</div>
+        <div style={{ fontSize: '18px', color: 'var(--pixel-text-dim)', marginBottom: 4 }}>
           by {layout.author} &middot; {layout.cols}x{layout.rows} &middot; {layout.furnitureCount} items
         </div>
         {layout.description && (
-          <div style={{ fontSize: '18px', color: 'rgba(255, 255, 255, 0.4)', marginBottom: 4 }}>{layout.description}</div>
+          <div style={{ fontSize: '18px', color: 'var(--pixel-text-dim)', marginBottom: 4, opacity: 0.8 }}>{layout.description}</div>
         )}
         {layout.tags.length > 0 && (
           <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -370,9 +377,9 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
                 style={{
                   fontSize: '16px',
                   padding: '1px 6px',
-                  background: 'rgba(90, 140, 255, 0.15)',
-                  color: 'rgba(90, 140, 255, 0.8)',
-                  border: '1px solid rgba(90, 140, 255, 0.3)',
+                  background: 'var(--pixel-active-bg)',
+                  color: 'var(--pixel-accent)',
+                  border: '1px solid var(--pixel-accent)',
                   borderRadius: 0,
                 }}
               >
@@ -385,21 +392,22 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
 
       {/* Action */}
       {isConfirming ? (
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '2px 4px' }}>
-          <span style={{ fontSize: '18px', color: 'rgba(255, 200, 80, 0.9)', flex: 1 }}>Replace current layout?</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 8px' }}>
+          <span style={{ fontSize: '18px', color: 'rgba(255, 200, 80, 0.9)', flex: 1 }}>Replace furniture and floor? Pets stay.</span>
           <button
             onClick={onImport}
+            aria-label="Replace layout and import"
             style={{
               padding: '4px 10px',
               fontSize: '20px',
-              background: 'rgba(90, 200, 140, 0.3)',
-              color: 'rgba(90, 200, 140, 0.9)',
-              border: '2px solid rgba(90, 200, 140, 0.5)',
+              background: 'var(--pixel-agent-bg)',
+              color: 'var(--pixel-agent-text)',
+              border: '2px solid var(--pixel-agent-border)',
               borderRadius: 0,
               cursor: 'pointer',
             }}
           >
-            Yes
+            Replace
           </button>
           <button
             onClick={onCancel}
@@ -407,13 +415,13 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
               padding: '4px 10px',
               fontSize: '20px',
               background: 'var(--pixel-btn-bg)',
-              color: 'rgba(255, 255, 255, 0.7)',
+              color: 'var(--pixel-text-dim)',
               border: '2px solid transparent',
               borderRadius: 0,
               cursor: 'pointer',
             }}
           >
-            No
+            Keep Mine
           </button>
         </div>
       ) : (
@@ -425,11 +433,12 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
           style={{
             padding: '6px 10px',
             fontSize: '20px',
-            background: hovered && !isImporting ? 'rgba(90, 200, 140, 0.2)' : 'var(--pixel-btn-bg)',
-            color: isImporting ? 'rgba(255, 255, 255, 0.4)' : 'rgba(90, 200, 140, 0.9)',
-            border: '2px solid rgba(90, 200, 140, 0.3)',
+            background: hovered && !isImporting ? 'var(--pixel-agent-hover-bg)' : 'var(--pixel-btn-bg)',
+            color: 'var(--pixel-green)',
+            border: '2px solid var(--pixel-agent-border)',
             borderRadius: 0,
             cursor: isImporting ? 'default' : 'pointer',
+            opacity: isImporting ? 'var(--pixel-btn-disabled-opacity)' : 1,
             width: '100%',
           }}
         >

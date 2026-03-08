@@ -272,6 +272,145 @@ export const LAMP_SPRITE: SpriteData = (() => {
   ]
 })()
 
+// ── Break Room & Misc Furniture Sprites ─────────────────────────
+
+/** Door: 16x32 (1 tile wide, 2 tiles tall) — front-facing office door */
+export const DOOR_SPRITE: SpriteData = (() => {
+  const F = '#4a4a5a' // frame (dark metal)
+  const D = '#3a3a4a' // frame shadow
+  const T = '#5a5a6a' // frame top/lintel highlight
+  const P = '#8B7348' // door panel (wood)
+  const L = '#A08858' // panel highlight
+  const H = '#CCAA44' // handle (brass)
+  const K = '#DDBB55' // handle highlight
+  const R = '#5a5a6a' // inner recess (lighter than D)
+  const S = '#666677' // threshold step
+  return [
+    // Row 0: top lintel (highlighted to separate from wall)
+    [_, T, T, F, F, F, F, F, F, F, F, F, F, T, T, _],
+    // Row 1: frame + top panel edge
+    [_, F, D, R, R, R, R, R, R, R, R, R, R, D, F, _],
+    // Rows 2-5: upper panel
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    // Row 6: horizontal panel divider
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    // Rows 7-9: middle panel section
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    // Row 10-11: handle area
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    [_, F, D, R, P, P, P, P, P, H, K, P, R, D, F, _],
+    // Row 12: handle bottom
+    [_, F, D, R, P, P, P, P, P, H, K, P, R, D, F, _],
+    // Rows 13-15: mid panel
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    // ── Bottom tile (doorstep) ──
+    // Rows 16-21: lower panel
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    [_, F, D, R, P, L, L, P, P, L, L, P, R, D, F, _],
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    [_, F, D, R, P, P, P, P, P, P, P, P, R, D, F, _],
+    // Rows 22-23: bottom panel edge
+    [_, F, D, R, R, R, R, R, R, R, R, R, R, D, F, _],
+    [_, F, D, D, D, D, D, D, D, D, D, D, D, D, F, _],
+    // Row 24: door bottom frame
+    [_, F, F, F, F, F, F, F, F, F, F, F, F, F, F, _],
+    // Rows 25-27: empty (above threshold)
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    // Rows 28-29: threshold step plate
+    [_, _, S, S, S, S, S, S, S, S, S, S, S, S, _, _],
+    [_, _, D, S, S, S, S, S, S, S, S, S, S, D, _, _],
+    // Rows 30-31: empty
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Coffee machine: 16x16 (1x1 tile) — break room appliance */
+export const COFFEE_MACHINE_SPRITE: SpriteData = (() => {
+  const B = '#2e2a24' // body dark (warm brown-black, distinct from door)
+  const M = '#3e382e' // body mid
+  const L = '#4e483e' // body light
+  const S = '#888888' // silver trim
+  const G = '#44CC44' // indicator light
+  const C = '#EEEEDD' // cup
+  const D = '#DDDDCC' // cup shadow
+  const W = '#1e1a14' // dark recess
+  const V = '#CCCCBB' // steam
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, S, S, S, S, S, S, S, S, _, _, _, _],
+    [_, _, _, S, B, B, B, B, B, B, B, B, S, _, _, _],
+    [_, _, _, S, B, M, M, M, M, M, M, B, S, _, _, _],
+    [_, _, _, S, B, M, L, L, L, L, M, B, S, _, _, _],
+    [_, _, _, S, B, M, L, L, L, L, M, B, S, _, _, _],
+    [_, _, _, S, B, M, M, M, M, M, M, B, S, _, _, _],
+    [_, _, _, S, B, B, W, W, W, W, B, B, S, _, _, _],
+    [_, _, _, S, B, B, W, V, _, W, B, B, S, _, _, _],
+    [_, _, _, S, B, B, W, C, C, W, B, B, S, _, _, _],
+    [_, _, _, S, B, B, W, C, D, W, B, B, S, _, _, _],
+    [_, _, _, S, B, B, W, W, W, W, B, B, S, _, _, _],
+    [_, _, _, S, B, B, B, B, B, G, B, B, S, _, _, _],
+    [_, _, _, S, S, S, S, S, S, S, S, S, S, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Break couch: 32x16 (2 tiles wide, 1 tile tall) — comfy break room sofa */
+export const BREAK_COUCH_SPRITE: SpriteData = (() => {
+  const F = '#6B4E3A' // frame (dark wood)
+  const D = '#5A3D2A' // frame shadow
+  const C = '#CC6644' // cushion main (warm terracotta)
+  const L = '#DD7755' // cushion highlight
+  const S = '#BB5533' // cushion shadow
+  const A = '#7B5E4A' // armrest
+  const P = '#AA4422' // cushion deep shadow
+  return [
+    // Row 0: empty
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    // Row 1: back top
+    [_, _, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, _, _],
+    // Row 2: back cushion
+    [_, _, D, F, S, S, C, C, C, C, C, C, C, C, C, S, S, C, C, C, C, C, C, C, C, C, S, S, F, D, _, _],
+    // Row 3: back cushion mid
+    [_, _, D, F, S, C, C, L, L, C, C, C, L, L, C, S, S, C, L, L, C, C, C, L, L, C, C, S, F, D, _, _],
+    // Row 4: back cushion bottom
+    [_, _, D, F, S, C, C, L, L, C, C, C, L, L, C, S, S, C, L, L, C, C, C, L, L, C, C, S, F, D, _, _],
+    // Row 5: seat back edge (armrest tops visible at ends)
+    [_, A, A, F, F, S, S, S, S, S, S, S, S, S, S, F, F, S, S, S, S, S, S, S, S, S, S, S, F, A, A, _],
+    // Row 6: armrest + seat
+    [_, A, A, F, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, F, A, A, _],
+    // Row 7: armrest + seat cushion
+    [_, A, A, F, C, C, L, L, C, C, C, C, L, L, C, C, C, C, L, L, C, C, C, C, L, L, C, C, F, A, A, _],
+    // Row 8: armrest + seat cushion
+    [_, A, A, F, C, C, L, L, C, C, C, C, L, L, C, C, C, C, L, L, C, C, C, C, L, L, C, C, F, A, A, _],
+    // Row 9: armrest + seat cushion
+    [_, A, A, F, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, F, A, A, _],
+    // Row 10: seat front edge
+    [_, A, A, F, S, S, P, P, S, S, S, S, P, P, S, S, S, S, P, P, S, S, S, S, P, P, S, S, F, A, A, _],
+    // Row 11: armrest bottom + front
+    [_, _, D, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, D, _, _],
+    // Row 12: legs
+    [_, _, _, D, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, D, _, _, _],
+    // Row 13: legs
+    [_, _, _, D, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, D, _, _, _],
+    // Row 14-15: empty
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
 // ── Speech Bubble Sprites ───────────────────────────────────────
 
 /** Permission bubble: white square with "..." in amber, and a tail pointer (11x13) */

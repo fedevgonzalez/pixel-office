@@ -79,6 +79,9 @@ See [STANDALONE.md](STANDALONE.md) for full setup, SDK integration, WebSocket pr
 | Sub-agents | Task tool spawns child characters near their parent |
 | Speech bubbles | Permission (amber dots) and waiting (green check) indicators |
 | Sound notifications | Audio chime when an agent finishes and needs attention |
+| Office pets | Cats and dogs roam the office, react to agent activity, and sleep when idle |
+| Door system | Agents enter/exit through doors instead of spawning in place |
+| Break room | Idle agents grab coffee and lounge on the couch |
 | Layout editor | Design your office with floors, walls, and 50+ furniture items |
 | Kiosk mode | Auto-framing camera, status sidebar, 15fps throttle |
 | Multi-PC | WebSocket reporters aggregate agents from multiple machines |
@@ -119,7 +122,7 @@ The app works without it — you get characters and a basic layout, but not the 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) — next up: activity timeline, aggregate metrics, and push notifications.
+See [ROADMAP.md](ROADMAP.md) — next up: day/night cycle, weather effects.
 
 ## License
 

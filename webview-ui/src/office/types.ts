@@ -38,6 +38,8 @@ export const CharacterState = {
   IDLE: 'idle',
   WALK: 'walk',
   TYPE: 'type',
+  ENTERING: 'entering',
+  LEAVING: 'leaving',
 } as const
 export type CharacterState = (typeof CharacterState)[keyof typeof CharacterState]
 
@@ -91,6 +93,9 @@ export const FurnitureType = {
   CHAIR: 'chair',
   PC: 'pc',
   LAMP: 'lamp',
+  DOOR: 'door',
+  COFFEE_MACHINE: 'coffee_machine',
+  BREAK_COUCH: 'break_couch',
 } as const
 export type FurnitureType = (typeof FurnitureType)[keyof typeof FurnitureType]
 
@@ -121,6 +126,12 @@ export interface FurnitureCatalogEntry {
   backgroundTiles?: number
   /** Whether this item can be placed on wall tiles */
   canPlaceOnWalls?: boolean
+  /** Whether this item is a door (agents enter/exit through it) */
+  isDoor?: boolean
+  /** Whether this item is a break room item (agents go here when idle) */
+  isBreakRoom?: boolean
+  /** Whether this item is an interaction point (coffee machine, water cooler) */
+  isInteractionPoint?: boolean
 }
 
 export interface PlacedFurniture {
@@ -147,6 +158,37 @@ export const PetState = {
 } as const
 export type PetState = (typeof PetState)[keyof typeof PetState]
 
+export const PetPersonality = {
+  LAZY: 'lazy',
+  PLAYFUL: 'playful',
+  CHILL: 'chill',
+  ENERGETIC: 'energetic',
+} as const
+export type PetPersonality = (typeof PetPersonality)[keyof typeof PetPersonality]
+
+export const PetPattern = {
+  SOLID: 'solid',
+  STRIPED: 'striped',
+  SPOTTED: 'spotted',
+  BICOLOR: 'bicolor',
+  TUXEDO: 'tuxedo',
+} as const
+export type PetPattern = (typeof PetPattern)[keyof typeof PetPattern]
+
+/** Per-part color customization for pets */
+export interface PetColors {
+  /** Body hex color (mid-tone; light/dark derived automatically) */
+  body?: string
+  /** Eye hex color */
+  eyes?: string
+  /** Nose hex color */
+  nose?: string
+  /** Coat pattern type */
+  pattern?: PetPattern
+  /** Secondary color for pattern (mid-tone hex) */
+  patternColor?: string
+}
+
 export interface PlacedPet {
   uid: string
   species: PetSpecies
@@ -155,9 +197,19 @@ export interface PlacedPet {
   col: number
   /** Tile row */
   row: number
-  /** Optional HSB color shift */
+  /** @deprecated Use petColors instead. Old single hue shift. */
   color?: FloorColor
+  /** Per-part color customization (body, eyes, nose) */
+  petColors?: PetColors
+  /** Personality affects behavior weights */
+  personality?: PetPersonality
 }
+
+export const PetBubble = {
+  HEART: 'heart',
+  HAPPY: 'happy',
+} as const
+export type PetBubble = (typeof PetBubble)[keyof typeof PetBubble]
 
 export interface Pet {
   uid: string
@@ -175,8 +227,20 @@ export interface Pet {
   frameTimer: number
   /** Current behavior timer (seconds remaining) */
   behaviorTimer: number
-  /** HSB color shift */
+  /** @deprecated Use petColors instead */
   color?: FloorColor
+  /** Per-part color customization (body, eyes, nose) */
+  petColors?: PetColors
+  /** Personality affects behavior weights */
+  personality?: PetPersonality
+  /** Active reaction bubble (heart for cats, happy for dogs) */
+  reactionBubble: PetBubble | null
+  /** Countdown timer for reaction bubble */
+  reactionTimer: number
+  /** Whether pet is perked up (agents using tools nearby) */
+  isPerkedUp: boolean
+  /** Countdown timer for perk state */
+  perkTimer: number
 }
 
 export interface OfficeLayout {
