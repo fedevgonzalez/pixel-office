@@ -279,7 +279,9 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             : KIOSK_ZOOM_LERP_SLOW
           kioskZoomRef.current += (targetZoom - kioskZoomRef.current) * zoomLerp
 
-          effectiveZoom = kioskZoomRef.current
+          // Round to integer — float zoom values cause catastrophic memory leaks
+          // in spriteCache (each unique float creates a new WeakMap + canvas per sprite)
+          effectiveZoom = Math.round(kioskZoomRef.current)
 
           // Target pan: center on smoothed bbox midpoint within available area (left of panel)
           const layout = officeState.getLayout()

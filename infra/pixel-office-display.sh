@@ -52,10 +52,10 @@ xset -dpms
 xset s noblank
 XEOF
     # dbus-run-session provides a session bus so Chrome D-Bus calls don't block.
-    # GPU rasterization ON, but compositor OFF — reduces GPU memory by ~60%.
-    # --in-process-gpu avoids separate GPU process (less IPC buffer overhead).
-    # --disable-audio-output silences ALSA errors on headless display.
-    printf 'dbus-run-session -- google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI,SkiaGraphite --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --disable-gpu-compositing --in-process-gpu --num-raster-threads=2 --disable-audio-output --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
+    # Full software rendering (--disable-gpu): AMD Rembrandt GPU compositor
+    # leaks ~500MB/min of native memory. Software rendering eliminates the leak
+    # entirely — acceptable for a 15fps pixel art canvas at 1920x1200.
+    printf 'dbus-run-session -- google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --disable-gpu --disable-software-rasterizer --disable-audio-output --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
     chmod +x "$XINITRC"
 
     # Start X on vt1
