@@ -23,7 +23,7 @@ export const PERMISSION_EXEMPT_TOOLS = new Set([
 // MCP tools (prefixed with "mcp__") are handled by their own server approval flow,
 // so they should not trigger the permission timer unless progress stalls.
 export function isPermissionExempt(toolName: string): boolean {
-	return isPermissionExempt(toolName) || toolName.startsWith('mcp__');
+	return PERMISSION_EXEMPT_TOOLS.has(toolName) || toolName.startsWith('mcp__');
 }
 
 export function formatToolStatus(toolName: string, input: Record<string, unknown>): string {
