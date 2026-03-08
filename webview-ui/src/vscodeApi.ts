@@ -23,6 +23,11 @@ function createStandaloneApi(): { postMessage(msg: unknown): void } {
     ws.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data)
+        // App-level health ping — respond immediately to prove JS render thread is alive
+        if (data.type === 'healthPing') {
+          ws!.send(JSON.stringify({ type: 'healthPong', ts: data.ts }))
+          return
+        }
         window.dispatchEvent(new MessageEvent('message', { data }))
       } catch {}
     }

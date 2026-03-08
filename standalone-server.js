@@ -759,6 +759,12 @@ function scanAndAdoptAgents() {
 const WebSocket = require('ws');
 
 async function handleClientMessage(ws, msg) {
+  if (msg.type === 'healthPong') {
+    ws._healthPongAt = Date.now();
+    ws._renderHealthy = true;
+    return;
+  }
+
   if (msg.type === 'webviewReady') {
     if (msg.homeserver) ws._isHomeserver = true;
     console.log(`webviewReady received${msg.homeserver ? ' (homeserver)' : ''}, sending assets...`);
@@ -973,8 +979,11 @@ const server = http.createServer((req, res) => {
     const clients = kioskClients.map(ws => ({
       lastPongAge: Math.round((now - (ws._lastPongAt || 0)) / 1000),
       alive: !!ws._isAlive,
+      renderHealthy: ws._renderHealthy !== false, // true until proven otherwise
+      lastHealthPongAge: ws._healthPongAt ? Math.round((now - ws._healthPongAt) / 1000) : null,
     }));
-    const anyAlive = clients.some(c => c.lastPongAge < 30);
+    // Client is OK only if both WS pong AND JS render pong are recent
+    const anyAlive = clients.some(c => c.lastPongAge < 30 && c.renderHealthy);
     const body = JSON.stringify({ ok: anyAlive, clients });
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(body);
@@ -1065,11 +1074,10 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-// Ping all UI clients every 15s to detect frozen browsers
+// Ping all UI clients every 15s to detect dead network connections
 setInterval(() => {
   for (const ws of wsClients) {
     if (!ws._isAlive) {
-      // Client didn't respond to previous ping — connection is dead
       console.log('WebSocket client unresponsive, terminating');
       ws.terminate();
       continue;
@@ -1078,6 +1086,30 @@ setInterval(() => {
     try { ws.ping(); } catch {}
   }
 }, 15000);
+
+// App-level health ping every 10s — requires JS render thread to respond.
+// WS-level pong only proves the network thread is alive; a frozen Chrome
+// render thread won't execute JS, so healthPong never comes back.
+setInterval(() => {
+  const now = Date.now();
+  for (const ws of wsClients) {
+    if (!ws._isHomeserver) continue;
+    // Check if previous healthPing was answered
+    if (ws._healthPingSentAt && !ws._healthPongAt) {
+      // Never got a pong — first miss, could be slow
+    }
+    if (ws._healthPingSentAt && ws._healthPongAt && ws._healthPongAt < ws._healthPingSentAt) {
+      // Pong is from before the last ping — JS didn't respond
+      const missAge = Math.round((now - ws._healthPingSentAt) / 1000);
+      if (missAge > 30) {
+        ws._renderHealthy = false;
+      }
+    }
+    // Send new health ping
+    ws._healthPingSentAt = now;
+    try { ws.send(JSON.stringify({ type: 'healthPing', ts: now })); } catch {}
+  }
+}, 10000);
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Pixel Office: http://localhost:${PORT} (listening on all interfaces)`);
