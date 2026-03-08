@@ -100,18 +100,54 @@ check_server_restart() {
 }
 
 # Detect Chrome renderer in "D" (uninterruptible sleep) state — frozen/hung
+# Also checks cgroup memory and server responsiveness
 # This happens after hours of running; the only recovery is to kill and relaunch
 check_chrome_health() {
     if [ "$IS_SHOWING" = false ]; then return; fi
 
-    # Check if the main Chrome renderer is in D state
-    local chrome_state
-    chrome_state=$(ps -eo pid,stat,comm | grep -E "chrome.*D" | head -1)
-    if [ -n "$chrome_state" ]; then
-        log "Chrome renderer frozen (D state): $chrome_state"
+    local needs_restart=false
+    local reason=""
+
+    # 1. Check if any Chrome process is in D (uninterruptible sleep) state
+    #    ps output: "PID STAT COMM" -> "1808528 D<l chrome" -> D comes before chrome
+    local chrome_d_state
+    chrome_d_state=$(ps -eo pid,stat,comm | grep chrome | grep -E "^[[:space:]]*[0-9]+ D" | head -1)
+    if [ -n "$chrome_d_state" ]; then
+        reason="Chrome frozen (D state): $chrome_d_state"
+        needs_restart=true
+    fi
+
+    # 2. Check cgroup memory usage — restart before hitting MemoryMax
+    #    Threshold: 1.8GB (MemoryMax is 2GB, MemoryHigh is 1.5GB)
+    if [ "$needs_restart" = false ]; then
+        local cgroup_path="/sys/fs/cgroup/system.slice/pixel-office-display.service"
+        if [ -f "$cgroup_path/memory.current" ]; then
+            local mem_bytes
+            mem_bytes=$(cat "$cgroup_path/memory.current" 2>/dev/null)
+            local threshold=$((1800 * 1024 * 1024))  # 1.8GB
+            if [ -n "$mem_bytes" ] && [ "$mem_bytes" -gt "$threshold" ] 2>/dev/null; then
+                local mem_mb=$((mem_bytes / 1024 / 1024))
+                reason="Memory too high: ${mem_mb}MB (threshold: 1800MB)"
+                needs_restart=true
+            fi
+        fi
+    fi
+
+    # 3. HTTP health check — if the server itself is unresponsive
+    if [ "$needs_restart" = false ]; then
+        local http_ok
+        http_ok=$(curl -s --connect-timeout 2 --max-time 5 -o /dev/null -w "%{http_code}" "http://localhost:3300/api/status" 2>/dev/null)
+        if [ "$http_ok" != "200" ]; then
+            reason="Server not responding (HTTP: $http_ok)"
+            needs_restart=true
+        fi
+    fi
+
+    if [ "$needs_restart" = true ]; then
+        log "Health check failed: $reason"
         log "Restarting kiosk to recover..."
         stop_kiosk
-        sleep 2
+        sleep 3
         start_kiosk
     fi
 }
