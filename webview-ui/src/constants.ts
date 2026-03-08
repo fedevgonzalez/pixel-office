@@ -130,6 +130,20 @@ export const NOTIFICATION_NOTE_2_START_SEC = 0.1
 export const NOTIFICATION_NOTE_DURATION_SEC = 0.18
 export const NOTIFICATION_VOLUME = 0.14
 
+// ── Pets ────────────────────────────────────────────────────
+export const PET_WALK_SPEED_PX_PER_SEC = 32
+export const PET_WALK_FRAME_DURATION_SEC = 0.2
+export const PET_IDLE_MIN_SEC = 3.0
+export const PET_IDLE_MAX_SEC = 10.0
+export const PET_SLEEP_MIN_SEC = 15.0
+export const PET_SLEEP_MAX_SEC = 60.0
+export const PET_SLEEP_FRAME_DURATION_SEC = 1.0
+export const PET_WANDER_MOVES_MIN = 2
+export const PET_WANDER_MOVES_MAX = 5
+export const PET_SPRITE_WIDTH = 16
+export const PET_SPRITE_HEIGHT = 16
+export const PET_MAX_FREE = 2
+
 // ── Game Logic ───────────────────────────────────────────────
 export const MAX_DELTA_TIME_SEC = 0.1
 export const WAITING_BUBBLE_DURATION_SEC = 2.0

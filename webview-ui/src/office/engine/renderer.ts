@@ -1,8 +1,10 @@
 import { TileType, TILE_SIZE, CharacterState } from '../types.js'
-import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor } from '../types.js'
+import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet } from '../types.js'
+import { PetState } from '../types.js'
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js'
 import { getCharacterSprites, BUBBLE_PERMISSION_SPRITE, BUBBLE_WAITING_SPRITE } from '../sprites/spriteData.js'
 import { getCharacterSprite } from './characters.js'
+import { getPetSprite } from './pets.js'
 import { renderMatrixEffect } from './matrixEffect.js'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles.js'
@@ -103,6 +105,7 @@ export function renderScene(
   zoom: number,
   selectedAgentId: number | null,
   hoveredAgentId: number | null,
+  pets?: Pet[],
 ): void {
   const drawables: ZDrawable[] = []
 
@@ -176,6 +179,32 @@ export function renderScene(
         c.drawImage(cached, drawX, drawY)
       },
     })
+  }
+
+  // Pets (16x16, no sitting offset, no matrix effect)
+  if (pets) {
+    for (const pet of pets) {
+      const petSpriteData = getPetSprite(pet)
+      const petCached = getCachedSprite(petSpriteData, zoom)
+      // Pets are 16x16, anchor at bottom-center
+      const petDrawX = Math.round(offsetX + pet.x * zoom - petCached.width / 2)
+      const petDrawY = Math.round(offsetY + pet.y * zoom - petCached.height)
+      const petZY = pet.y + TILE_SIZE / 2 + CHARACTER_Z_SORT_OFFSET
+
+      drawables.push({
+        zY: petZY,
+        draw: (c) => {
+          // Sleeping pets are slightly transparent
+          if (pet.state === PetState.SLEEP) {
+            c.globalAlpha = 0.85
+            c.drawImage(petCached, petDrawX, petDrawY)
+            c.globalAlpha = 1
+          } else {
+            c.drawImage(petCached, petDrawX, petDrawY)
+          }
+        },
+      })
+    }
   }
 
   // Sort by Y (lower = in front = drawn later)
@@ -541,6 +570,7 @@ export function renderFrame(
   tileColors?: Array<FloorColor | null>,
   layoutCols?: number,
   layoutRows?: number,
+  pets?: Pet[],
 ): { offsetX: number; offsetY: number } {
   // Clear
   ctx.clearRect(0, 0, canvasWidth, canvasHeight)
@@ -574,7 +604,7 @@ export function renderFrame(
   // Draw walls + furniture + characters (z-sorted)
   const selectedId = selection?.selectedAgentId ?? null
   const hoveredId = selection?.hoveredAgentId ?? null
-  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId)
+  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets)
 
   // Speech bubbles (always on top of characters)
   renderBubbles(ctx, characters, offsetX, offsetY, zoom)

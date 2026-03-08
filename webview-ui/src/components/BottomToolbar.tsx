@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { SettingsModal } from './SettingsModal.js'
 import { GalleryModal } from './GalleryModal.js'
+import { PetCreatorModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
+import type { PlacedPet } from '../office/types.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
 
 interface BottomToolbarProps {
@@ -11,6 +13,7 @@ interface BottomToolbarProps {
   isDebugMode: boolean
   onToggleDebugMode: () => void
   workspaceFolders: WorkspaceFolder[]
+  onAddPet?: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
 }
 
 const panelStyle: React.CSSProperties = {
@@ -52,10 +55,12 @@ export function BottomToolbar({
   isDebugMode,
   onToggleDebugMode,
   workspaceFolders,
+  onAddPet,
 }: BottomToolbarProps) {
   const [hovered, setHovered] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
+  const [isPetCreatorOpen, setIsPetCreatorOpen] = useState(false)
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false)
   const [hoveredFolder, setHoveredFolder] = useState<number | null>(null)
   const folderPickerRef = useRef<HTMLDivElement>(null)
@@ -183,6 +188,32 @@ export function BottomToolbar({
         Community
       </button>
       <GalleryModal isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} />
+      <button
+        onClick={() => setIsPetCreatorOpen((v) => !v)}
+        onMouseEnter={() => setHovered('pet')}
+        onMouseLeave={() => setHovered(null)}
+        style={
+          isPetCreatorOpen
+            ? { ...btnActive }
+            : {
+                ...btnBase,
+                background: hovered === 'pet' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
+              }
+        }
+        title="Add a pet to your office"
+      >
+        Pets
+      </button>
+      {isPetCreatorOpen && onAddPet && (
+        <PetCreatorModal
+          isOpen={isPetCreatorOpen}
+          onClose={() => setIsPetCreatorOpen(false)}
+          onCreatePet={(pet) => {
+            onAddPet(pet)
+            setIsPetCreatorOpen(false)
+          }}
+        />
+      )}
       <div style={{ position: 'relative' }}>
         <button
           onClick={() => setIsSettingsOpen((v) => !v)}

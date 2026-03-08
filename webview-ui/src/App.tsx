@@ -6,6 +6,7 @@ import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
 import { EditTool } from './office/types.js'
+import type { PlacedPet } from './office/types.js'
 import { isRotatable } from './office/layout/furnitureCatalog.js'
 import { vscode } from './vscodeApi.js'
 import { useExtensionMessages } from './hooks/useExtensionMessages.js'
@@ -152,6 +153,30 @@ function App() {
     vscode.postMessage({ type: 'closeAgent', id })
   }, [])
 
+  const handleAddPet = useCallback((petData: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => {
+    const os = getOfficeState()
+    const walkable = os.walkableTiles
+    if (walkable.length === 0) return
+    // Pick a random walkable tile
+    const tile = walkable[Math.floor(Math.random() * walkable.length)]
+    const uid = `pet-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    const pet: PlacedPet = {
+      uid,
+      species: petData.species,
+      name: petData.name,
+      col: tile.col,
+      row: tile.row,
+      color: petData.color,
+    }
+    // Add to layout
+    const layout = os.getLayout()
+    const pets = [...(layout.pets || []), pet]
+    const newLayout = { ...layout, pets }
+    os.rebuildFromLayout(newLayout)
+    // Save
+    vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+  }, [])
+
   const handleClick = useCallback((agentId: number) => {
     // If clicked agent is a sub-agent, focus the parent's terminal instead
     const os = getOfficeState()
@@ -244,6 +269,7 @@ function App() {
           isDebugMode={isDebugMode}
           onToggleDebugMode={handleToggleDebugMode}
           workspaceFolders={workspaceFolders}
+          onAddPet={handleAddPet}
         />
       )}
 

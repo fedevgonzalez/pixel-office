@@ -132,6 +132,53 @@ export interface PlacedFurniture {
   color?: FloorColor
 }
 
+export const PetSpecies = {
+  CAT: 'cat',
+  DOG: 'dog',
+} as const
+export type PetSpecies = (typeof PetSpecies)[keyof typeof PetSpecies]
+
+export const PetState = {
+  IDLE: 'idle',
+  WALK: 'walk',
+  SLEEP: 'sleep',
+  PLAY: 'play',
+  SIT: 'sit',
+} as const
+export type PetState = (typeof PetState)[keyof typeof PetState]
+
+export interface PlacedPet {
+  uid: string
+  species: PetSpecies
+  name: string
+  /** Tile column */
+  col: number
+  /** Tile row */
+  row: number
+  /** Optional HSB color shift */
+  color?: FloorColor
+}
+
+export interface Pet {
+  uid: string
+  species: PetSpecies
+  name: string
+  state: PetState
+  dir: Direction
+  x: number
+  y: number
+  tileCol: number
+  tileRow: number
+  path: Array<{ col: number; row: number }>
+  moveProgress: number
+  frame: number
+  frameTimer: number
+  /** Current behavior timer (seconds remaining) */
+  behaviorTimer: number
+  /** HSB color shift */
+  color?: FloorColor
+}
+
 export interface OfficeLayout {
   version: 1
   cols: number
@@ -140,6 +187,8 @@ export interface OfficeLayout {
   furniture: PlacedFurniture[]
   /** Per-tile color settings, parallel to tiles array. null = wall/no color */
   tileColors?: Array<FloorColor | null>
+  /** Pets placed in the office */
+  pets?: PlacedPet[]
 }
 
 export interface Character {

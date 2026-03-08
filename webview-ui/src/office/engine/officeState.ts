@@ -13,8 +13,9 @@ import {
   CHARACTER_HIT_HALF_WIDTH,
   CHARACTER_HIT_HEIGHT,
 } from '../../constants.js'
-import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture } from '../types.js'
+import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Pet } from '../types.js'
 import { createCharacter, updateCharacter } from './characters.js'
+import { createPet, updatePet } from './pets.js'
 import { matrixEffectSeeds } from './matrixEffect.js'
 import { isWalkable, getWalkableTiles, findPath } from '../layout/tileMap.js'
 import {
@@ -34,6 +35,7 @@ export class OfficeState {
   furniture: FurnitureInstance[]
   walkableTiles: Array<{ col: number; row: number }>
   characters: Map<number, Character> = new Map()
+  pets: Map<string, Pet> = new Map()
   selectedAgentId: number | null = null
   cameraFollowId: number | null = null
   hoveredAgentId: number | null = null
@@ -122,6 +124,29 @@ export class OfficeState {
       if (ch.seatId) continue // seated characters are fine
       if (ch.tileCol < 0 || ch.tileCol >= layout.cols || ch.tileRow < 0 || ch.tileRow >= layout.rows) {
         this.relocateCharacterToWalkable(ch)
+      }
+    }
+
+    // Rebuild pets from layout
+    this.rebuildPets()
+  }
+
+  /** Create/update pets from layout.pets array */
+  rebuildPets(): void {
+    const layoutPets = this.layout.pets || []
+    const existingUids = new Set(layoutPets.map((p) => p.uid))
+
+    // Remove pets no longer in layout
+    for (const uid of this.pets.keys()) {
+      if (!existingUids.has(uid)) {
+        this.pets.delete(uid)
+      }
+    }
+
+    // Add new pets (preserve existing ones)
+    for (const placed of layoutPets) {
+      if (!this.pets.has(placed.uid)) {
+        this.pets.set(placed.uid, createPet(placed))
       }
     }
   }
@@ -650,6 +675,11 @@ export class OfficeState {
     // Remove characters that finished despawn
     for (const id of toDelete) {
       this.characters.delete(id)
+    }
+
+    // Update pets
+    for (const pet of this.pets.values()) {
+      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles)
     }
   }
 
