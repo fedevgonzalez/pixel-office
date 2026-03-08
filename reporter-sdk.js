@@ -103,7 +103,7 @@ function createPixelReporter(options = {}) {
 
   function startSession() {
     sessionId = `${agentName}-${Date.now()}`;
-    send({ type: 'session-start', sessionId, folderName: agentName });
+    send({ type: 'session-start', sessionId, folderName: agentName, sdk: true });
     send({ type: 'session-replay-done', sessionId });
     // Start in waiting/idle state
     sendLine({ type: 'system', subtype: 'turn_duration' });

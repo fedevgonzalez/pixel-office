@@ -587,7 +587,8 @@ function handleReporterMessage(ws, msg) {
       activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
       activeSubagentToolIds: new Map(), activeSubagentToolNames: new Map(),
       isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false,
-      isReplaying: true, folderName, machineId, remote: true, permissionMode: 'bypassPermissions',
+      isReplaying: true, folderName, machineId, remote: true, isSDK: !!msg.sdk,
+      permissionMode: msg.sdk ? 'bypassPermissions' : undefined,
     };
     agents.set(id, agent);
     remoteAgents.set(remoteKey, id);
@@ -864,6 +865,7 @@ const server = http.createServer((req, res) => {
         folderName: agent.folderName || '',
         isWaiting: agent.isWaiting,
         activeTools: agent.activeToolIds.size,
+        sdk: !!agent.isSDK,
       });
     }
     const body = JSON.stringify({ agents: agentList, count: agentList.length });
