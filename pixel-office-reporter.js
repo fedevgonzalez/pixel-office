@@ -21,7 +21,7 @@ if (!WebSocket) {
   }
 }
 
-const SERVER_URL = process.argv[2] || process.env.PIXEL_OFFICE_SERVER || 'ws://192.168.68.100:3300/ws/report';
+const SERVER_URL = process.argv[2] || process.env.PIXEL_OFFICE_SERVER || 'ws://localhost:3300/ws/report';
 const MACHINE_ID = process.env.PIXEL_OFFICE_MACHINE_ID || os.hostname();
 const PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const SCAN_INTERVAL_MS = 5000;

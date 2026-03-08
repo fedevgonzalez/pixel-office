@@ -28,7 +28,7 @@ if (!WebSocket) {
 }
 
 function createPixelReporter(options = {}) {
-  const serverUrl = options.serverUrl || process.env.PIXEL_OFFICE_SERVER || 'ws://192.168.68.100:3300/ws/report';
+  const serverUrl = options.serverUrl || process.env.PIXEL_OFFICE_SERVER || 'ws://localhost:3300/ws/report';
   const machineId = options.machineId || process.env.PIXEL_OFFICE_MACHINE_ID || os.hostname();
   const agentName = options.agentName || 'sdk-agent';
   const reconnect = options.reconnect !== false;

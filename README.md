@@ -50,7 +50,24 @@ node standalone-server.js
 node pixel-office-reporter.js ws://<server-ip>:3300/ws/report
 ```
 
-The reporter watches local `~/.claude/projects/` JSONL files and streams updates to the server. See [STANDALONE.md](STANDALONE.md) for full details.
+The reporter watches local `~/.claude/projects/` JSONL files and streams updates to the server.
+
+**Custom agents (SDK, cron, any process):**
+```js
+const { createPixelReporter } = require('./reporter-sdk');
+const reporter = createPixelReporter({
+  serverUrl: 'ws://<server-ip>:3300/ws/report',
+  agentName: 'my-agent',
+});
+reporter.connect();
+reporter.taskStart('Processing data');
+reporter.toolStart('Bash', { command: 'python analyze.py' });
+// ... work ...
+reporter.toolEnd('Bash');
+reporter.taskEnd();
+```
+
+See [STANDALONE.md](STANDALONE.md) for full setup, SDK integration, WebSocket protocol, and API docs.
 
 ## Features
 
@@ -65,8 +82,10 @@ The reporter watches local `~/.claude/projects/` JSONL files and streams updates
 | Layout editor | Design your office with floors, walls, and 50+ furniture items |
 | Kiosk mode | Auto-framing camera, status sidebar, 15fps throttle |
 | Multi-PC | WebSocket reporters aggregate agents from multiple machines |
+| SDK agents | Report custom agents (Claude SDK, cron jobs, any process) |
 | VS Code extension | Also works as a panel in VS Code |
 | Cross-tab sync | Layout changes sync across all open tabs/windows |
+| HTTP API | `/api/status` for monitoring, `/api/reload` for remote control |
 
 ## Layout Editor
 
