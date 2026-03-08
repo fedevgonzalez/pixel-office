@@ -760,7 +760,8 @@ const WebSocket = require('ws');
 
 async function handleClientMessage(ws, msg) {
   if (msg.type === 'webviewReady') {
-    console.log('webviewReady received, sending assets...');
+    if (msg.kiosk) ws._isKiosk = true;
+    console.log(`webviewReady received${msg.kiosk ? ' (kiosk)' : ''}, sending assets...`);
     // Send assets, layout, and existing agents
     try {
       const chars = await loadCharacterSprites();
@@ -963,11 +964,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // API: client health — reports whether any browser client is responsive
-  // Used by the display script to detect frozen Chrome (replaces D-state grep)
+  // API: client health — reports whether the kiosk browser client is responsive
+  // Only checks kiosk-tagged clients so regular browsers don't mask a frozen kiosk.
+  // Used by the display script to detect frozen Chrome.
   if (urlPath === '/api/client-health') {
     const now = Date.now();
-    const clients = wsClients.map(ws => ({
+    const kioskClients = wsClients.filter(ws => ws._isKiosk);
+    const clients = kioskClients.map(ws => ({
       lastPongAge: Math.round((now - (ws._lastPongAt || 0)) / 1000),
       alive: !!ws._isAlive,
     }));
