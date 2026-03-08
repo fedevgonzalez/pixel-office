@@ -96,6 +96,23 @@ check_server_restart() {
     LAST_SERVER_PID="$current_pid"
 }
 
+# Detect Chrome renderer in "D" (uninterruptible sleep) state — frozen/hung
+# This happens after hours of running; the only recovery is to kill and relaunch
+check_chrome_health() {
+    if [ "$IS_SHOWING" = false ]; then return; fi
+
+    # Check if the main Chrome renderer is in D state
+    local chrome_state
+    chrome_state=$(ps -eo pid,stat,comm | grep -E "chrome.*D" | head -1)
+    if [ -n "$chrome_state" ]; then
+        log "Chrome renderer frozen (D state): $chrome_state"
+        log "Restarting kiosk to recover..."
+        stop_kiosk
+        sleep 2
+        start_kiosk
+    fi
+}
+
 cleanup() {
     log "Shutting down..."
     stop_kiosk
@@ -115,6 +132,7 @@ while true; do
         fi
         start_kiosk
         check_server_restart
+        check_chrome_health
     else
         if [ "$IS_SHOWING" = true ]; then
             # Grace period: check again before stopping
