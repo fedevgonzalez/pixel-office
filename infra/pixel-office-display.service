@@ -12,10 +12,11 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Memory limits — MemoryHigh is the soft throttle threshold.
-# Too low causes constant kernel throttling (freezes JS event loop).
-MemoryMax=2G
-MemoryHigh=1800M
+# Memory limits — Chrome kiosk with canvas + WebSocket uses ~1.5GB baseline.
+# MemoryHigh is the soft throttle threshold; too low causes D-state freezes
+# as the kernel's memory reclaim puts Chrome processes in uninterruptible sleep.
+MemoryMax=4G
+MemoryHigh=3G
 
 [Install]
 WantedBy=multi-user.target

@@ -33,10 +33,10 @@ start_kiosk() {
     printf '#!/bin/bash\n' > "$XINITRC"
     printf 'unclutter -idle 1 -root &\n' >> "$XINITRC"
     printf 'xset s off\nxset -dpms\nxset s noblank\n' >> "$XINITRC"
-    # Use --disable-gpu to avoid amdgpu kernel driver D-state freezes on AMD Rembrandt.
-    # Software rasterizer (Skia CPU) remains enabled as the rendering backend.
     # dbus-run-session provides a session bus so Chrome D-Bus calls don't block.
-    printf 'dbus-run-session -- google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --disable-gpu --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
+    # No --disable-gpu: hardware acceleration via AMD GPU is more stable than software rendering.
+    # No --disable-software-rasterizer: keep as fallback if GPU init fails.
+    printf 'dbus-run-session -- google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
     chmod +x "$XINITRC"
 
     # Start X on vt1
@@ -120,17 +120,17 @@ check_chrome_health() {
         needs_restart=true
     fi
 
-    # 2. Check cgroup memory usage — restart before hitting MemoryMax
-    #    Threshold: 1.8GB (MemoryMax is 2GB, MemoryHigh is 1.5GB)
+    # 2. Check cgroup memory usage — restart before hitting MemoryMax (4GB)
+    #    Threshold at 3.5GB gives Chrome room to breathe (~1.8-2GB typical usage)
     if [ "$needs_restart" = false ]; then
         local cgroup_path="/sys/fs/cgroup/system.slice/pixel-office-display.service"
         if [ -f "$cgroup_path/memory.current" ]; then
             local mem_bytes
             mem_bytes=$(cat "$cgroup_path/memory.current" 2>/dev/null)
-            local threshold=$((1800 * 1024 * 1024))  # 1.8GB
+            local threshold=$((3500 * 1024 * 1024))  # 3.5GB
             if [ -n "$mem_bytes" ] && [ "$mem_bytes" -gt "$threshold" ] 2>/dev/null; then
                 local mem_mb=$((mem_bytes / 1024 / 1024))
-                reason="Memory too high: ${mem_mb}MB (threshold: 1800MB)"
+                reason="Memory too high: ${mem_mb}MB (threshold: 3500MB)"
                 needs_restart=true
             fi
         fi
