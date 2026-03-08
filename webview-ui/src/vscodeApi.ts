@@ -12,8 +12,9 @@ function createStandaloneApi(): { postMessage(msg: unknown): void } {
       connected = true
       disconnectedSince = null
       // Re-send webviewReady on every reconnect so the server sends assets + agents
-      const isKiosk = new URLSearchParams(window.location.search).has('kiosk')
-      ws!.send(JSON.stringify({ type: 'webviewReady', kiosk: isKiosk }))
+      const params = new URLSearchParams(window.location.search)
+      const isHomeserver = params.has('homeserver')
+      ws!.send(JSON.stringify({ type: 'webviewReady', homeserver: isHomeserver }))
       for (const msg of pending) {
         ws!.send(JSON.stringify(msg))
       }

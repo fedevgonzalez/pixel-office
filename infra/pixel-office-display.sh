@@ -11,7 +11,7 @@
 
 # --- Configuration ---
 PIXEL_OFFICE_HOST="${PIXEL_OFFICE_HOST:-localhost}"
-PIXEL_OFFICE_URL="http://${PIXEL_OFFICE_HOST}:3300?kiosk"
+PIXEL_OFFICE_URL="http://${PIXEL_OFFICE_HOST}:3300?kiosk&homeserver=true"
 STATUS_URL="http://${PIXEL_OFFICE_HOST}:3300/api/status"
 HEALTH_URL="http://${PIXEL_OFFICE_HOST}:3300/api/client-health"
 CHECK_INTERVAL=10          # seconds between main loop iterations
