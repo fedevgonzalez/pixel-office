@@ -17,6 +17,7 @@ HEALTH_URL="http://${PIXEL_OFFICE_HOST}:3300/api/client-health"
 CHECK_INTERVAL=10          # seconds between main loop iterations
 CHROME_STARTUP_GRACE=30    # seconds to wait for Chrome to connect WS after launch
 GRACE_BEFORE_STOP=60       # seconds to wait before stopping kiosk when agents disappear
+MAX_CHROME_AGE=1200        # seconds (20 min) — preventive restart to avoid memory bloat
 
 # --- State ---
 XINIT_PID=""
@@ -50,8 +51,10 @@ xset -dpms
 xset s noblank
 XEOF
     # dbus-run-session provides a session bus so Chrome D-Bus calls don't block.
-    # GPU acceleration enabled — more stable than software rendering on AMD.
-    printf 'dbus-run-session -- google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
+    # GPU rasterization ON, but compositor OFF — reduces GPU memory by ~60%.
+    # --in-process-gpu avoids separate GPU process (less IPC buffer overhead).
+    # --disable-audio-output silences ALSA errors on headless display.
+    printf 'dbus-run-session -- google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI,SkiaGraphite --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --disable-gpu-compositing --in-process-gpu --num-raster-threads=2 --disable-audio-output --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
     chmod +x "$XINITRC"
 
     # Start X on vt1
@@ -190,18 +193,28 @@ check_chrome_health() {
         :
     fi
 
-    # 2. cgroup memory — restart before hitting MemoryMax (4GB)
+    # 2. cgroup memory — restart before hitting MemoryMax (6GB)
     if [ "$needs_restart" = false ]; then
         local cgroup_path="/sys/fs/cgroup/system.slice/pixel-office-display.service"
         if [ -f "$cgroup_path/memory.current" ]; then
             local mem_bytes
             mem_bytes=$(cat "$cgroup_path/memory.current" 2>/dev/null)
-            local threshold=$((3500 * 1024 * 1024))  # 3.5GB
+            local threshold=$((5000 * 1024 * 1024))  # 5GB
             if [ -n "$mem_bytes" ] && [ "$mem_bytes" -gt "$threshold" ] 2>/dev/null; then
                 local mem_mb=$((mem_bytes / 1024 / 1024))
-                reason="Memory too high: ${mem_mb}MB (threshold: 3500MB)"
+                reason="Memory too high: ${mem_mb}MB (threshold: 5000MB)"
                 needs_restart=true
             fi
+        fi
+    fi
+
+    # 3. Preventive age-based restart — Chrome leaks GPU compositor memory
+    #    on AMD Rembrandt (~500MB/min). Restart every MAX_CHROME_AGE seconds
+    #    to keep memory in check. The restart is seamless (< 5s downtime).
+    if [ "$needs_restart" = false ]; then
+        if [ "$age" -gt "$MAX_CHROME_AGE" ]; then
+            reason="Preventive restart (age: ${age}s, max: ${MAX_CHROME_AGE}s)"
+            needs_restart=true
         fi
     fi
 

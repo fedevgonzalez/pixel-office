@@ -12,11 +12,11 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Memory limits — Chrome kiosk with canvas + WebSocket uses ~1.5GB baseline.
-# MemoryHigh is the soft throttle threshold; too low causes D-state freezes
-# as the kernel's memory reclaim puts Chrome processes in uninterruptible sleep.
-MemoryMax=4G
-MemoryHigh=3G
+# Memory limit — hard kill only. Do NOT set MemoryHigh: it triggers kernel
+# memory reclaim that puts Chrome in D-state (uninterruptible sleep), freezing
+# the render pipeline. Chrome's memory grows ~500MB/min due to GPU compositor
+# buffers on AMD Rembrandt; the display script handles this via periodic restart.
+MemoryMax=6G
 
 [Install]
 WantedBy=multi-user.target
