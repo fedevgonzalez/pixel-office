@@ -27,7 +27,7 @@ const PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000; // 15 min — sessions with no file changes are considered dead
+const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — sessions with no file changes are considered dead
 
 let ws = null;
 let connected = false;
@@ -74,22 +74,38 @@ function resolveFolderName(hashName) {
   return hashName;
 }
 
-// --- Check if session has /exit (must be a user message, not just a reference) ---
+// --- Check if session has /exit as the LAST user action ---
+// A session can be restarted after /exit, so we check if there's activity after the last /exit.
 function hasExitCommand(filePath) {
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     const lines = content.split('\n');
-    for (const line of lines) {
-      if (!line.includes('<command-name>/exit</command-name>')) continue;
+    let lastExitIdx = -1;
+    let lastActivityIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      if (line.includes('<command-name>/exit</command-name>')) {
+        try {
+          const record = JSON.parse(line);
+          if (record.type === 'user') {
+            const c = record.message?.content;
+            if (typeof c === 'string' && c.trimStart().startsWith('<command-name>/exit</command-name>')) {
+              lastExitIdx = i;
+            }
+          }
+        } catch {}
+      }
+      // Track last meaningful activity (assistant or user messages)
       try {
         const record = JSON.parse(line);
-        if (record.type === 'user') {
-          const c = record.message?.content;
-          if (typeof c === 'string' && c.trimStart().startsWith('<command-name>/exit</command-name>')) return true;
+        if (record.type === 'assistant' || record.type === 'user') {
+          lastActivityIdx = i;
         }
       } catch {}
     }
-    return false;
+    // Only consider exited if /exit is the last meaningful action
+    return lastExitIdx !== -1 && lastExitIdx >= lastActivityIdx;
   } catch { return false; }
 }
 
