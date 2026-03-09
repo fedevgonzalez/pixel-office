@@ -88,6 +88,9 @@ const permissionTimers = new Map();
 const knownFiles = new Set();
 const skippedFiles = new Map(); // file -> mtimeMs when skipped
 let wsClients = [];
+const clientLastPong = new Map(); // ws -> timestamp of last pong
+const WS_PING_INTERVAL_MS = 15000;
+const WS_PONG_STALE_MS = 30000;
 
 function broadcast(msg) {
   const data = JSON.stringify(msg);
@@ -984,6 +987,21 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // API: client health check — reports whether any UI client has responded to a WS ping recently
+  if (urlPath === '/api/client-health') {
+    const now = Date.now();
+    let ok = false;
+    for (const [, lastPong] of clientLastPong) {
+      if (now - lastPong < WS_PONG_STALE_MS) { ok = true; break; }
+    }
+    // If no UI clients connected at all, report ok (nothing to health-check)
+    if (wsClients.length === 0) ok = true;
+    const body = JSON.stringify({ ok, clients: wsClients.length });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(body);
+    return;
+  }
+
   // Serve from dist/webview/ (cached in memory)
   const cached = fileCache.get(urlPath);
   if (cached) {
@@ -1021,7 +1039,12 @@ wss.on('connection', (ws, req) => {
 
   // Regular UI client connections
   wsClients.push(ws);
+  clientLastPong.set(ws, Date.now());
   console.log('WebSocket client connected');
+
+  ws.on('pong', () => {
+    clientLastPong.set(ws, Date.now());
+  });
 
   ws.on('message', (data) => {
     try {
@@ -1032,13 +1055,22 @@ wss.on('connection', (ws, req) => {
 
   ws.on('close', () => {
     wsClients = wsClients.filter(c => c !== ws);
+    clientLastPong.delete(ws);
     console.log('WebSocket client disconnected');
   });
 
   ws.on('error', () => {
     wsClients = wsClients.filter(c => c !== ws);
+    clientLastPong.delete(ws);
   });
 });
+
+// Ping UI clients periodically for health monitoring
+setInterval(() => {
+  for (const ws of wsClients) {
+    try { ws.ping(); } catch {}
+  }
+}, WS_PING_INTERVAL_MS);
 
 const noScan = process.env.NO_SCAN === '1';
 server.listen(PORT, '0.0.0.0', () => {
