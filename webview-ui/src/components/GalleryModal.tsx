@@ -316,7 +316,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
     <div
       className="gallery-card"
       style={{
-        background: 'rgba(255, 255, 255, 0.03)',
+        background: 'rgba(255, 245, 235, 0.03)',
         border: '2px solid var(--pixel-border)',
         borderRadius: 0,
         padding: GALLERY_CARD_PADDING,
@@ -345,7 +345,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
             style={{ maxWidth: '100%', maxHeight: '100%', imageRendering: 'pixelated' }}
           />
         ) : (
-          <span style={{ fontSize: '20px', color: 'rgba(255, 255, 255, 0.4)' }}>No preview</span>
+          <span style={{ fontSize: '20px', color: 'rgba(255, 245, 235, 0.4)' }}>No preview</span>
         )}
       </div>
 
@@ -382,7 +382,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
       {/* Action */}
       {isConfirming ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 8px' }}>
-          <span style={{ fontSize: '18px', color: 'rgba(255, 200, 80, 0.9)', flex: 1 }}>Replace furniture and floor? Pets stay.</span>
+          <span style={{ fontSize: '18px', color: 'rgba(232, 168, 76, 0.9)', flex: 1 }}>Replace furniture and floor? Pets stay.</span>
           <button
             onClick={onImport}
             aria-label="Replace layout and import"

@@ -90,7 +90,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             marginBottom: '4px',
           }}
         >
-          <span id="settings-modal-title" style={{ fontSize: '24px', color: 'rgba(255, 255, 255, 0.9)' }}>Settings</span>
+          <span id="settings-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Settings</span>
           <button
             onClick={onClose}
             className="pixel-close-btn"
@@ -162,7 +162,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
               justifyContent: 'center',
               fontSize: '12px',
               lineHeight: 1,
-              color: '#fff',
+              color: 'rgba(255, 245, 235, 0.95)',
             }}
           >
             {soundLocal ? '✓' : ''}
@@ -190,7 +190,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
               justifyContent: 'center',
               fontSize: '12px',
               lineHeight: 1,
-              color: '#fff',
+              color: 'rgba(255, 245, 235, 0.95)',
             }}
           >
             {isDebugMode ? '✓' : ''}
@@ -210,7 +210,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
           <span style={{
             fontFamily: 'var(--pixel-font)',
             fontSize: '18px',
-            color: 'rgba(255, 255, 255, 0.9)',
+            color: 'var(--pixel-text)',
           }}>
             Pixel Office v0.2.0
           </span>

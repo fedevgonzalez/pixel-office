@@ -25,7 +25,7 @@ function ToolDot({ tool }: { tool: ToolActivity }) {
           ? 'var(--vscode-charts-green, #89d185)'
           : tool.permissionWait
             ? 'var(--vscode-charts-yellow, #cca700)'
-            : 'var(--vscode-charts-blue, #3794ff)',
+            : 'var(--vscode-charts-yellow, #e8a84c)',
         display: 'inline-block',
         flexShrink: 0,
       }}
@@ -68,7 +68,7 @@ export function DebugView({
       <div
         key={id}
         style={{
-          border: `2px solid ${isSelected ? '#5a8cff' : '#4a4a6a'}`,
+          border: `2px solid ${isSelected ? '#e8a84c' : '#5a4a6a'}`,
           borderRadius: 0,
           padding: '6px 8px',
           background: isSelected ? 'var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.04))' : undefined,
@@ -81,8 +81,8 @@ export function DebugView({
               borderRadius: 0,
               padding: '6px 10px',
               fontSize: '26px',
-              background: isSelected ? 'rgba(90, 140, 255, 0.25)' : undefined,
-              color: isSelected ? '#fff' : undefined,
+              background: isSelected ? 'rgba(232, 168, 76, 0.25)' : undefined,
+              color: isSelected ? 'rgba(255, 245, 235, 0.9)' : undefined,
               fontWeight: isSelected ? 'bold' : undefined,
             }}
           >
@@ -95,8 +95,8 @@ export function DebugView({
               padding: '6px 8px',
               fontSize: '26px',
               opacity: 0.7,
-              background: isSelected ? 'rgba(90, 140, 255, 0.25)' : undefined,
-              color: isSelected ? '#fff' : undefined,
+              background: isSelected ? 'rgba(232, 168, 76, 0.25)' : undefined,
+              color: isSelected ? 'rgba(255, 245, 235, 0.9)' : undefined,
             }}
             title="Close agent"
           >

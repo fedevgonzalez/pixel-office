@@ -134,9 +134,9 @@ export function KioskStatusPanel({
               gap: 10,
               padding: e.isSub ? '6px 10px 6px 24px' : '10px 10px',
               background: e.hasPermission
-                ? 'rgba(204, 167, 0, 0.12)'
+                ? 'rgba(232, 200, 76, 0.12)'
                 : e.isRunning
-                  ? 'rgba(55, 148, 255, 0.08)'
+                  ? 'rgba(232, 168, 76, 0.08)'
                   : 'transparent',
               borderLeft: e.isSub ? '2px solid rgba(255,255,255,0.15)' : 'none',
               opacity: isIdle ? 0.45 : 1,
@@ -153,7 +153,7 @@ export function KioskStatusPanel({
                   ? 'var(--pixel-status-permission)'
                   : e.isRunning
                     ? 'var(--pixel-status-active)'
-                    : 'rgba(255,255,255,0.2)',
+                    : 'rgba(255,245,235,0.2)',
                 flexShrink: 0,
               }}
             />
@@ -162,7 +162,7 @@ export function KioskStatusPanel({
                 style={{
                   fontSize: e.isSub ? '30px' : '38px',
                   fontWeight: e.isSub ? 'normal' : 'bold',
-                  color: isIdle ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.9)',
+                  color: isIdle ? 'rgba(255,245,235,0.5)' : 'rgba(255,245,235,0.9)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -176,7 +176,7 @@ export function KioskStatusPanel({
                     fontSize: e.isSub ? '26px' : '30px',
                     color: e.hasPermission
                       ? 'var(--pixel-status-permission)'
-                      : 'rgba(180, 210, 255, 0.85)',
+                      : 'rgba(255, 225, 180, 0.85)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',

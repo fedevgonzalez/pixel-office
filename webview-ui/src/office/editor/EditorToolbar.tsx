@@ -19,7 +19,7 @@ const btnStyle: React.CSSProperties = {
 const activeBtnStyle: React.CSSProperties = {
   ...btnStyle,
   background: 'var(--pixel-active-bg)',
-  color: 'rgba(255, 255, 255, 0.9)',
+  color: 'rgba(255, 245, 235, 0.9)',
   border: '2px solid var(--pixel-accent)',
 }
 
@@ -27,7 +27,7 @@ const tabStyle: React.CSSProperties = {
   padding: '2px 6px',
   fontSize: '20px',
   background: 'transparent',
-  color: 'rgba(255, 255, 255, 0.5)',
+  color: 'rgba(255, 245, 235, 0.5)',
   border: '2px solid transparent',
   borderRadius: 0,
   cursor: 'pointer',
@@ -35,8 +35,8 @@ const tabStyle: React.CSSProperties = {
 
 const activeTabStyle: React.CSSProperties = {
   ...tabStyle,
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: 'rgba(255, 255, 255, 0.8)',
+  background: 'rgba(255, 245, 235, 0.08)',
+  color: 'rgba(255, 245, 235, 0.8)',
   border: '2px solid var(--pixel-accent)',
 }
 
@@ -364,7 +364,7 @@ export function EditorToolbar({
                 {cat.label}
               </button>
             ))}
-            <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,0.15)', margin: '0 2px', flexShrink: 0 }} />
+            <div style={{ width: 1, height: 14, background: 'rgba(255,245,235,0.15)', margin: '0 2px', flexShrink: 0 }} />
             <button
               style={activeTool === EditTool.FURNITURE_PICK ? activeBtnStyle : btnStyle}
               onClick={() => onToolChange(EditTool.FURNITURE_PICK)}

@@ -7,51 +7,62 @@
 }
 
 :root {
-  --pixel-bg: #1e1e2e;
-  --pixel-border: #4a4a6a;
-  --pixel-border-light: #6a6a8a;
-  --pixel-accent: #5a8cff;
-  --pixel-green: #5ac88c;
-  --pixel-shadow: 2px 2px 0px #0a0a14;
+  /* Core backgrounds */
+  --pixel-bg: #1f1a24;
+  --pixel-surface: rgba(0, 0, 0, 0.25);
 
-  /* Button base */
-  --pixel-text: rgba(255, 255, 255, 0.8);
-  --pixel-text-dim: rgba(255, 255, 255, 0.7);
-  --pixel-btn-bg: rgba(255, 255, 255, 0.08);
-  --pixel-btn-hover-bg: rgba(255, 255, 255, 0.15);
+  /* Borders */
+  --pixel-border: #5a4a6a;
+  --pixel-border-light: #7a6a8a;
+
+  /* Primary accent: warm amber (the "desk lamp" color) */
+  --pixel-accent: #e8a84c;
+  --pixel-accent-dim: rgba(232, 168, 76, 0.45);
+
+  /* Secondary: warm green (softer, more yellow-green) */
+  --pixel-green: #7bc88c;
+
+  /* Shadow: warm-tinted black */
+  --pixel-shadow: 2px 2px 0px #0a0812;
+
+  /* Text: warm cream whites */
+  --pixel-text: rgba(255, 245, 235, 0.9);
+  --pixel-text-dim: rgba(255, 245, 235, 0.7);
+  --pixel-text-hint: rgba(255, 245, 235, 0.55);
+
+  /* Buttons */
+  --pixel-btn-bg: rgba(255, 245, 235, 0.08);
+  --pixel-btn-hover-bg: rgba(255, 245, 235, 0.15);
   --pixel-btn-disabled-opacity: 0.35;
 
-  /* Active/selected button state */
-  --pixel-active-bg: rgba(90, 140, 255, 0.25);
+  /* Active/selected: amber glow */
+  --pixel-active-bg: rgba(232, 168, 76, 0.25);
 
-  /* Agent button */
-  --pixel-agent-bg: rgba(90, 200, 140, 0.15);
-  --pixel-agent-hover-bg: rgba(90, 200, 140, 0.3);
-  --pixel-agent-border: #5ac88c;
+  /* Agent button: warm green */
+  --pixel-agent-bg: rgba(123, 200, 140, 0.15);
+  --pixel-agent-hover-bg: rgba(123, 200, 140, 0.3);
+  --pixel-agent-border: #7bc88c;
   --pixel-agent-text: rgba(200, 255, 220, 0.95);
 
   /* Close button */
-  --pixel-close-text: rgba(255, 255, 255, 0.5);
-  --pixel-close-hover: #e55;
+  --pixel-close-text: rgba(255, 245, 235, 0.5);
+  --pixel-close-hover: #d44;
 
   /* Hints & confirmations */
-  --pixel-hint-bg: #3278c8;
+  --pixel-hint-bg: #c87a4a;
   --pixel-reset-text: #ecc;
   --pixel-danger-bg: #a33;
   --pixel-error: rgba(255, 100, 100, 0.8);
-  --pixel-text-hint: rgba(255, 255, 255, 0.62);
-  --pixel-accent-dim: rgba(90, 140, 255, 0.45);
-  --pixel-surface: rgba(0, 0, 0, 0.25);
 
-  /* Vignette */
-  --pixel-vignette: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
+  /* Vignette: warm-tinted */
+  --pixel-vignette: radial-gradient(ellipse at center, transparent 50%, rgba(10, 4, 0, 0.6) 100%);
 
-  /* Status dot colors */
-  --pixel-status-permission: var(--vscode-charts-yellow, #cca700);
-  --pixel-status-active: var(--vscode-charts-blue, #3794ff);
+  /* Status dots: warm themed */
+  --pixel-status-permission: #e8c84c;
+  --pixel-status-active: #e8a84c;
 
-  /* Kiosk panel */
-  --pixel-kiosk-panel-bg: rgba(10, 10, 20, 0.75);
+  /* Kiosk */
+  --pixel-kiosk-panel-bg: rgba(20, 14, 24, 0.8);
   --pixel-kiosk-blur: blur(4px);
 
   /* ToolOverlay z-index layers */
@@ -121,13 +132,13 @@ a:focus-visible,
 }
 
 .pixel-btn-primary {
-  color: #50fa7b;
-  border-color: rgba(80, 250, 123, 0.3);
+  color: #7bc88c;
+  border-color: rgba(123, 200, 140, 0.3);
 }
 
 .pixel-btn-primary:hover {
-  background: rgba(80, 250, 123, 0.15);
-  border-color: rgba(80, 250, 123, 0.5);
+  background: rgba(123, 200, 140, 0.15);
+  border-color: rgba(123, 200, 140, 0.5);
 }
 
 .pixel-btn-danger:hover {
@@ -154,7 +165,7 @@ a:focus-visible,
 
 /* Settings menu item hover */
 .pixel-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 245, 235, 0.08);
 }
 
 /* Zoom button hover */

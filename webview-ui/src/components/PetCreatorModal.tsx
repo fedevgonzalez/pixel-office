@@ -48,7 +48,7 @@ const sectionLabelStyle: React.CSSProperties = {
   fontSize: '14px',
   letterSpacing: '0.08em',
   textTransform: 'uppercase' as const,
-  color: 'rgba(255, 255, 255, 0.35)',
+  color: 'rgba(255, 245, 235, 0.35)',
   marginBottom: 6,
   fontWeight: 'bold',
 }
@@ -58,7 +58,7 @@ const inputStyle: React.CSSProperties = {
   padding: '8px 10px',
   fontSize: '20px',
   background: 'rgba(0, 0, 0, 0.35)',
-  color: 'rgba(255, 255, 255, 0.9)',
+  color: 'rgba(255, 245, 235, 0.9)',
   border: '2px solid var(--pixel-border)',
   borderRadius: 0,
   outline: 'none',
@@ -67,7 +67,7 @@ const inputStyle: React.CSSProperties = {
 
 const sectionStyle: React.CSSProperties = {
   padding: '10px 12px',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+  borderBottom: '1px solid rgba(255, 245, 235, 0.06)',
 }
 
 const lastSectionStyle: React.CSSProperties = {
@@ -233,12 +233,12 @@ function SwatchPicker({
                 width: isDefault ? undefined : 28,
                 height: 28,
                 padding: isDefault ? '0 8px' : 0,
-                background: isDefault ? 'rgba(255, 255, 255, 0.07)' : preset.hex,
-                color: isDefault ? 'rgba(255, 255, 255, 0.5)' : 'transparent',
+                background: isDefault ? 'rgba(255, 245, 235, 0.07)' : preset.hex,
+                color: isDefault ? 'rgba(255, 245, 235, 0.5)' : 'transparent',
                 fontSize: '13px',
                 border: selected
                   ? '2px solid var(--pixel-accent)'
-                  : '2px solid rgba(255, 255, 255, 0.12)',
+                  : '2px solid rgba(255, 245, 235, 0.12)',
                 borderRadius: 0,
                 cursor: 'pointer',
 
@@ -287,11 +287,11 @@ function PersonalityPicker({
               padding: '7px 9px',
               background: isSelected
                 ? 'var(--pixel-active-bg)'
-                : 'rgba(255, 255, 255, 0.05)',
-              color: isSelected ? 'var(--pixel-accent)' : 'rgba(255, 255, 255, 0.7)',
+                : 'rgba(255, 245, 235, 0.05)',
+              color: isSelected ? 'var(--pixel-accent)' : 'rgba(255, 245, 235, 0.7)',
               border: isSelected
                 ? '2px solid var(--pixel-accent-dim)'
-                : '2px solid rgba(255, 255, 255, 0.08)',
+                : '2px solid rgba(255, 245, 235, 0.08)',
               borderRadius: 0,
               cursor: 'pointer',
               textAlign: 'left',
@@ -302,7 +302,7 @@ function PersonalityPicker({
             </span>
             <span style={{
               fontSize: '13px',
-              color: isSelected ? 'var(--pixel-accent-dim)' : 'rgba(255, 255, 255, 0.55)',
+              color: isSelected ? 'var(--pixel-accent-dim)' : 'rgba(255, 245, 235, 0.55)',
               lineHeight: 1.3,
             }}>
               {opt.desc}
@@ -350,11 +350,11 @@ function PatternPicker({
                 fontSize: '16px',
                 background: isSelected
                   ? 'var(--pixel-active-bg)'
-                  : 'rgba(255, 255, 255, 0.05)',
-                color: isSelected ? 'var(--pixel-accent)' : 'rgba(255, 255, 255, 0.6)',
+                  : 'rgba(255, 245, 235, 0.05)',
+                color: isSelected ? 'var(--pixel-accent)' : 'rgba(255, 245, 235, 0.6)',
                 border: isSelected
-                  ? '2px solid rgba(90, 140, 255, 0.45)'
-                  : '2px solid rgba(255, 255, 255, 0.08)',
+                  ? '2px solid var(--pixel-accent-dim)'
+                  : '2px solid rgba(255, 245, 235, 0.08)',
                 borderRadius: 0,
                 cursor: 'pointer',
 
@@ -422,11 +422,11 @@ function PetForm({
                     width: 44,
                     height: 44,
                     fontSize: '16px',
-                    background: species === opt.value ? 'var(--pixel-active-bg)' : 'rgba(255, 255, 255, 0.05)',
-                    color: species === opt.value ? 'var(--pixel-accent)' : 'rgba(255, 255, 255, 0.6)',
+                    background: species === opt.value ? 'var(--pixel-active-bg)' : 'rgba(255, 245, 235, 0.05)',
+                    color: species === opt.value ? 'var(--pixel-accent)' : 'rgba(255, 245, 235, 0.6)',
                     border: species === opt.value
                       ? '2px solid var(--pixel-accent-dim)'
-                      : '2px solid rgba(255, 255, 255, 0.08)',
+                      : '2px solid rgba(255, 245, 235, 0.08)',
                     borderRadius: 0,
                     cursor: 'pointer',
                   }}
@@ -437,7 +437,7 @@ function PetForm({
             </div>
           )}
           {!showSpeciesSelector && (
-            <div style={{ fontSize: '16px', color: 'rgba(255, 255, 255, 0.4)' }}>
+            <div style={{ fontSize: '16px', color: 'rgba(255, 245, 235, 0.4)' }}>
               {speciesLabel(species)}
             </div>
           )}
@@ -666,7 +666,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   background: 'transparent',
                   border: 'none',
                   borderRadius: 0,
-                  color: 'rgba(255, 255, 255, 0.5)',
+                  color: 'rgba(255, 245, 235, 0.5)',
                   fontSize: '20px',
                   cursor: 'pointer',
                   padding: '2px 8px 2px 4px',
@@ -676,7 +676,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 &#8592;
               </button>
             )}
-            <span id="pet-modal-title" style={{ fontSize: '22px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
+            <span id="pet-modal-title" style={{ fontSize: '22px', color: 'var(--pixel-text)', fontWeight: 'bold' }}>
               {headerTitle}
             </span>
           </div>
@@ -687,7 +687,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
               background: 'transparent',
               border: 'none',
               borderRadius: 0,
-              color: 'rgba(255, 255, 255, 0.45)',
+              color: 'rgba(255, 245, 235, 0.45)',
               fontSize: '22px',
               cursor: 'pointer',
               padding: '4px 6px',
@@ -714,10 +714,10 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 }}>
                   [ no pets ]
                 </div>
-                <div style={{ fontSize: '20px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: 6 }}>
+                <div style={{ fontSize: '20px', color: 'rgba(255, 245, 235, 0.6)', marginBottom: 6 }}>
                   No pets yet
                 </div>
-                <div style={{ fontSize: '15px', color: 'rgba(255, 255, 255, 0.3)', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '15px', color: 'rgba(255, 245, 235, 0.3)', lineHeight: 1.5 }}>
                   Add a cat or dog to keep<br />your agents company!
                 </div>
               </div>
@@ -731,7 +731,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '8px 12px',
-                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                      borderBottom: '1px solid rgba(255, 245, 235, 0.05)',
                       gap: 8,
                     }}
                   >
@@ -741,7 +741,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                       <div style={{ minWidth: 0 }}>
                         <div style={{
                           fontSize: '20px',
-                          color: 'rgba(255, 255, 255, 0.9)',
+                          color: 'rgba(255, 245, 235, 0.9)',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
@@ -749,7 +749,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                         }}>
                           {pet.name}
                         </div>
-                        <div style={{ fontSize: '14px', color: 'rgba(255, 255, 255, 0.55)', marginTop: 1 }}>
+                        <div style={{ fontSize: '14px', color: 'rgba(255, 245, 235, 0.55)', marginTop: 1 }}>
                           {speciesLabel(pet.species)} &middot; {personalityIcon(pet.personality as PetPersonality)} {personalityLabel(pet.personality as PetPersonality)}
                         </div>
                       </div>
@@ -781,9 +781,9 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                           style={{
                             padding: '4px 10px',
                             fontSize: '16px',
-                            background: 'rgba(255, 255, 255, 0.05)',
-                            color: 'rgba(255, 255, 255, 0.55)',
-                            border: '2px solid rgba(255, 255, 255, 0.1)',
+                            background: 'rgba(255, 245, 235, 0.05)',
+                            color: 'rgba(255, 245, 235, 0.55)',
+                            border: '2px solid rgba(255, 245, 235, 0.1)',
                             borderRadius: 0,
                             cursor: 'pointer',
             
@@ -800,9 +800,9 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                           style={{
                             padding: '4px 10px',
                             fontSize: '16px',
-                            background: 'rgba(90, 140, 255, 0.08)',
-                            color: 'rgba(90, 140, 255, 0.8)',
-                            border: '2px solid rgba(90, 140, 255, 0.2)',
+                            background: 'rgba(232, 168, 76, 0.08)',
+                            color: 'rgba(232, 168, 76, 0.8)',
+                            border: '2px solid rgba(232, 168, 76, 0.2)',
                             borderRadius: 0,
                             cursor: 'pointer',
             
@@ -864,13 +864,13 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   textAlign: 'center',
                   padding: '10px 12px',
                   fontSize: '15px',
-                  color: 'rgba(255, 255, 255, 0.55)',
-                  border: '2px solid rgba(255, 255, 255, 0.07)',
-                  background: 'rgba(255,255,255,0.02)',
+                  color: 'rgba(255, 245, 235, 0.55)',
+                  border: '2px solid rgba(255, 245, 235, 0.07)',
+                  background: 'rgba(255,245,235,0.02)',
                   lineHeight: 1.5,
                 }}>
                   <div>Pet limit reached ({pets.length}/{PET_MAX_FREE})</div>
-                  <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.45)', marginTop: 4 }}>
+                  <div style={{ fontSize: '13px', color: 'rgba(255, 245, 235, 0.45)', marginTop: 4 }}>
                     Remove a pet to make room
                   </div>
                 </div>
