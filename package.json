@@ -2,7 +2,7 @@
   "name": "pixel-office",
   "displayName": "Pixel Office",
   "description": "Real-time visual dashboard for Claude Code agents — standalone web server with pixel art office",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "fedevgonzalez",
   "repository": {
     "type": "git",
