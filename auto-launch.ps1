@@ -7,14 +7,14 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $reporterScript = Join-Path $scriptDir "pixel-office-reporter.js"
 $checkInterval = 5  # seconds
 $mutexName = "Global\PixelOfficeAutoLaunch"
-$serverUrl = if ($env:PIXEL_OFFICE_SERVER) { $env:PIXEL_OFFICE_SERVER } else { "ws://192.168.68.100:3300/ws/report" }
+$serverUrl = if ($env:PIXEL_OFFICE_SERVER) { $env:PIXEL_OFFICE_SERVER } else { "ws://pixel.lab:3300/ws/report" }
 
 # --- First-run setup ---
 $startupDir = [System.IO.Path]::Combine($env:APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')
 $shortcutPath = Join-Path $startupDir 'PixelOffice.lnk'
 
 if (-not (Test-Path $shortcutPath)) {
-    Write-Host "First run — setting up Pixel Office..."
+    Write-Host "First run - setting up Pixel Office..."
 
     # Install ws globally (needed for Node < 22)
     $nodeVersion = (node --version 2>$null) -replace 'v','' -split '\.' | Select-Object -First 1
@@ -73,9 +73,15 @@ try {
                 if ($reporterProcess -and -not $reporterProcess.HasExited) {
                     Stop-Process -Id $reporterProcess.Id -Force -ErrorAction SilentlyContinue
                 }
-                Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object {
-                    try { (Get-CimInstance Win32_Process -Filter "ProcessId=$($_.Id)").CommandLine -like "*pixel-office-reporter*" } catch { $false }
-                } | Stop-Process -Force -ErrorAction SilentlyContinue
+                $nodeProcs = Get-Process -Name 'node' -ErrorAction SilentlyContinue
+                foreach ($proc in $nodeProcs) {
+                    try {
+                        $cmdLine = (Get-CimInstance Win32_Process -Filter ('ProcessId=' + $proc.Id)).CommandLine
+                        if ($cmdLine -like '*pixel-office-reporter*') {
+                            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+                        }
+                    } catch {}
+                }
                 $reporterProcess = $null
                 $wasRunning = $false
             }
