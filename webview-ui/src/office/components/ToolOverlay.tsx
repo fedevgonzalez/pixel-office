@@ -244,27 +244,49 @@ export function ToolOverlay({
                 />
               )}
               <div style={overflowStyle}>
-                <span
-                  style={{
-                    fontSize: isKioskMode
-                      ? (isSub ? '32px' : '38px')
-                      : (isSub ? '20px' : '22px'),
-                    fontStyle: isSub ? 'italic' : undefined,
-                    color: 'var(--vscode-foreground, var(--pixel-text))',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    display: 'block',
-                  }}
-                >
-                  {activityText}
-                </span>
-                {ch.folderName && (
-                  <span style={folderNameStyle}>
-                    {ch.folderName}
-                  </span>
+                {isKioskMode ? (
+                  <>
+                    <span
+                      style={{
+                        fontSize: isSub ? '32px' : '38px',
+                        fontStyle: isSub ? 'italic' : undefined,
+                        color: 'var(--vscode-foreground, var(--pixel-text))',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: 'block',
+                      }}
+                    >
+                      {ch.folderName || 'Agent'}
+                    </span>
+                    {activityText === 'Needs approval' && (
+                      <span style={folderNameStyle}>
+                        {activityText}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <span
+                      style={{
+                        fontSize: isSub ? '20px' : '22px',
+                        fontStyle: isSub ? 'italic' : undefined,
+                        color: 'var(--vscode-foreground, var(--pixel-text))',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        display: 'block',
+                      }}
+                    >
+                      {activityText}
+                    </span>
+                    {ch.folderName && (
+                      <span style={folderNameStyle}>
+                        {ch.folderName}
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
-              {isSelected && !isSub && (
+              {isSelected && !isSub && !isKioskMode && (
                 <button
                   onClick={(e) => {
                     e.stopPropagation()

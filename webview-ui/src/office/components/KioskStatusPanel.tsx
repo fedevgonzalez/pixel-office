@@ -101,7 +101,11 @@ export function KioskStatusPanel({
     }
   }
 
-  if (entries.length === 0) return null
+  // Only show agents that need attention — running or awaiting permission.
+  // Idle agents (SDK agents sitting quietly) are hidden to reduce visual clutter.
+  const visibleEntries = entries.filter((e) => e.isRunning || e.hasPermission)
+
+  if (visibleEntries.length === 0) return null
 
   return (
     <div
@@ -123,7 +127,7 @@ export function KioskStatusPanel({
         zIndex: 50,
       }}
     >
-      {entries.map((e) => {
+      {visibleEntries.map((e) => {
         const isIdle = e.status === 'Idle'
         return (
           <div
