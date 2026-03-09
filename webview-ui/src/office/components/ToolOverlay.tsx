@@ -110,24 +110,7 @@ export function ToolOverlay({
     return () => cancelAnimationFrame(rafId)
   }, [containerRef])
 
-  const rect = rectRef.current
-  if (!rect) return null
-  const dpr = window.devicePixelRatio || 1
-  const canvasW = Math.round(rect.width * dpr)
-  const canvasH = Math.round(rect.height * dpr)
-  const layout = officeState.getLayout()
-  const mapW = layout.cols * TILE_SIZE * zoom
-  const mapH = layout.rows * TILE_SIZE * zoom
-  const deviceOffsetX = Math.floor((canvasW - mapW) / 2) + Math.round(panRef.current.x)
-  const deviceOffsetY = Math.floor((canvasH - mapH) / 2) + Math.round(panRef.current.y)
-
-  const selectedId = officeState.selectedAgentId
-  const hoveredId = officeState.hoveredAgentId
-
-  // All character IDs
-  const allIds = [...agents, ...subagentCharacters.map((s) => s.id)]
-
-  // Memoized static styles (don't depend on per-item state)
+  // Memoized static styles — MUST be before any early return (React hook rules)
   const overflowStyle = useMemo(() => ({ overflow: 'hidden' } as const), [])
   const folderNameStyle = useMemo(() => ({
     fontSize: isKioskMode ? '28px' : '16px',
@@ -153,7 +136,6 @@ export function ToolOverlay({
     borderRadius: '50%',
     flexShrink: 0,
   }), [])
-  // Kiosk-dependent label box base styles (without per-item border/padding)
   const labelBoxBase = useMemo(() => ({
     display: 'flex' as const,
     alignItems: 'center' as const,
@@ -164,6 +146,23 @@ export function ToolOverlay({
     whiteSpace: 'nowrap' as const,
     maxWidth: isKioskMode ? 400 : 220,
   }), [])
+
+  const rect = rectRef.current
+  if (!rect) return null
+  const dpr = window.devicePixelRatio || 1
+  const canvasW = Math.round(rect.width * dpr)
+  const canvasH = Math.round(rect.height * dpr)
+  const layout = officeState.getLayout()
+  const mapW = layout.cols * TILE_SIZE * zoom
+  const mapH = layout.rows * TILE_SIZE * zoom
+  const deviceOffsetX = Math.floor((canvasW - mapW) / 2) + Math.round(panRef.current.x)
+  const deviceOffsetY = Math.floor((canvasH - mapH) / 2) + Math.round(panRef.current.y)
+
+  const selectedId = officeState.selectedAgentId
+  const hoveredId = officeState.hoveredAgentId
+
+  // All character IDs
+  const allIds = [...agents, ...subagentCharacters.map((s) => s.id)]
 
   return (
     <>
