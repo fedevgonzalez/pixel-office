@@ -1040,12 +1040,17 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+const noScan = process.env.NO_SCAN === '1';
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Pixel Office: http://localhost:${PORT} (listening on all interfaces)`);
-  // Initial scan
-  scanAndAdoptAgents();
-  // Periodic scan for new sessions
-  setInterval(scanAndAdoptAgents, SCAN_INTERVAL_MS);
+  if (!noScan) {
+    // Initial scan
+    scanAndAdoptAgents();
+    // Periodic scan for new sessions
+    setInterval(scanAndAdoptAgents, SCAN_INTERVAL_MS);
+  } else {
+    console.log('NO_SCAN=1: skipping JSONL auto-detection (reporter-only mode)');
+  }
   // Watch layout file for cross-tab sync
   watchLayoutFile();
 });

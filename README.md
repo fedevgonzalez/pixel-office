@@ -4,7 +4,7 @@
 
 Real-time visual dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) agents. Watch your coding assistants work, wander, and wait — as animated characters in a customizable office.
 
-![Pixel Office](webview-ui/public/Screenshot.jpg)
+![Pixel Office Demo](docs/screenshots/demo.gif)
 
 ## Why Pixel Office?
 
