@@ -13,10 +13,11 @@ import {
   KIOSK_PAN_LERP_FAST_THRESHOLD, KIOSK_PAN_LERP_FAST, KIOSK_PAN_LERP_MID_THRESHOLD, KIOSK_PAN_LERP_MID, KIOSK_PAN_LERP_SLOW,
   KIOSK_DEADZONE_PX, KIOSK_TARGET_SMOOTHING, KIOSK_SYNC_INTERVAL_MS, KIOSK_SYNC_THRESHOLD,
   KIOSK_STATUS_PANEL_WIDTH,
+  SCREENSHOT_PADDING_TILES,
 } from '../../constants.js'
 import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js'
 import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js'
-import { vscode, isKioskMode } from '../../vscodeApi.js'
+import { vscode, isKioskMode, isScreenshotMode } from '../../vscodeApi.js'
 import { unlockAudio } from '../../notificationSound.js'
 
 interface OfficeCanvasProps {
@@ -316,6 +317,19 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           }
         }
 
+        // Screenshot mode: auto-fit office in viewport with padding, no pan
+        if (isScreenshotMode) {
+          const layout = officeState.getLayout()
+          const padTiles = SCREENSHOT_PADDING_TILES * 2 // both sides
+          const fitW = w / ((layout.cols + padTiles) * TILE_SIZE)
+          // +1 row for wall tops that extend above the grid
+          const fitH = h / ((layout.rows + 1 + padTiles) * TILE_SIZE)
+          // Integer zoom for pixel-perfect rendering, clamped to [2, 8]
+          effectiveZoom = Math.min(8, Math.max(2, Math.round(Math.min(fitW, fitH))))
+          // Shift pan up slightly to account for wall tops extending above grid
+          panRef.current = { x: 0, y: -TILE_SIZE * effectiveZoom / 2 }
+        }
+
         // Build selection render state
         const selectionRender: SelectionRenderState = {
           selectedAgentId: officeState.selectedAgentId,
@@ -337,12 +351,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           effectiveZoom,
           panRef.current.x,
           panRef.current.y,
-          selectionRender,
-          editorRender,
+          isScreenshotMode ? undefined : selectionRender,
+          isScreenshotMode ? undefined : editorRender,
           officeState.getLayout().tileColors,
           officeState.getLayout().cols,
           officeState.getLayout().rows,
           [...officeState.pets.values()],
+          isScreenshotMode,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 

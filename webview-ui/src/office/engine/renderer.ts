@@ -637,9 +637,15 @@ export function renderFrame(
   layoutCols?: number,
   layoutRows?: number,
   pets?: Pet[],
+  hideBubbles?: boolean,
 ): { offsetX: number; offsetY: number } {
-  // Clear
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+  // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
+  if (hideBubbles) {
+    ctx.fillStyle = '#1e1e2e'
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+  } else {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+  }
 
   // Use layout dimensions (fallback to tileMap size)
   const cols = layoutCols ?? (tileMap.length > 0 ? tileMap[0].length : 0)
@@ -672,8 +678,10 @@ export function renderFrame(
   const hoveredId = selection?.hoveredAgentId ?? null
   renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets, selection?.selectedPetId, selection?.hoveredPetId)
 
-  // Speech bubbles (always on top of characters)
-  renderBubbles(ctx, characters, offsetX, offsetY, zoom)
+  // Speech bubbles (always on top of characters) — hidden in screenshot mode
+  if (!hideBubbles) {
+    renderBubbles(ctx, characters, offsetX, offsetY, zoom)
+  }
 
   // Editor overlays
   if (editor) {

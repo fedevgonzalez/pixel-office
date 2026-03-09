@@ -16,7 +16,7 @@ import { useEditorKeyboard } from './hooks/useEditorKeyboard.js'
 import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
-import { isKioskMode } from './vscodeApi.js'
+import { isKioskMode, isScreenshotMode } from './vscodeApi.js'
 
 // Game state lives outside React — updated imperatively by message handlers
 const officeStateRef = { current: null as OfficeState | null }
@@ -245,7 +245,7 @@ function App() {
   }
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }} {...(isScreenshotMode ? { 'data-screenshot-ready': 'true' } : {})}>
       <style>{`
         @keyframes pixel-agents-pulse {
           0%, 100% { opacity: 1; }
@@ -271,20 +271,22 @@ function App() {
         panRef={editor.panRef}
       />
 
-      {!isKioskMode && <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />}
+      {!isKioskMode && !isScreenshotMode && <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />}
 
       {/* Vignette overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'var(--pixel-vignette)',
-          pointerEvents: 'none',
-          zIndex: 40,
-        }}
-      />
+      {!isScreenshotMode && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'var(--pixel-vignette)',
+            pointerEvents: 'none',
+            zIndex: 40,
+          }}
+        />
+      )}
 
-      {!isKioskMode && (
+      {!isKioskMode && !isScreenshotMode && (
         <BottomToolbar
           isEditMode={editor.isEditMode}
           onOpenClaude={editor.handleOpenClaude}
@@ -353,19 +355,21 @@ function App() {
         )
       })()}
 
-      <ToolOverlay
-        officeState={officeState}
-        agents={agents}
-        agentTools={agentTools}
-        subagentTools={subagentTools}
-        subagentCharacters={subagentCharacters}
-        containerRef={containerRef}
-        zoom={editor.zoom}
-        panRef={editor.panRef}
-        onCloseAgent={handleCloseAgent}
-      />
+      {!isScreenshotMode && (
+        <ToolOverlay
+          officeState={officeState}
+          agents={agents}
+          agentTools={agentTools}
+          subagentTools={subagentTools}
+          subagentCharacters={subagentCharacters}
+          containerRef={containerRef}
+          zoom={editor.zoom}
+          panRef={editor.panRef}
+          onCloseAgent={handleCloseAgent}
+        />
+      )}
 
-      {isKioskMode && (
+      {isKioskMode && !isScreenshotMode && (
         <KioskStatusPanel
           officeState={officeState}
           agents={agents}

@@ -115,6 +115,9 @@ export const ZOOM_LEVEL_FADE_DURATION_SEC = 0.5
 export const ZOOM_SCROLL_THRESHOLD = 50
 export const PAN_MARGIN_FRACTION = 0.25
 
+// ── Screenshot mode ──────────────────────────────────────────
+export const SCREENSHOT_PADDING_TILES = 2 // padding in tiles around the office
+
 // ── Editor ───────────────────────────────────────────────────
 export const UNDO_STACK_MAX_SIZE = 50
 export const LAYOUT_SAVE_DEBOUNCE_MS = 500
