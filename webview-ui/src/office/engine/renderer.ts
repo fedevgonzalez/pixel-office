@@ -249,24 +249,18 @@ export function renderScene(
           if (isSelected || isHovered || isKioskMode) {
             const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
             const nameX = petDrawX + petCached.width / 2
-            const fontSize = Math.max(10, Math.round(11 * zoom / 2))
+            const fontSize = Math.max(11, Math.round(13 * zoom / 2))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
             c.textAlign = 'center'
 
-            // Dot indicator: small circle in the pet's body color
-            const dotRadius = Math.round(fontSize * 0.25)
-            const dotColor = pet.petColors?.body ?? '#e8a84c'
-            const dotGap = Math.round(fontSize * 0.3)
-
             const nameMetrics = c.measureText(pet.name)
-            const totalW = dotRadius * 2 + dotGap + nameMetrics.width
-            const padH = Math.round(fontSize * 0.4)
-            const padV = Math.round(fontSize * 0.2)
+            const padH = Math.round(fontSize * 0.45)
+            const padV = Math.round(fontSize * 0.25)
 
-            const bgX = nameX - totalW / 2 - padH
-            const bgY = nameY - fontSize - padV
-            const bgW = totalW + padH * 2
+            const bgW = nameMetrics.width + padH * 2
             const bgH = fontSize + padV * 2
+            const bgX = nameX - bgW / 2
+            const bgY = nameY - fontSize - padV
 
             // Warm dark background
             c.globalAlpha = 0.85
@@ -280,20 +274,9 @@ export function renderScene(
             c.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
             c.globalAlpha = 1
 
-            // Dot (pet body color) — centered vertically
-            const dotCenterX = bgX + padH + dotRadius
-            const dotCenterY = bgY + bgH / 2
-            c.beginPath()
-            c.arc(dotCenterX, dotCenterY, dotRadius, 0, Math.PI * 2)
-            c.fillStyle = dotColor
-            c.fill()
-
-            // Name text in warm cream
+            // Name text centered in warm cream
             c.fillStyle = 'rgba(255, 245, 235, 0.95)'
-            const textX = dotCenterX + dotRadius + dotGap
-            c.textAlign = 'left'
-            c.fillText(pet.name, textX, nameY)
-            c.textAlign = 'start'
+            c.fillText(pet.name, nameX, nameY)
           }
         },
       })

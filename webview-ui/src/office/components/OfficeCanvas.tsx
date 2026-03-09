@@ -449,6 +449,9 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         return
       }
 
+      // Kiosk mode: no mouse interaction (hover, cursor changes, hit-testing)
+      if (isKioskMode) return
+
       // Throttle non-panning mouse moves (~30fps) to reduce furniture hit-testing cost
       const now = performance.now()
       if (now - lastMouseMoveRef.current < 32) return
@@ -696,6 +699,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
 
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
+      if (isKioskMode) return // no interaction in kiosk
       if (isEditMode) return // handled by mouseDown/mouseUp
       const pos = screenToWorld(e.clientX, e.clientY)
       if (!pos) return
