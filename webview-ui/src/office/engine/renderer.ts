@@ -7,6 +7,7 @@ import { getCharacterSprite } from './characters.js'
 import { getPetSprite } from './pets.js'
 import { PET_HEART_SPRITE, PET_HAPPY_SPRITE, PET_ZZZ_SPRITE_1, PET_ZZZ_SPRITE_2 } from '../sprites/petSprites.js'
 import { renderMatrixEffect } from './matrixEffect.js'
+import { isKioskMode } from '../../vscodeApi.js'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles.js'
 import {
@@ -244,8 +245,8 @@ export function renderScene(
             c.globalAlpha = 1
           }
 
-          // Name label when selected or hovered
-          if (isSelected || isHovered) {
+          // Name label when selected, hovered, or always in kiosk mode
+          if (isSelected || isHovered || isKioskMode) {
             const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
             const nameX = petDrawX + petCached.width / 2
             const fontSize = Math.max(10, Math.round(10 * zoom / 2))
