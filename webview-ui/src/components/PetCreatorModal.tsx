@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
+import { useModalFocus } from '../hooks/useModalFocus.js'
 import type { PetSpecies, PlacedPet, PetPersonality, PetColors, PetPattern, SpriteData } from '../office/types.js'
 import { PetPersonality as PetPersonalityConst } from '../office/types.js'
 import {
@@ -506,6 +507,7 @@ function PetForm({
 const emptyPetColors: PetColors = {}
 
 export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePet, onEditPet }: PetManagerModalProps) {
+  const dialogRef = useModalFocus(isOpen)
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list')
   const [editingUid, setEditingUid] = useState<string | null>(null)
   const [deletingUid, setDeletingUid] = useState<string | null>(null)
@@ -618,9 +620,11 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       />
       {/* Modal */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label={headerTitle}
+        aria-labelledby="pet-modal-title"
+        tabIndex={-1}
         style={{
           position: 'fixed',
           top: '50%',
@@ -672,7 +676,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 &#8592;
               </button>
             )}
-            <span style={{ fontSize: '22px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
+            <span id="pet-modal-title" style={{ fontSize: '22px', color: 'rgba(255, 255, 255, 0.9)', fontWeight: 'bold' }}>
               {headerTitle}
             </span>
           </div>
@@ -699,15 +703,16 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
           <>
             {pets.length === 0 ? (
               <div style={{ padding: '28px 16px', textAlign: 'center' }}>
-                {/* Empty state pixel art pet silhouette */}
+                {/* Empty state */}
                 <div style={{
-                  fontSize: '40px',
+                  fontSize: '28px',
                   marginBottom: 12,
-                  opacity: 0.25,
-                  filter: 'grayscale(1)',
+                  opacity: 0.3,
                   userSelect: 'none',
+                  color: 'var(--pixel-text-dim)',
+                  letterSpacing: '0.15em',
                 }}>
-                  🐾
+                  [ no pets ]
                 </div>
                 <div style={{ fontSize: '20px', color: 'rgba(255, 255, 255, 0.6)', marginBottom: 6 }}>
                   No pets yet

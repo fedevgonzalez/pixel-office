@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { SettingsModal } from './SettingsModal.js'
 import { GalleryModal } from './GalleryModal.js'
 import { PetManagerModal } from './PetCreatorModal.js'
@@ -22,7 +22,7 @@ interface BottomToolbarProps {
 
 const panelStyle: React.CSSProperties = {
   position: 'absolute',
-  bottom: 10,
+  bottom: 'max(10px, env(safe-area-inset-bottom))',
   left: 10,
   zIndex: 'var(--pixel-controls-z)',
   display: 'flex',
@@ -45,12 +45,6 @@ const btnBase: React.CSSProperties = {
   cursor: 'pointer',
 }
 
-const btnActive: React.CSSProperties = {
-  ...btnBase,
-  background: 'var(--pixel-active-bg)',
-  border: '2px solid var(--pixel-accent)',
-}
-
 
 export function BottomToolbar({
   isEditMode,
@@ -65,12 +59,10 @@ export function BottomToolbar({
   onEditPet,
   getLayout,
 }: BottomToolbarProps) {
-  const [hovered, setHovered] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
   const [isPetCreatorOpen, setIsPetCreatorOpen] = useState(false)
   const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false)
-  const [hoveredFolder, setHoveredFolder] = useState<number | null>(null)
   const folderPickerRef = useRef<HTMLDivElement>(null)
 
   // Close folder picker on outside click
@@ -100,24 +92,22 @@ export function BottomToolbar({
     vscode.postMessage({ type: 'openClaude', folderPath: folder.path })
   }
 
+  const agentBtnStyle = useMemo<React.CSSProperties>(() => ({
+    ...btnBase,
+    padding: '8px 14px',
+    background: isFolderPickerOpen ? 'var(--pixel-agent-hover-bg)' : 'var(--pixel-agent-bg)',
+    border: '2px solid var(--pixel-agent-border)',
+    color: 'var(--pixel-agent-text)',
+  }), [isFolderPickerOpen])
+
   return (
     <div style={panelStyle}>
       <div ref={folderPickerRef} style={{ position: 'relative' }}>
         {!isStandaloneMode && (
         <button
           onClick={handleAgentClick}
-          onMouseEnter={() => setHovered('agent')}
-          onMouseLeave={() => setHovered(null)}
-          style={{
-            ...btnBase,
-            padding: '8px 14px',
-            background:
-              hovered === 'agent' || isFolderPickerOpen
-                ? 'var(--pixel-agent-hover-bg)'
-                : 'var(--pixel-agent-bg)',
-            border: '2px solid var(--pixel-agent-border)',
-            color: 'var(--pixel-agent-text)',
-          }}
+          className="pixel-btn pixel-btn-primary"
+          style={agentBtnStyle}
         >
           + Agent
         </button>
@@ -137,12 +127,11 @@ export function BottomToolbar({
               zIndex: 'var(--pixel-controls-z)',
             }}
           >
-            {workspaceFolders.map((folder, i) => (
+            {workspaceFolders.map((folder) => (
               <button
                 key={folder.path}
                 onClick={() => handleFolderSelect(folder)}
-                onMouseEnter={() => setHoveredFolder(i)}
-                onMouseLeave={() => setHoveredFolder(null)}
+                className="pixel-menu-item"
                 style={{
                   display: 'block',
                   width: '100%',
@@ -150,7 +139,7 @@ export function BottomToolbar({
                   padding: '6px 10px',
                   fontSize: '22px',
                   color: 'var(--pixel-text)',
-                  background: hoveredFolder === i ? 'var(--pixel-btn-hover-bg)' : 'transparent',
+                  background: 'transparent',
                   border: 'none',
                   borderRadius: 0,
                   cursor: 'pointer',
@@ -163,17 +152,21 @@ export function BottomToolbar({
           </div>
         )}
       </div>
+      {/* Separator between agent button and other toolbar buttons */}
+      {!isStandaloneMode && (
+        <div style={{
+          width: 1,
+          height: 20,
+          background: 'var(--pixel-border)',
+          margin: '0 4px',
+        }} />
+      )}
       <button
         onClick={onToggleEditMode}
-        onMouseEnter={() => setHovered('edit')}
-        onMouseLeave={() => setHovered(null)}
-        style={
-          isEditMode
-            ? { ...btnActive }
-            : {
-                ...btnBase,
-                background: hovered === 'edit' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
-              }
+        className={`pixel-btn ${isEditMode ? 'active' : ''}`}
+        style={isEditMode
+          ? { ...btnBase, background: 'var(--pixel-active-bg)', border: '2px solid var(--pixel-accent)' }
+          : btnBase
         }
         title="Edit office layout"
       >
@@ -181,15 +174,10 @@ export function BottomToolbar({
       </button>
       <button
         onClick={() => setIsGalleryOpen((v) => !v)}
-        onMouseEnter={() => setHovered('gallery')}
-        onMouseLeave={() => setHovered(null)}
-        style={
-          isGalleryOpen
-            ? { ...btnActive }
-            : {
-                ...btnBase,
-                background: hovered === 'gallery' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
-              }
+        className={`pixel-btn ${isGalleryOpen ? 'active' : ''}`}
+        style={isGalleryOpen
+          ? { ...btnBase, background: 'var(--pixel-active-bg)', border: '2px solid var(--pixel-accent)' }
+          : btnBase
         }
         title="Browse community layouts"
       >
@@ -198,15 +186,10 @@ export function BottomToolbar({
       <GalleryModal isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} getLayout={getLayout} />
       <button
         onClick={() => setIsPetCreatorOpen((v) => !v)}
-        onMouseEnter={() => setHovered('pet')}
-        onMouseLeave={() => setHovered(null)}
-        style={
-          isPetCreatorOpen
-            ? { ...btnActive }
-            : {
-                ...btnBase,
-                background: hovered === 'pet' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
-              }
+        className={`pixel-btn ${isPetCreatorOpen ? 'active' : ''}`}
+        style={isPetCreatorOpen
+          ? { ...btnBase, background: 'var(--pixel-active-bg)', border: '2px solid var(--pixel-accent)' }
+          : btnBase
         }
         title="Add a pet to your office"
       >
@@ -227,15 +210,10 @@ export function BottomToolbar({
       <div style={{ position: 'relative' }}>
         <button
           onClick={() => setIsSettingsOpen((v) => !v)}
-          onMouseEnter={() => setHovered('settings')}
-          onMouseLeave={() => setHovered(null)}
-          style={
-            isSettingsOpen
-              ? { ...btnActive }
-              : {
-                  ...btnBase,
-                  background: hovered === 'settings' ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
-                }
+          className={`pixel-btn ${isSettingsOpen ? 'active' : ''}`}
+          style={isSettingsOpen
+            ? { ...btnBase, background: 'var(--pixel-active-bg)', border: '2px solid var(--pixel-accent)' }
+            : btnBase
           }
           title="Settings"
         >

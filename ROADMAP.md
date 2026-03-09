@@ -13,7 +13,7 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - [ ] New logo and icon
 - [ ] Color palette and visual identity
 - [x] Landing page / README with product positioning
-- [x] Clean repo (no fork relationship on GitHub)
+- [x] Independent repository for divergent development
 - [x] Credit original: "Based on Pixel Agents by Pablo De Lucca (MIT)"
 
 ---

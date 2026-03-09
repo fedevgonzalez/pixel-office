@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import type { ToolActivity } from '../types.js'
 import type { OfficeState } from '../engine/officeState.js'
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js'
@@ -77,25 +77,41 @@ export function ToolOverlay({
   onCloseAgent,
 }: ToolOverlayProps) {
   const [, setTick] = useState(0)
+  const rectRef = useRef<DOMRect | null>(null)
+
+  // Cache container rect via ResizeObserver (avoid getBoundingClientRect in render)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    rectRef.current = el.getBoundingClientRect()
+    const observer = new ResizeObserver(() => {
+      rectRef.current = el.getBoundingClientRect()
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [containerRef])
+
   useEffect(() => {
     let rafId = 0
     // In kiosk mode, update overlay at lower rate to save CPU
-    const interval = isKioskMode ? 200 : 0
+    const interval = isKioskMode ? 200 : 50
     let lastUpdate = 0
     const tick = (time: number) => {
       if (!interval || time - lastUpdate >= interval) {
         lastUpdate = time
+        // Update cached rect in the rAF callback (handles scroll/pan changes)
+        const el = containerRef.current
+        if (el) rectRef.current = el.getBoundingClientRect()
         setTick((n) => n + 1)
       }
       rafId = requestAnimationFrame(tick)
     }
     rafId = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(rafId)
-  }, [])
+  }, [containerRef])
 
-  const el = containerRef.current
-  if (!el) return null
-  const rect = el.getBoundingClientRect()
+  const rect = rectRef.current
+  if (!rect) return null
   const dpr = window.devicePixelRatio || 1
   const canvasW = Math.round(rect.width * dpr)
   const canvasH = Math.round(rect.height * dpr)
@@ -110,6 +126,44 @@ export function ToolOverlay({
 
   // All character IDs
   const allIds = [...agents, ...subagentCharacters.map((s) => s.id)]
+
+  // Memoized static styles (don't depend on per-item state)
+  const overflowStyle = useMemo(() => ({ overflow: 'hidden' } as const), [])
+  const folderNameStyle = useMemo(() => ({
+    fontSize: isKioskMode ? '28px' : '16px',
+    color: 'var(--pixel-text-dim)',
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
+    display: 'block' as const,
+  }), [])
+  const closeButtonStyle = useMemo(() => ({
+    background: 'none',
+    border: 'none',
+    color: 'var(--pixel-close-text)',
+    cursor: 'pointer' as const,
+    padding: '0 2px',
+    fontSize: '26px',
+    lineHeight: 1,
+    marginLeft: 2,
+    flexShrink: 0,
+  }), [])
+  const dotSizeStyle = useMemo(() => ({
+    width: isKioskMode ? 12 : 8,
+    height: isKioskMode ? 12 : 8,
+    borderRadius: '50%',
+    flexShrink: 0,
+  }), [])
+  // Kiosk-dependent label box base styles (without per-item border/padding)
+  const labelBoxBase = useMemo(() => ({
+    display: 'flex' as const,
+    alignItems: 'center' as const,
+    gap: isKioskMode ? 8 : 5,
+    background: 'var(--pixel-bg)',
+    borderRadius: 0,
+    boxShadow: 'var(--pixel-shadow)',
+    whiteSpace: 'nowrap' as const,
+    maxWidth: isKioskMode ? 400 : 220,
+  }), [])
 
   return (
     <>
@@ -175,35 +229,22 @@ export function ToolOverlay({
           >
             <div
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: isKioskMode ? 8 : 5,
-                background: 'var(--pixel-bg)',
+                ...labelBoxBase,
                 border: isSelected
                   ? '2px solid var(--pixel-border-light)'
                   : '2px solid var(--pixel-border)',
-                borderRadius: 0,
                 padding: isKioskMode
                   ? '6px 12px'
                   : isSelected ? '3px 6px 3px 8px' : '3px 8px',
-                boxShadow: 'var(--pixel-shadow)',
-                whiteSpace: 'nowrap',
-                maxWidth: isKioskMode ? 400 : 220,
               }}
             >
               {dotColor && (
                 <span
                   className={isActive && !hasPermission ? 'pixel-agents-pulse' : undefined}
-                  style={{
-                    width: isKioskMode ? 12 : 8,
-                    height: isKioskMode ? 12 : 8,
-                    borderRadius: 0,
-                    background: dotColor,
-                    flexShrink: 0,
-                  }}
+                  style={{ ...dotSizeStyle, background: dotColor }}
                 />
               )}
-              <div style={{ overflow: 'hidden' }}>
+              <div style={overflowStyle}>
                 <span
                   style={{
                     fontSize: isKioskMode
@@ -219,15 +260,7 @@ export function ToolOverlay({
                   {activityText}
                 </span>
                 {ch.folderName && (
-                  <span
-                    style={{
-                      fontSize: isKioskMode ? '28px' : '16px',
-                      color: 'var(--pixel-text-dim)',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      display: 'block',
-                    }}
-                  >
+                  <span style={folderNameStyle}>
                     {ch.folderName}
                   </span>
                 )}
@@ -240,17 +273,7 @@ export function ToolOverlay({
                   }}
                   title="Close agent"
                   aria-label="Close agent"
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--pixel-close-text)',
-                    cursor: 'pointer',
-                    padding: '0 2px',
-                    fontSize: '26px',
-                    lineHeight: 1,
-                    marginLeft: 2,
-                    flexShrink: 0,
-                  }}
+                  style={closeButtonStyle}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = 'var(--pixel-close-hover)'
                   }}

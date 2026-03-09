@@ -39,7 +39,7 @@
   --pixel-reset-text: #ecc;
   --pixel-danger-bg: #a33;
   --pixel-error: rgba(255, 100, 100, 0.8);
-  --pixel-text-hint: rgba(255, 255, 255, 0.45);
+  --pixel-text-hint: rgba(255, 255, 255, 0.62);
   --pixel-accent-dim: rgba(90, 140, 255, 0.45);
   --pixel-surface: rgba(0, 0, 0, 0.25);
 
@@ -49,6 +49,10 @@
   /* Status dot colors */
   --pixel-status-permission: var(--vscode-charts-yellow, #cca700);
   --pixel-status-active: var(--vscode-charts-blue, #3794ff);
+
+  /* Kiosk panel */
+  --pixel-kiosk-panel-bg: rgba(10, 10, 20, 0.75);
+  --pixel-kiosk-blur: blur(4px);
 
   /* ToolOverlay z-index layers */
   --pixel-overlay-z: 100;
@@ -64,7 +68,12 @@ html, body, #root {
   font-family: 'FS Pixel Sans', sans-serif;
 }
 
-button:focus-visible {
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
   outline: 2px solid var(--pixel-accent);
   outline-offset: 1px;
 }
@@ -86,6 +95,77 @@ button:focus-visible {
 
 ::-webkit-scrollbar-thumb:hover {
   background: var(--pixel-border-light);
+}
+
+/* Pixel button base styles */
+.pixel-btn {
+  font-family: 'FS Pixel Sans', sans-serif;
+  background: transparent;
+  border: 2px solid transparent;
+  color: var(--pixel-text-dim);
+  cursor: pointer;
+  transition: none; /* pixel art = no transitions */
+  image-rendering: pixelated;
+}
+
+.pixel-btn:hover {
+  background: var(--pixel-btn-hover-bg);
+  color: var(--pixel-text);
+}
+
+.pixel-btn-active,
+.pixel-btn.active {
+  background: var(--pixel-active-bg);
+  border-color: var(--pixel-accent);
+  color: var(--pixel-text);
+}
+
+.pixel-btn-primary {
+  color: #50fa7b;
+  border-color: rgba(80, 250, 123, 0.3);
+}
+
+.pixel-btn-primary:hover {
+  background: rgba(80, 250, 123, 0.15);
+  border-color: rgba(80, 250, 123, 0.5);
+}
+
+.pixel-btn-danger:hover {
+  background: rgba(255, 85, 85, 0.15);
+  color: #ff5555;
+}
+
+.pixel-close-btn {
+  color: var(--pixel-close-text);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.pixel-close-btn:hover {
+  color: var(--pixel-text);
+  background: var(--pixel-btn-hover-bg);
+}
+
+/* Gallery card hover */
+.gallery-card:hover {
+  border-color: var(--pixel-accent);
+}
+
+/* Settings menu item hover */
+.pixel-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Zoom button hover */
+.pixel-zoom-btn:hover:not(:disabled) {
+  background: var(--pixel-btn-hover-bg);
+}
+
+/* Share button hover styles */
+.pixel-share-btn:hover {
+  background: var(--pixel-agent-hover-bg);
+  color: var(--pixel-agent-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

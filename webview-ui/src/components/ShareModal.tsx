@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useModalFocus } from '../hooks/useModalFocus.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
 import type { OfficeLayout } from '../office/types.js'
 
@@ -53,13 +54,13 @@ function buildIssueBody(name: string, author: string, description: string, tags:
 }
 
 export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
+  const dialogRef = useModalFocus(isOpen)
   const [name, setName] = useState('')
   const [author, setAuthor] = useState('')
   const [description, setDescription] = useState('')
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState('')
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [hovered, setHovered] = useState<string | null>(null)
   const [needsManualPaste, setNeedsManualPaste] = useState(false)
   const [copied, setCopied] = useState(false)
   const layoutJsonRef = useRef<string>('')
@@ -170,9 +171,11 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
       />
       {/* Modal */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Share Layout"
+        aria-labelledby="share-modal-title"
+        tabIndex={-1}
         style={{
           position: 'fixed',
           top: '50%', left: '50%',
@@ -202,19 +205,14 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Share Your Layout</span>
+          <span id="share-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Share Your Layout</span>
           <button
             onClick={onClose}
             aria-label="Close share dialog"
-            onMouseEnter={() => setHovered('close')}
-            onMouseLeave={() => setHovered(null)}
+            className="pixel-close-btn"
             style={{
-              background: hovered === 'close' ? 'var(--pixel-btn-hover-bg)' : 'transparent',
-              border: 'none',
               borderRadius: 0,
-              color: hovered === 'close' ? 'var(--pixel-close-hover)' : 'var(--pixel-close-text)',
               fontSize: '24px',
-              cursor: 'pointer',
               padding: '4px 8px',
               lineHeight: 1,
             }}
@@ -351,7 +349,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
               background: 'rgba(255, 200, 80, 0.1)',
               border: '2px solid rgba(255, 200, 80, 0.3)',
               fontSize: '20px',
-              color: 'rgba(255, 200, 80, 0.9)',
+              color: 'rgba(255, 210, 100, 1)',
             }}>
               Layout too large for URL. Paste it manually into the GitHub Issue.
               <button
@@ -392,12 +390,11 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
           <div style={{ display: 'flex', gap: 8 }}>
             <button
               onClick={onClose}
-              onMouseEnter={() => setHovered('cancel')}
-              onMouseLeave={() => setHovered(null)}
+              className="pixel-btn"
               style={{
                 padding: '6px 14px',
                 fontSize: '20px',
-                background: hovered === 'cancel' ? 'var(--pixel-btn-hover-bg)' : 'var(--pixel-btn-bg)',
+                background: 'var(--pixel-btn-bg)',
                 color: 'var(--pixel-text-dim)',
                 border: '2px solid transparent',
                 borderRadius: 0,
@@ -409,16 +406,11 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
             <button
               onClick={handleOpenIssue}
               disabled={!isValid}
-              onMouseEnter={() => setHovered('submit')}
-              onMouseLeave={() => setHovered(null)}
+              className="pixel-btn"
               style={{
                 padding: '6px 14px',
                 fontSize: '20px',
-                background: !isValid
-                  ? 'var(--pixel-btn-bg)'
-                  : hovered === 'submit'
-                    ? 'var(--pixel-agent-hover-bg)'
-                    : 'var(--pixel-agent-bg)',
+                background: !isValid ? 'var(--pixel-btn-bg)' : 'var(--pixel-agent-bg)',
                 color: !isValid ? 'var(--pixel-text-dim)' : 'var(--pixel-agent-text)',
                 border: `2px solid ${!isValid ? 'transparent' : 'var(--pixel-agent-border)'}`,
                 borderRadius: 0,

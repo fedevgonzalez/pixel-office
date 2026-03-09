@@ -102,7 +102,7 @@ export const KIOSK_TARGET_SMOOTHING = 0.10
 export const KIOSK_SYNC_INTERVAL_MS = 100
 export const KIOSK_SYNC_THRESHOLD = 0.05
 // Status panel
-export const KIOSK_STATUS_PANEL_UPDATE_MS = 500
+export const KIOSK_STATUS_PANEL_UPDATE_MS = 2000
 export const KIOSK_STATUS_PANEL_WIDTH = 440
 
 // ── Zoom ─────────────────────────────────────────────────────

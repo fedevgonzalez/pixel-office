@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useModalFocus } from '../hooks/useModalFocus.js'
 import { vscode } from '../vscodeApi.js'
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js'
 
@@ -25,7 +26,7 @@ const menuItemBase: React.CSSProperties = {
 }
 
 export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode }: SettingsModalProps) {
-  const [hovered, setHovered] = useState<string | null>(null)
+  const dialogRef = useModalFocus(isOpen)
   const [soundLocal, setSoundLocal] = useState(isSoundEnabled)
 
   useEffect(() => {
@@ -59,9 +60,11 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
       />
       {/* Centered modal */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Settings"
+        aria-labelledby="settings-modal-title"
+        tabIndex={-1}
         style={{
           position: 'fixed',
           top: '50%',
@@ -87,18 +90,13 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             marginBottom: '4px',
           }}
         >
-          <span style={{ fontSize: '24px', color: 'rgba(255, 255, 255, 0.9)' }}>Settings</span>
+          <span id="settings-modal-title" style={{ fontSize: '24px', color: 'rgba(255, 255, 255, 0.9)' }}>Settings</span>
           <button
             onClick={onClose}
-            onMouseEnter={() => setHovered('close')}
-            onMouseLeave={() => setHovered(null)}
+            className="pixel-close-btn"
             style={{
-              background: hovered === 'close' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-              border: 'none',
               borderRadius: 0,
-              color: 'var(--pixel-close-text)',
               fontSize: '24px',
-              cursor: 'pointer',
               padding: '4px 8px',
               lineHeight: 1,
             }}
@@ -112,12 +110,8 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             vscode.postMessage({ type: 'openSessionsFolder' })
             onClose()
           }}
-          onMouseEnter={() => setHovered('sessions')}
-          onMouseLeave={() => setHovered(null)}
-          style={{
-            ...menuItemBase,
-            background: hovered === 'sessions' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-          }}
+          className="pixel-menu-item"
+          style={menuItemBase}
         >
           Open Sessions Folder
         </button>
@@ -126,12 +120,8 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             vscode.postMessage({ type: 'exportLayout' })
             onClose()
           }}
-          onMouseEnter={() => setHovered('export')}
-          onMouseLeave={() => setHovered(null)}
-          style={{
-            ...menuItemBase,
-            background: hovered === 'export' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-          }}
+          className="pixel-menu-item"
+          style={menuItemBase}
         >
           Export Layout
         </button>
@@ -140,12 +130,8 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             vscode.postMessage({ type: 'importLayout' })
             onClose()
           }}
-          onMouseEnter={() => setHovered('import')}
-          onMouseLeave={() => setHovered(null)}
-          style={{
-            ...menuItemBase,
-            background: hovered === 'import' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-          }}
+          className="pixel-menu-item"
+          style={menuItemBase}
         >
           Import Layout
         </button>
@@ -158,12 +144,8 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             setSoundLocal(newVal)
             vscode.postMessage({ type: 'setSoundEnabled', enabled: newVal })
           }}
-          onMouseEnter={() => setHovered('sound')}
-          onMouseLeave={() => setHovered(null)}
-          style={{
-            ...menuItemBase,
-            background: hovered === 'sound' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-          }}
+          className="pixel-menu-item"
+          style={menuItemBase}
         >
           <span>Sound Notifications</span>
           <span
@@ -190,12 +172,8 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
           role="checkbox"
           aria-checked={isDebugMode}
           onClick={onToggleDebugMode}
-          onMouseEnter={() => setHovered('debug')}
-          onMouseLeave={() => setHovered(null)}
-          style={{
-            ...menuItemBase,
-            background: hovered === 'debug' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
-          }}
+          className="pixel-menu-item"
+          style={menuItemBase}
         >
           <span>Debug View</span>
           <span
@@ -218,6 +196,30 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             {isDebugMode ? '✓' : ''}
           </span>
         </button>
+        {/* Credits */}
+        <div style={{
+          marginTop: 16,
+          paddingTop: 12,
+          borderTop: '1px solid var(--pixel-border)',
+          textAlign: 'center' as const
+        }}>
+          <span style={{
+            fontFamily: 'var(--pixel-font)',
+            fontSize: '18px',
+            color: 'var(--pixel-text-dim)'
+          }}>
+            Based on{' '}
+            <a
+              href="https://github.com/pablodelucca/pixel-agents"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--pixel-accent)', textDecoration: 'none' }}
+            >
+              Pixel Agents
+            </a>
+            {' '}by Pablo De Lucca
+          </span>
+        </div>
       </div>
     </>
   )

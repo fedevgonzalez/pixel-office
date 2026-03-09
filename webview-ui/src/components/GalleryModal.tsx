@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useModalFocus } from '../hooks/useModalFocus.js'
 import { vscode } from '../vscodeApi.js'
 import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
 import { ShareModal } from './ShareModal.js'
@@ -42,11 +43,11 @@ const actionBtnBase: React.CSSProperties = {
 }
 
 export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) {
+  const dialogRef = useModalFocus(isOpen)
   const [manifest, setManifest] = useState<GalleryManifest | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [screenshots, setScreenshots] = useState<Map<string, string>>(new Map())
-  const [hovered, setHovered] = useState<string | null>(null)
   const [importing, setImporting] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [isShareOpen, setIsShareOpen] = useState(false)
@@ -153,9 +154,11 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
       />
       {/* Modal */}
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
-        aria-label="Community Layouts"
+        aria-labelledby="gallery-modal-title"
+        tabIndex={-1}
         style={{
           position: 'fixed',
           top: '50%',
@@ -186,19 +189,14 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
             flexShrink: 0,
           }}
         >
-          <span style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Community Layouts</span>
+          <span id="gallery-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Community Layouts</span>
           <button
             onClick={onClose}
             aria-label="Close gallery"
-            onMouseEnter={() => setHovered('close')}
-            onMouseLeave={() => setHovered(null)}
+            className="pixel-close-btn"
             style={{
-              background: hovered === 'close' ? 'var(--pixel-btn-hover-bg)' : 'transparent',
-              border: 'none',
               borderRadius: 0,
-              color: hovered === 'close' ? 'var(--pixel-close-hover)' : 'var(--pixel-close-text)',
               fontSize: '24px',
-              cursor: 'pointer',
               padding: '4px 8px',
               lineHeight: 1,
             }}
@@ -208,7 +206,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         </div>
 
         {/* Content */}
-        <div style={{ overflow: 'auto', flex: 1, padding: '4px 8px' }}>
+        <div style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}>
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px 0', fontSize: '22px', color: 'var(--pixel-text-dim)' }}>
               <span className="pixel-agents-pulse">Loading gallery...</span>
@@ -224,12 +222,8 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                   setError(null)
                   vscode.postMessage({ type: 'fetchGalleryManifest' })
                 }}
-                onMouseEnter={() => setHovered('retry')}
-                onMouseLeave={() => setHovered(null)}
-                style={{
-                  ...actionBtnBase,
-                  background: hovered === 'retry' ? 'var(--pixel-btn-hover-bg)' : 'var(--pixel-btn-bg)',
-                }}
+                className="pixel-btn"
+                style={actionBtnBase}
               >
                 Retry
               </button>
@@ -240,8 +234,8 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
             <>
               {manifest.layouts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 16px' }}>
-                  <div style={{ fontSize: '36px', marginBottom: 10, opacity: 0.25, filter: 'grayscale(1)', userSelect: 'none' }}>
-                    🏢
+                  <div style={{ fontSize: '28px', marginBottom: 10, opacity: 0.3, userSelect: 'none', color: 'var(--pixel-text-dim)', letterSpacing: '0.15em' }}>
+                    [ empty ]
                   </div>
                   <div style={{ fontSize: '22px', color: 'var(--pixel-text)', marginBottom: 6 }}>
                     No community layouts yet
@@ -287,13 +281,12 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           </span>
           <button
             onClick={() => setIsShareOpen(true)}
-            onMouseEnter={() => setHovered('share')}
-            onMouseLeave={() => setHovered(null)}
+            className="pixel-share-btn"
             style={{
               padding: '4px 12px',
               fontSize: '20px',
-              background: hovered === 'share' ? 'var(--pixel-agent-hover-bg)' : 'transparent',
-              color: hovered === 'share' ? 'var(--pixel-agent-text)' : 'var(--pixel-green)',
+              background: 'transparent',
+              color: 'var(--pixel-green)',
               border: '2px solid transparent',
               borderRadius: 0,
               cursor: 'pointer',
@@ -319,10 +312,9 @@ interface GalleryCardProps {
 }
 
 function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfirm, onCancel, onImport }: GalleryCardProps) {
-  const [hovered, setHovered] = useState(false)
-
   return (
     <div
+      className="gallery-card"
       style={{
         background: 'rgba(255, 255, 255, 0.03)',
         border: '2px solid var(--pixel-border)',
@@ -424,13 +416,12 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
       ) : (
         <button
           onClick={onConfirm}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
           disabled={isImporting}
+          className="pixel-btn"
           style={{
             padding: '6px 10px',
             fontSize: '20px',
-            background: hovered && !isImporting ? 'var(--pixel-agent-hover-bg)' : 'var(--pixel-btn-bg)',
+            background: 'var(--pixel-btn-bg)',
             color: 'var(--pixel-green)',
             border: '2px solid var(--pixel-agent-border)',
             borderRadius: 0,
@@ -439,7 +430,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
             width: '100%',
           }}
         >
-          {isImporting ? 'Importing...' : 'Use This Layout'}
+          <span aria-live="polite">{isImporting ? 'Importing...' : 'Use This Layout'}</span>
         </button>
       )}
     </div>

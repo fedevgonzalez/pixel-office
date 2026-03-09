@@ -6,6 +6,12 @@ Real-time visual dashboard for [Claude Code](https://docs.anthropic.com/en/docs/
 
 ![Pixel Office Demo](docs/screenshots/demo.gif)
 
+## Origin & Credits
+
+Pixel Office started as a fork of [Pixel Agents](https://github.com/pablodelucca/pixel-agents) by [Pablo De Lucca](https://github.com/pablodelucca), an excellent VS Code extension that visualizes AI coding agents as pixel art characters.
+
+We've since taken it in a different direction — standalone server, multi-machine monitoring, community gallery, office pets, and more — but the original foundation and inspiration belong to Pablo. Thank you! 🎮
+
 ## Why Pixel Office?
 
 When you're running multiple Claude Code sessions across projects (or machines), it's hard to know what's happening. Pixel Office gives you a single glanceable view:
@@ -147,4 +153,4 @@ See [ROADMAP.md](ROADMAP.md) for the full plan. Next: new features.
 
 ## License
 
-[MIT](LICENSE) — Based on [Pixel Agents](https://github.com/pablodelucca/pixel-agents) by Pablo De Lucca.
+[MIT](LICENSE)

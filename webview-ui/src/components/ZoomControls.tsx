@@ -28,7 +28,6 @@ const btnBase: React.CSSProperties = {
 }
 
 export function ZoomControls({ zoom, onZoomChange }: ZoomControlsProps) {
-  const [hovered, setHovered] = useState<'minus' | 'plus' | null>(null)
   const [showLevel, setShowLevel] = useState(false)
   const [fadeOut, setFadeOut] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -110,17 +109,15 @@ export function ZoomControls({ zoom, onZoomChange }: ZoomControlsProps) {
         <button
           onClick={() => onZoomChange(zoom + 1)}
           disabled={maxDisabled}
-          onMouseEnter={() => setHovered('plus')}
-          onMouseLeave={() => setHovered(null)}
+          className="pixel-zoom-btn"
           style={{
             ...btnBase,
-            background: hovered === 'plus' && !maxDisabled ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
             cursor: maxDisabled ? 'default' : 'pointer',
             opacity: maxDisabled ? 'var(--pixel-btn-disabled-opacity)' : 1,
           }}
           title="Zoom in (Ctrl+Scroll)"
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             <line x1="9" y1="3" x2="9" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             <line x1="3" y1="9" x2="15" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
@@ -128,17 +125,15 @@ export function ZoomControls({ zoom, onZoomChange }: ZoomControlsProps) {
         <button
           onClick={() => onZoomChange(zoom - 1)}
           disabled={minDisabled}
-          onMouseEnter={() => setHovered('minus')}
-          onMouseLeave={() => setHovered(null)}
+          className="pixel-zoom-btn"
           style={{
             ...btnBase,
-            background: hovered === 'minus' && !minDisabled ? 'var(--pixel-btn-hover-bg)' : btnBase.background,
             cursor: minDisabled ? 'default' : 'pointer',
             opacity: minDisabled ? 'var(--pixel-btn-disabled-opacity)' : 1,
           }}
           title="Zoom out (Ctrl+Scroll)"
         >
-          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             <line x1="3" y1="9" x2="15" y2="9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
           </svg>
         </button>

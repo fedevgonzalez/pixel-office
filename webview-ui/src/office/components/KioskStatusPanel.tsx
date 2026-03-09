@@ -59,6 +59,8 @@ export function KioskStatusPanel({
   subagentTools,
   subagentCharacters,
 }: KioskStatusPanelProps) {
+  // Force periodic re-render to pick up officeState mutations (imperative state)
+  // Using a longer interval since status changes propagate via props too
   const [, setTick] = useState(0)
   useEffect(() => {
     const id = setInterval(() => setTick((n) => n + 1), KIOSK_STATUS_PANEL_UPDATE_MS)
@@ -109,8 +111,8 @@ export function KioskStatusPanel({
         top: 0,
         bottom: 0,
         width: KIOSK_STATUS_PANEL_WIDTH,
-        background: 'rgba(10, 10, 20, 0.75)',
-        backdropFilter: 'blur(4px)',
+        background: 'var(--pixel-kiosk-panel-bg)',
+        backdropFilter: 'var(--pixel-kiosk-blur)',
         borderLeft: '2px solid rgba(74, 74, 106, 0.5)',
         display: 'flex',
         flexDirection: 'column',

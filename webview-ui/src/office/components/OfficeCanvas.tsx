@@ -59,6 +59,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
   const kioskLastSyncRef = useRef(0)
   // Kiosk smoothed target bbox (for gradual transitions between active/idle sets)
   const kioskTargetBboxRef = useRef<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null)
+  // Mouse move throttle (avoid expensive hit-testing on every pixel)
+  const lastMouseMoveRef = useRef(0)
   // Clamp pan so the map edge can't go past a margin inside the viewport
   const clampPan = useCallback((px: number, py: number): { x: number; y: number } => {
     const canvas = canvasRef.current
@@ -435,7 +437,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
-      // Handle middle-mouse panning
+      // Handle middle-mouse panning (must stay unthrottled for smooth feel)
       if (isPanningRef.current) {
         const dpr = window.devicePixelRatio || 1
         const dx = (e.clientX - panStartRef.current.mouseX) * dpr
@@ -446,6 +448,11 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         )
         return
       }
+
+      // Throttle non-panning mouse moves (~30fps) to reduce furniture hit-testing cost
+      const now = performance.now()
+      if (now - lastMouseMoveRef.current < 32) return
+      lastMouseMoveRef.current = now
 
       if (isEditMode) {
         const tile = screenToTile(e.clientX, e.clientY)
@@ -841,11 +848,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         height: '100%',
         position: 'relative',
         overflow: 'hidden',
-        background: '#1E1E2E',
+        background: 'var(--pixel-bg)',
       }}
     >
       <canvas
         ref={canvasRef}
+        role="img"
+        aria-label="Pixel art office visualization"
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
