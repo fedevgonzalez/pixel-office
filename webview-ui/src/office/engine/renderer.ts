@@ -249,22 +249,51 @@ export function renderScene(
           if (isSelected || isHovered || isKioskMode) {
             const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
             const nameX = petDrawX + petCached.width / 2
-            const fontSize = Math.max(10, Math.round(10 * zoom / 2))
+            const fontSize = Math.max(9, Math.round(9 * zoom / 2))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
             c.textAlign = 'center'
-            // Background
-            const metrics = c.measureText(pet.name)
-            const pad = 3 * (zoom / 2)
-            c.fillStyle = 'rgba(0, 0, 0, 0.7)'
-            c.fillRect(
-              nameX - metrics.width / 2 - pad,
-              nameY - fontSize - pad / 2,
-              metrics.width + pad * 2,
-              fontSize + pad,
-            )
-            // Text
-            c.fillStyle = 'rgba(255, 255, 255, 0.9)'
-            c.fillText(pet.name, nameX, nameY)
+
+            // Dot indicator: small circle in the pet's body color
+            const dotRadius = Math.max(2, Math.round(2 * zoom / 2))
+            const dotColor = pet.petColors?.body ?? '#e8a84c'
+            const dotGap = dotRadius * 2 + Math.round(2 * zoom / 2)
+
+            const nameMetrics = c.measureText(pet.name)
+            // Total content width = dot diameter + gap + name width
+            const totalW = dotRadius * 2 + dotGap + nameMetrics.width
+            const padH = Math.round(4 * zoom / 2)
+            const padV = Math.round(3 * zoom / 2)
+
+            const bgX = nameX - totalW / 2 - padH
+            const bgY = nameY - fontSize - padV
+            const bgW = totalW + padH * 2
+            const bgH = fontSize + padV * 2
+
+            // Warm dark background with amber tint
+            c.globalAlpha = 0.85
+            c.fillStyle = 'rgba(31, 26, 36, 0.9)'
+            c.fillRect(bgX, bgY, bgW, bgH)
+
+            // 1px amber-tinted border
+            c.globalAlpha = 0.5
+            c.strokeStyle = 'rgba(232, 168, 76, 0.6)'
+            c.lineWidth = 1
+            c.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
+            c.globalAlpha = 1
+
+            // Dot (pet body color) — centered vertically in label
+            const dotCenterX = bgX + padH + dotRadius
+            const dotCenterY = bgY + bgH / 2
+            c.beginPath()
+            c.arc(dotCenterX, dotCenterY, dotRadius, 0, Math.PI * 2)
+            c.fillStyle = dotColor
+            c.fill()
+
+            // Name text in warm cream
+            c.fillStyle = 'rgba(255, 245, 235, 0.95)'
+            const textX = dotCenterX + dotGap
+            c.textAlign = 'left'
+            c.fillText(pet.name, textX, nameY)
             c.textAlign = 'start'
           }
         },

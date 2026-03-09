@@ -198,6 +198,8 @@ export function ToolOverlay({
         const hasPermission = subHasPermission || tools?.some((t) => t.permissionWait && !t.done)
         const hasActiveTools = tools?.some((t) => !t.done)
         const isActive = ch.isActive
+        // Agent is "busy" if active with any tools (including between tool calls mid-turn)
+        const isBusy = isActive && tools && tools.length > 0
         // Sub-agents are active when they exist and parent Task is still running
         const subIsActive = isSub && !subHasPermission
 
@@ -207,7 +209,7 @@ export function ToolOverlay({
         let dotColor: string | null = null
         if (hasPermission) {
           dotColor = 'var(--pixel-status-permission)'
-        } else if ((isActive && hasActiveTools) || subIsActive) {
+        } else if (isBusy || hasActiveTools || subIsActive) {
           dotColor = 'var(--pixel-status-active)'
         }
 
