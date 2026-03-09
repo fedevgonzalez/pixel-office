@@ -215,7 +215,7 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
 
           {error && !loading && (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
-              <p style={{ fontSize: '22px', color: 'rgba(255, 100, 100, 0.8)', marginBottom: 12 }}>{error}</p>
+              <p style={{ fontSize: '22px', color: 'var(--pixel-error)', marginBottom: 12 }}>{error}</p>
               <button
                 onClick={() => {
                   setLoading(true)
@@ -298,7 +298,7 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
               fontSize: '20px',
               background: hovered === 'share' ? 'var(--pixel-agent-hover-bg)' : 'transparent',
               color: hovered === 'share' ? 'var(--pixel-agent-text)' : 'var(--pixel-green)',
-              border: 'none',
+              border: '2px solid transparent',
               borderRadius: 0,
               cursor: 'pointer',
             }}

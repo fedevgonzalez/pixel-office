@@ -197,7 +197,7 @@ export function ToolOverlay({
                   style={{
                     width: isKioskMode ? 12 : 8,
                     height: isKioskMode ? 12 : 8,
-                    borderRadius: '50%',
+                    borderRadius: 0,
                     background: dotColor,
                     flexShrink: 0,
                   }}
@@ -252,10 +252,10 @@ export function ToolOverlay({
                     flexShrink: 0,
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = 'var(--pixel-close-hover)'
+                    e.currentTarget.style.color = 'var(--pixel-close-hover)'
                   }}
                   onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.color = 'var(--pixel-close-text)'
+                    e.currentTarget.style.color = 'var(--pixel-close-text)'
                   }}
                 >
                   ×

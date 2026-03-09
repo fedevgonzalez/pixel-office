@@ -164,7 +164,7 @@ function PetPreview({ species, petColors }: { species: PetSpecies; petColors: Pe
         height: PET_PREVIEW_CANVAS_SIZE,
         imageRendering: 'pixelated',
         border: '2px solid var(--pixel-border)',
-        background: 'rgba(0, 0, 0, 0.4)',
+        background: 'var(--pixel-surface)',
         flexShrink: 0,
       }}
     />
@@ -240,7 +240,7 @@ function SwatchPicker({
                   : '2px solid rgba(255, 255, 255, 0.12)',
                 borderRadius: 0,
                 cursor: 'pointer',
-                outline: 'none',
+
                 position: 'relative',
               }}
             >
@@ -289,12 +289,11 @@ function PersonalityPicker({
                 : 'rgba(255, 255, 255, 0.05)',
               color: isSelected ? 'var(--pixel-accent)' : 'rgba(255, 255, 255, 0.7)',
               border: isSelected
-                ? '2px solid rgba(90, 140, 255, 0.45)'
+                ? '2px solid var(--pixel-accent-dim)'
                 : '2px solid rgba(255, 255, 255, 0.08)',
               borderRadius: 0,
               cursor: 'pointer',
               textAlign: 'left',
-              outline: 'none',
             }}
           >
             <span style={{ fontSize: '16px', marginBottom: 2 }}>
@@ -302,7 +301,7 @@ function PersonalityPicker({
             </span>
             <span style={{
               fontSize: '13px',
-              color: isSelected ? 'rgba(90, 140, 255, 0.75)' : 'rgba(255, 255, 255, 0.55)',
+              color: isSelected ? 'var(--pixel-accent-dim)' : 'rgba(255, 255, 255, 0.55)',
               lineHeight: 1.3,
             }}>
               {opt.desc}
@@ -357,7 +356,7 @@ function PatternPicker({
                   : '2px solid rgba(255, 255, 255, 0.08)',
                 borderRadius: 0,
                 cursor: 'pointer',
-                outline: 'none',
+
               }}
             >
               {opt.label}
@@ -420,16 +419,15 @@ function PetForm({
                   title={opt.label}
                   style={{
                     width: 44,
-                    height: 36,
+                    height: 44,
                     fontSize: '16px',
                     background: species === opt.value ? 'var(--pixel-active-bg)' : 'rgba(255, 255, 255, 0.05)',
                     color: species === opt.value ? 'var(--pixel-accent)' : 'rgba(255, 255, 255, 0.6)',
                     border: species === opt.value
-                      ? '2px solid rgba(90, 140, 255, 0.45)'
+                      ? '2px solid var(--pixel-accent-dim)'
                       : '2px solid rgba(255, 255, 255, 0.08)',
                     borderRadius: 0,
                     cursor: 'pointer',
-                    outline: 'none',
                   }}
                 >
                   {opt.emoji}
@@ -768,7 +766,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                             border: '2px solid rgba(200, 50, 50, 0.5)',
                             borderRadius: 0,
                             cursor: 'pointer',
-                            outline: 'none',
+            
                           }}
                         >
                           Yes
@@ -783,7 +781,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                             border: '2px solid rgba(255, 255, 255, 0.1)',
                             borderRadius: 0,
                             cursor: 'pointer',
-                            outline: 'none',
+            
                           }}
                         >
                           No
@@ -802,7 +800,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                             border: '2px solid rgba(90, 140, 255, 0.2)',
                             borderRadius: 0,
                             cursor: 'pointer',
-                            outline: 'none',
+            
                           }}
                         >
                           Edit
@@ -818,7 +816,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                             border: '2px solid rgba(200, 50, 50, 0.15)',
                             borderRadius: 0,
                             cursor: 'pointer',
-                            outline: 'none',
+            
                           }}
                         >
                           &#215;
@@ -850,7 +848,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                     border: '2px solid var(--pixel-agent-border)',
                     borderRadius: 0,
                     cursor: 'pointer',
-                    outline: 'none',
+    
                     fontWeight: 'bold',
                   }}
                 >
@@ -905,13 +903,13 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   border: '2px solid var(--pixel-agent-border)',
                   borderRadius: 0,
                   cursor: 'pointer',
-                  outline: 'none',
+  
                   fontWeight: 'bold',
                 }}
               >
                 Place in Office
               </button>
-              <div style={{ fontSize: '13px', color: 'rgba(255, 255, 255, 0.45)', marginTop: 5, textAlign: 'center' }}>
+              <div style={{ fontSize: '13px', color: 'var(--pixel-text-hint)', marginTop: 5, textAlign: 'center' }}>
                 Pet will appear on a random walkable tile
               </div>
             </div>
@@ -944,10 +942,9 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   fontSize: '20px',
                   background: 'var(--pixel-active-bg)',
                   color: 'var(--pixel-accent)',
-                  border: '2px solid rgba(90, 140, 255, 0.4)',
+                  border: '2px solid var(--pixel-accent-dim)',
                   borderRadius: 0,
                   cursor: 'pointer',
-                  outline: 'none',
                   fontWeight: 'bold',
                 }}
               >

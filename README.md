@@ -67,7 +67,7 @@ reporter.toolEnd('Bash');
 reporter.taskEnd();
 ```
 
-See [STANDALONE.md](STANDALONE.md) for full setup, SDK integration, WebSocket protocol, and API docs.
+See [docs/standalone.md](docs/standalone.md) for full setup, SDK integration, WebSocket protocol, and API docs.
 
 ## Features
 
@@ -122,7 +122,7 @@ The app works without it — you get characters and a basic layout, but not the 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) — next up: day/night cycle, weather effects.
+See [ROADMAP.md](ROADMAP.md) for the full plan. Next: public launch.
 
 ## License
 

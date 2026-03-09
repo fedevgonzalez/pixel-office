@@ -31,7 +31,7 @@ function getOfficeState(): OfficeState {
 
 const actionBarBtnStyle: React.CSSProperties = {
   padding: '4px 10px',
-  fontSize: '22px',
+  fontSize: '24px',
   background: 'var(--pixel-btn-bg)',
   color: 'var(--pixel-text-dim)',
   border: '2px solid transparent',

@@ -11,7 +11,7 @@ const btnStyle: React.CSSProperties = {
   fontSize: '22px',
   background: 'var(--pixel-btn-bg)',
   color: 'var(--pixel-text-dim)',
-  border: '2px solid rgba(255, 255, 255, 0.06)',
+  border: '2px solid var(--pixel-border)',
   borderRadius: 0,
   cursor: 'pointer',
 }
@@ -123,16 +123,17 @@ function ColorSlider({ label, value, min, max, onChange }: {
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ fontSize: '20px', color: '#999', width: 28, textAlign: 'right', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: '20px', color: 'var(--pixel-text-dim)', width: 28, textAlign: 'right', flexShrink: 0 }}>{label}</span>
       <input
         type="range"
         min={min}
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ flex: 1, height: 12, accentColor: 'rgba(90, 140, 255, 0.8)' }}
+        aria-label={label === 'H' ? 'Hue' : label === 'S' ? 'Saturation' : label === 'B' ? 'Brightness' : 'Contrast'}
+        style={{ flex: 1, height: 12, accentColor: 'var(--pixel-accent)' }}
       />
-      <span style={{ fontSize: '20px', color: '#999', width: 48, textAlign: 'right', flexShrink: 0 }}>{value}</span>
+      <span style={{ fontSize: '20px', color: 'var(--pixel-text-dim)', width: 48, textAlign: 'right', flexShrink: 0 }}>{value}</span>
     </div>
   )
 }
@@ -288,7 +289,7 @@ export function EditorToolbar({
               flexDirection: 'column',
               gap: 3,
               padding: '4px 6px',
-              background: 'rgba(0, 0, 0, 0.25)',
+              background: 'var(--pixel-surface)',
               border: '2px solid var(--pixel-border)',
               borderRadius: 0,
             }}>
@@ -335,7 +336,7 @@ export function EditorToolbar({
               flexDirection: 'column',
               gap: 3,
               padding: '4px 6px',
-              background: 'rgba(0, 0, 0, 0.25)',
+              background: 'var(--pixel-surface)',
               border: '2px solid var(--pixel-border)',
               borderRadius: 0,
             }}>
@@ -447,7 +448,7 @@ export function EditorToolbar({
               flexDirection: 'column',
               gap: 3,
               padding: '4px 6px',
-              background: 'rgba(0, 0, 0, 0.25)',
+              background: 'var(--pixel-surface)',
               border: '2px solid var(--pixel-border)',
               borderRadius: 0,
             }}>
@@ -464,12 +465,12 @@ export function EditorToolbar({
               )}
               <ColorSlider label="B" value={effectiveColor.b} min={-100} max={100} onChange={(v) => handleSelFurnColorChange('b', v)} />
               <ColorSlider label="C" value={effectiveColor.c} min={-100} max={100} onChange={(v) => handleSelFurnColorChange('c', v)} />
-              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '20px', color: '#999', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '20px', color: 'var(--pixel-text-dim)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={!!effectiveColor.colorize}
                   onChange={(e) => onSelectedFurnitureColorChange({ ...effectiveColor, colorize: e.target.checked || undefined })}
-                  style={{ accentColor: 'rgba(90, 140, 255, 0.8)' }}
+                  style={{ accentColor: 'var(--pixel-accent)' }}
                 />
                 Colorize
               </label>

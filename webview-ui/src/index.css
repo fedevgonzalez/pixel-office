@@ -38,6 +38,10 @@
   --pixel-hint-bg: #3278c8;
   --pixel-reset-text: #ecc;
   --pixel-danger-bg: #a33;
+  --pixel-error: rgba(255, 100, 100, 0.8);
+  --pixel-text-hint: rgba(255, 255, 255, 0.45);
+  --pixel-accent-dim: rgba(90, 140, 255, 0.45);
+  --pixel-surface: rgba(0, 0, 0, 0.25);
 
   /* Vignette */
   --pixel-vignette: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
