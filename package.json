@@ -3,69 +3,25 @@
   "displayName": "Pixel Office",
   "description": "Real-time visual dashboard for Claude Code agents — standalone web server with pixel art office",
   "version": "0.2.0",
-  "publisher": "fedevgonzalez",
   "repository": {
     "type": "git",
     "url": "https://github.com/fedevgonzalez/pixel-office"
   },
   "icon": "icon.png",
   "license": "MIT",
-  "engines": {
-    "vscode": "^1.105.0"
-  },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [],
-  "main": "./dist/extension.js",
-  "contributes": {
-    "commands": [
-      {
-        "command": "pixel-office.showPanel",
-        "title": "Pixel Office: Show Panel"
-      },
-      {
-        "command": "pixel-office.exportDefaultLayout",
-        "title": "Pixel Office: Export Layout as Default"
-      }
-    ],
-    "viewsContainers": {
-      "panel": [
-        {
-          "id": "pixel-office-panel",
-          "title": "Pixel Office",
-          "icon": "$(window)"
-        }
-      ]
-    },
-    "views": {
-      "pixel-office-panel": [
-        {
-          "type": "webview",
-          "id": "pixel-office.panelView",
-          "name": "Pixel Office"
-        }
-      ]
-    }
-  },
   "scripts": {
-    "vscode:prepublish": "npm run package",
     "build:webview": "cd webview-ui && npm run build",
-    "compile": "npm run check-types && npm run lint && node esbuild.js && npm run build:webview",
-    "build": "npm run compile",
-    "watch": "npm-run-all -p watch:*",
-    "watch:esbuild": "node esbuild.js --watch",
-    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run check-types && npm run lint && node esbuild.js --production && npm run build:webview",
-    "check-types": "tsc --noEmit",
-    "lint": "eslint src",
+    "build": "npm run build:webview",
+    "compile": "npm run check-types && npm run lint && npm run build:webview",
+    "watch": "cd webview-ui && npm run dev",
+    "check-types": "cd webview-ui && npx tsc --noEmit",
+    "lint": "cd webview-ui && npm run lint",
     "import-tileset": "tsx scripts/import-tileset-cli.ts"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
     "@types/node": "22.x",
     "@types/pngjs": "^6.0.5",
-    "@types/vscode": "^1.105.0",
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
     "gifenc": "^1.0.3",

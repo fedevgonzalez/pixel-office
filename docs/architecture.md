@@ -1,5 +1,7 @@
 # Pixel Office — Technical Reference
 
+> **Origin:** Pixel Office originated as a fork of [Pixel Agents](https://github.com/pablodelucca/pixel-agents) by [Pablo De Lucca](https://github.com/pablodelucca). While the architecture has diverged significantly (standalone server, multi-machine support, community gallery, pet system, etc.), the pixel art rendering engine and office concept trace back to Pablo's original work. We are grateful for the foundation he built and open-sourced.
+
 VS Code extension with embedded React webview: pixel art office where AI agents (Claude Code terminals) are animated characters.
 
 ## Architecture

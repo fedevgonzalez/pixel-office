@@ -8,9 +8,11 @@ Real-time visual dashboard for [Claude Code](https://docs.anthropic.com/en/docs/
 
 ## Origin & Credits
 
-Pixel Office started as a fork of [Pixel Agents](https://github.com/pablodelucca/pixel-agents) by [Pablo De Lucca](https://github.com/pablodelucca), an excellent VS Code extension that visualizes AI coding agents as pixel art characters.
+**Pixel Office is built upon [Pixel Agents](https://github.com/pablodelucca/pixel-agents), created by [Pablo De Lucca](https://github.com/pablodelucca).**
 
-We've since taken it in a different direction — standalone server, multi-machine monitoring, community gallery, office pets, and more — but the original foundation and inspiration belong to Pablo. Thank you! 🎮
+Pablo's original VS Code extension — which visualizes AI coding agents as pixel art characters in a virtual office — is where this project began. The pixel art rendering engine, character animation system, and the entire "office where your agents work" concept all come from Pablo's work, released under the [MIT License](https://github.com/pablodelucca/pixel-agents/blob/main/LICENSE).
+
+Pixel Office has since grown in a different direction (standalone server, multi-machine monitoring, community gallery, office pets, and more), but none of it would exist without that original foundation. We are deeply grateful for Pablo's creativity and generosity in open-sourcing Pixel Agents.
 
 ## Why Pixel Office?
 
@@ -154,3 +156,8 @@ See [ROADMAP.md](ROADMAP.md) for the full plan. Next: new features.
 ## License
 
 [MIT](LICENSE)
+
+## Acknowledgments
+
+- [Pablo De Lucca](https://github.com/pablodelucca) — Creator of [Pixel Agents](https://github.com/pablodelucca/pixel-agents), the original VS Code extension that inspired this project. The pixel art foundation, character animations, and office concept all originated from Pablo's work.
+- The open source community for the MIT license that makes projects like this possible.

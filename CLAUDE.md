@@ -1,6 +1,6 @@
 # Pixel Office
 
-VS Code extension + standalone server: pixel art office where AI agents (Claude Code terminals) are animated characters.
+Standalone web server: pixel art office where AI agents (Claude Code terminals) are animated characters.
 
 ## Build
 
@@ -8,7 +8,7 @@ VS Code extension + standalone server: pixel art office where AI agents (Claude 
 npm install && cd webview-ui && npm install && cd .. && npm run build
 ```
 
-Standalone: `node standalone-server.js` → http://localhost:3300
+Run: `node standalone-server.js` → http://localhost:3300
 
 ## TypeScript Rules
 
@@ -19,18 +19,17 @@ Standalone: `node standalone-server.js` → http://localhost:3300
 ## Constants
 
 All magic numbers centralized — never inline:
-- Extension: `src/constants.ts`
 - Webview: `webview-ui/src/constants.ts`
 - CSS: `webview-ui/src/index.css` `:root` block
 
 ## Key Files
 
-- `src/PixelAgentsViewProvider.ts` — Extension backend, message dispatch
+- `standalone-server.js` — HTTP + WebSocket server
 - `webview-ui/src/App.tsx` — Webview root
 - `webview-ui/src/office/engine/officeState.ts` — Game world state
 - `webview-ui/src/office/engine/renderer.ts` — Canvas rendering
 - `webview-ui/src/office/components/OfficeCanvas.tsx` — Canvas + mouse input
-- `standalone-server.js` — Standalone HTTP + WebSocket server
+- `webview-ui/src/vscodeApi.ts` — WebSocket client (standalone mode)
 - Layout: `~/.pixel-office/layout.json`
 
 ## URL Modes

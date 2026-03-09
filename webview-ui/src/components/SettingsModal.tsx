@@ -196,19 +196,30 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             {isDebugMode ? '✓' : ''}
           </span>
         </button>
-        {/* Credits */}
+        {/* About */}
         <div style={{
           marginTop: 16,
           paddingTop: 12,
           borderTop: '1px solid var(--pixel-border)',
-          textAlign: 'center' as const
+          textAlign: 'center' as const,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          paddingBottom: 4,
         }}>
           <span style={{
             fontFamily: 'var(--pixel-font)',
             fontSize: '18px',
-            color: 'var(--pixel-text-dim)'
+            color: 'rgba(255, 255, 255, 0.9)',
           }}>
-            Based on{' '}
+            Pixel Office v0.2.0
+          </span>
+          <span style={{
+            fontFamily: 'var(--pixel-font)',
+            fontSize: '16px',
+            color: 'var(--pixel-text-dim)',
+          }}>
+            Inspired by{' '}
             <a
               href="https://github.com/pablodelucca/pixel-agents"
               target="_blank"
@@ -217,7 +228,23 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             >
               Pixel Agents
             </a>
-            {' '}by Pablo De Lucca
+            {' '}by{' '}
+            <a
+              href="https://github.com/pablodelucca"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'var(--pixel-accent)', textDecoration: 'none' }}
+            >
+              Pablo De Lucca
+            </a>
+          </span>
+          <span style={{
+            fontFamily: 'var(--pixel-font)',
+            fontSize: '14px',
+            color: 'var(--pixel-text-dim)',
+            opacity: 0.7,
+          }}>
+            MIT License
           </span>
         </div>
       </div>
