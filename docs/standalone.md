@@ -199,10 +199,13 @@ createPixelReporter({
 
 Append `?kiosk` to the URL for wall display mode:
 - Hides all controls (editor, toolbar, zoom)
-- Always shows agent labels (no hover needed)
+- **Canvas**: Shows agent names only (no activity text); exception: "Needs approval" is shown
+- **Sidebar**: Shows all agents with activity details; idle agents at reduced opacity
+- **Pets**: Name labels always visible, centered, warm styling (no status dot)
+- **Mouse disabled**: No hover, click, or cursor changes — display-only mode
 - Auto-zooms to frame active agents
-- Throttled rendering (15fps) for lower resource usage
-- Status sidebar with agent list
+- Throttled rendering for lower resource usage (overlay at 5fps, canvas at 15fps)
+- Status dots: amber (active), red-orange (needs permission)
 
 ### Linux Kiosk (systemd + X11)
 

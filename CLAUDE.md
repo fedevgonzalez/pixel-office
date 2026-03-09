@@ -34,7 +34,7 @@ All magic numbers centralized — never inline:
 
 ## URL Modes
 
-- `?kiosk` — Kiosk mode: hides UI, auto-frames camera on agents
+- `?kiosk` — Kiosk mode: hides UI, auto-frames camera on agents, disables mouse interaction (hover/click), canvas shows agent names only (sidebar shows activity), pet names always visible
 - `?screenshot` — Screenshot mode: hides all UI, auto-fit zoom, solid dark bg, for CI preview generation
 
 ## Community Gallery
