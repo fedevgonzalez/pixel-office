@@ -99,6 +99,8 @@ export const KIOSK_DEADZONE_PX = 3
 // Target smoothing: lerp factor for bbox target itself (smooths active↔idle transitions)
 // Slow value (0.03) means a large bbox shift takes ~3s to complete, giving a cinematic glide
 export const KIOSK_TARGET_SMOOTHING = 0.03
+// Full-office view: padding (in tiles) added around the map bounds when all agents are idle
+export const KIOSK_FULL_OFFICE_PAD_TILES = 1
 // React state sync interval (ms) and threshold
 export const KIOSK_SYNC_INTERVAL_MS = 100
 export const KIOSK_SYNC_THRESHOLD = 0.05

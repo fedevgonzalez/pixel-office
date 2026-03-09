@@ -11,7 +11,7 @@ import {
   KIOSK_PAD_SINGLE, KIOSK_PAD_MULTI, KIOSK_PAD_VIEWPORT_FRACTION, KIOSK_BBOX_MIN,
   KIOSK_ZOOM_LERP_FAST_THRESHOLD, KIOSK_ZOOM_LERP_FAST, KIOSK_ZOOM_LERP_MID_THRESHOLD, KIOSK_ZOOM_LERP_MID, KIOSK_ZOOM_LERP_SLOW,
   KIOSK_PAN_LERP_FAST_THRESHOLD, KIOSK_PAN_LERP_FAST, KIOSK_PAN_LERP_MID_THRESHOLD, KIOSK_PAN_LERP_MID, KIOSK_PAN_LERP_SLOW,
-  KIOSK_DEADZONE_PX, KIOSK_TARGET_SMOOTHING, KIOSK_SYNC_INTERVAL_MS, KIOSK_SYNC_THRESHOLD,
+  KIOSK_DEADZONE_PX, KIOSK_TARGET_SMOOTHING, KIOSK_SYNC_INTERVAL_MS, KIOSK_SYNC_THRESHOLD, KIOSK_FULL_OFFICE_PAD_TILES,
   KIOSK_STATUS_PANEL_WIDTH,
   SCREENSHOT_PADDING_TILES,
 } from '../../constants.js'
@@ -214,28 +214,40 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         }
 
         // Kiosk auto-frame: smooth zoom and pan to keep characters visible
-        // Prioritizes active agents; falls back to all when everyone is idle
+        // When 1+ agents are active → frame on active agents only.
+        // When ALL agents are idle → show the full office map (zoom out to fit).
+        // The existing lerp/smoothing handles transitions automatically — only the target changes.
         let effectiveZoom = curZoom
         if (isKioskMode && officeState.characters.size > 0) {
           const allChars = Array.from(officeState.characters.values())
           const activeChars = allChars.filter(ch => ch.isActive)
-          // Use active agents if any, otherwise all
-          const targets = activeChars.length > 0 ? activeChars : allChars
 
-          // Raw bounding box in world (sprite) pixels
-          let rawMinX = Infinity, rawMinY = Infinity, rawMaxX = -Infinity, rawMaxY = -Infinity
-          for (const ch of targets) {
-            rawMinX = Math.min(rawMinX, ch.x - KIOSK_CHAR_BBOX_HALF_WIDTH)
-            rawMinY = Math.min(rawMinY, ch.y - KIOSK_CHAR_BBOX_TOP)
-            rawMaxX = Math.max(rawMaxX, ch.x + KIOSK_CHAR_BBOX_HALF_WIDTH)
-            rawMaxY = Math.max(rawMaxY, ch.y + KIOSK_CHAR_BBOX_BOTTOM)
+          let rawMinX: number, rawMinY: number, rawMaxX: number, rawMaxY: number
+
+          if (activeChars.length > 0) {
+            // Frame on active agents only
+            rawMinX = Infinity; rawMinY = Infinity; rawMaxX = -Infinity; rawMaxY = -Infinity
+            for (const ch of activeChars) {
+              rawMinX = Math.min(rawMinX, ch.x - KIOSK_CHAR_BBOX_HALF_WIDTH)
+              rawMinY = Math.min(rawMinY, ch.y - KIOSK_CHAR_BBOX_TOP)
+              rawMaxX = Math.max(rawMaxX, ch.x + KIOSK_CHAR_BBOX_HALF_WIDTH)
+              rawMaxY = Math.max(rawMaxY, ch.y + KIOSK_CHAR_BBOX_BOTTOM)
+            }
+
+            // Padding: fixed base + viewport-proportional (adapts to large screens)
+            const basePad = activeChars.length === 1 ? KIOSK_PAD_SINGLE : KIOSK_PAD_MULTI
+            const viewportPad = Math.min(w, h) * KIOSK_PAD_VIEWPORT_FRACTION / (kioskZoomRef.current || 1)
+            const pad = basePad + viewportPad
+            rawMinX -= pad; rawMinY -= pad; rawMaxX += pad; rawMaxY += pad
+          } else {
+            // All agents idle → show the full office map with a small tile padding
+            const layout = officeState.getLayout()
+            const padPx = KIOSK_FULL_OFFICE_PAD_TILES * TILE_SIZE
+            rawMinX = -padPx
+            rawMinY = -padPx
+            rawMaxX = layout.cols * TILE_SIZE + padPx
+            rawMaxY = layout.rows * TILE_SIZE + padPx
           }
-
-          // Padding: fixed base + viewport-proportional (adapts to large screens)
-          const basePad = targets.length === 1 ? KIOSK_PAD_SINGLE : KIOSK_PAD_MULTI
-          const viewportPad = Math.min(w, h) * KIOSK_PAD_VIEWPORT_FRACTION / (kioskZoomRef.current || 1)
-          const pad = basePad + viewportPad
-          rawMinX -= pad; rawMinY -= pad; rawMaxX += pad; rawMaxY += pad
 
           // Smooth target transitions (prevents bbox jump when active set changes)
           const prev = kioskTargetBboxRef.current
@@ -282,9 +294,10 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             : KIOSK_ZOOM_LERP_SLOW
           kioskZoomRef.current += (targetZoom - kioskZoomRef.current) * zoomLerp
 
-          // Round to integer — float zoom values cause catastrophic memory leaks
-          // in spriteCache (each unique float creates a new WeakMap + canvas per sprite)
-          effectiveZoom = Math.round(kioskZoomRef.current)
+          // Quantize to 0.5 steps — each unique zoom float creates a WeakMap in spriteCache.
+          // Integer steps (Math.round) caused visible jumps; 0.5 steps give smooth transitions
+          // with at most ~13 cache entries across the zoom range (2-8).
+          effectiveZoom = Math.round(kioskZoomRef.current * 2) / 2
 
           // Target pan: center on smoothed bbox midpoint within available area (left of panel)
           const layout = officeState.getLayout()
