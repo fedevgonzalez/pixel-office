@@ -12,11 +12,12 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-// Use native WebSocket (Node 22+) or fall back to 'ws' package
-let WebSocket = globalThis.WebSocket;
-if (!WebSocket) {
-  try { WebSocket = require('ws'); } catch {
-    console.error('Error: WebSocket not available. Install ws: npm install -g ws');
+// Prefer 'ws' package (EventEmitter API) over native WebSocket (browser API, no .on())
+let WebSocket;
+try { WebSocket = require('ws'); } catch {
+  WebSocket = globalThis.WebSocket;
+  if (!WebSocket) {
+    console.error('Error: WebSocket not available. Install ws: npm install ws');
     process.exit(1);
   }
 }
