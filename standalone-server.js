@@ -9,6 +9,15 @@ const https = require('https');
 const os = require('os');
 const { PNG } = require('pngjs');
 
+// Load .env file if present (for GITHUB_TOKEN etc.)
+const envFile = path.join(__dirname, '.env');
+if (fs.existsSync(envFile)) {
+  for (const line of fs.readFileSync(envFile, 'utf-8').split('\n')) {
+    const m = line.match(/^([A-Z_]+)=(.+)$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim();
+  }
+}
+
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3300;
 const SCAN_INTERVAL_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
@@ -19,6 +28,8 @@ const BASH_CMD_MAX = 30;
 const TASK_DESC_MAX = 40;
 const PNG_ALPHA_THRESHOLD = 128;
 const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/pixel-office-layouts/main/';
+const GALLERY_REPO_API_BASE = 'https://api.github.com/repos/fedevgonzalez/pixel-office-layouts/contents/';
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000;
 let galleryCache = null; // { data, fetchedAt }
 
@@ -26,6 +37,40 @@ let galleryCache = null; // { data, fetchedAt }
 const GALLERY_LOCAL_DIR = path.join(__dirname, '..', 'pixel-office-layouts');
 
 function fetchFromGitHub(urlPath) {
+  // When a token is available, use the GitHub API (works for private repos)
+  if (GITHUB_TOKEN) {
+    const apiUrl = new URL(GALLERY_REPO_API_BASE + urlPath);
+    const options = {
+      hostname: apiUrl.hostname,
+      path: apiUrl.pathname + '?ref=main',
+      headers: {
+        'User-Agent': 'pixel-office-server',
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github.raw+json',
+      },
+    };
+    return new Promise((resolve, reject) => {
+      https.get(options, (res) => {
+        if (res.statusCode !== 200) {
+          res.resume();
+          const localPath = path.join(GALLERY_LOCAL_DIR, urlPath);
+          if (fs.existsSync(localPath)) {
+            console.log(`[gallery] GitHub API ${res.statusCode}, serving from local: ${localPath}`);
+            resolve(fs.readFileSync(localPath));
+          } else {
+            reject(new Error(`GitHub API ${res.statusCode}`));
+          }
+          return;
+        }
+        const chunks = [];
+        res.on('data', (c) => chunks.push(c));
+        res.on('end', () => resolve(Buffer.concat(chunks)));
+        res.on('error', reject);
+      }).on('error', reject);
+    });
+  }
+
+  // No token: use raw.githubusercontent.com (public repos only)
   const url = GALLERY_REPO_RAW_BASE + urlPath;
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
@@ -42,7 +87,6 @@ function fetchFromGitHub(urlPath) {
       }
       if (res.statusCode !== 200) {
         res.resume();
-        // Fallback: try local gallery repo directory
         const localPath = path.join(GALLERY_LOCAL_DIR, urlPath);
         if (fs.existsSync(localPath)) {
           console.log(`[gallery] GitHub 404, serving from local: ${localPath}`);
