@@ -83,7 +83,27 @@ function resolveFolderName(hashName) {
     }
     return null;
   }
-  return search(prefix, rest) || hashName;
+  const exact = search(prefix, rest);
+  if (exact) return exact;
+  // Fallback: find the deepest valid directory prefix in the hash and return
+  // everything after it as a best-guess name (handles moved/deleted projects).
+  let bestGuess = null;
+  function deepestPrefix(dir, remaining) {
+    for (let i = 1; i < remaining.length; i++) {
+      if (remaining[i] !== '-') continue;
+      const component = remaining.slice(0, i);
+      const fullPath = dir + component;
+      try {
+        if (fs.statSync(fullPath).isDirectory()) {
+          const next = remaining.slice(i + 1);
+          if (bestGuess === null || next.length < bestGuess.length) bestGuess = next;
+          deepestPrefix(fullPath + sep, next);
+        }
+      } catch {}
+    }
+  }
+  deepestPrefix(prefix, rest);
+  return bestGuess || hashName;
 }
 
 // --- Check if session has /exit as the LAST user action ---
