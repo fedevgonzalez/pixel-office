@@ -635,8 +635,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
           minWidth: 320,
           maxWidth: 420,
           width: '95vw',
-          maxHeight: '80vh',
-          overflowY: 'auto',
+          maxHeight: '85vh',
+          overflow: 'hidden',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -877,20 +877,20 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
         {/* Create view */}
         {view === 'create' && (
           <>
-            <PetForm
-              species={species} setSpecies={setSpecies}
-              name={name} setName={setName}
-              petColors={petColors} setPetColors={setPetColors}
-              personality={personality} setPersonality={setPersonality}
-              showSpeciesSelector={true}
-            />
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              <PetForm
+                species={species} setSpecies={setSpecies}
+                name={name} setName={setName}
+                petColors={petColors} setPetColors={setPetColors}
+                personality={personality} setPersonality={setPersonality}
+                showSpeciesSelector={true}
+              />
+            </div>
             <div style={{
               padding: '10px 12px',
               borderTop: '2px solid var(--pixel-border)',
               background: 'rgba(0,0,0,0.15)',
               flexShrink: 0,
-              position: 'sticky',
-              bottom: 0,
             }}>
               <button
                 onClick={handleCreate}
@@ -903,7 +903,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   border: '2px solid var(--pixel-agent-border)',
                   borderRadius: 0,
                   cursor: 'pointer',
-  
+
                   fontWeight: 'bold',
                 }}
               >
@@ -919,20 +919,20 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
         {/* Edit view */}
         {view === 'edit' && editingUid && (
           <>
-            <PetForm
-              species={species} setSpecies={setSpecies}
-              name={name} setName={setName}
-              petColors={petColors} setPetColors={setPetColors}
-              personality={personality} setPersonality={setPersonality}
-              showSpeciesSelector={false}
-            />
+            <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              <PetForm
+                species={species} setSpecies={setSpecies}
+                name={name} setName={setName}
+                petColors={petColors} setPetColors={setPetColors}
+                personality={personality} setPersonality={setPersonality}
+                showSpeciesSelector={false}
+              />
+            </div>
             <div style={{
               padding: '10px 12px',
               borderTop: '2px solid var(--pixel-border)',
               background: 'rgba(0,0,0,0.15)',
               flexShrink: 0,
-              position: 'sticky',
-              bottom: 0,
             }}>
               <button
                 onClick={handleSaveEdit}

@@ -29,6 +29,59 @@ Open [http://localhost:3300](http://localhost:3300) — agents appear automatica
 
 For wall displays, use [http://localhost:3300/?kiosk](http://localhost:3300/?kiosk) (auto-framing camera, no UI controls).
 
+## Features
+
+| Feature | Description |
+|---|---|
+| Standalone server | No VS Code required — just Node.js |
+| Auto-discovery | Detects active Claude Code sessions across all projects |
+| Live activity | Characters animate based on current tool usage |
+| Sub-agents | Task tool spawns child characters near their parent |
+| Speech bubbles | Permission (amber dots) and waiting (green check) indicators |
+| Sound notifications | Audio chime when an agent finishes and needs attention |
+| Office pets | Cats and dogs with customizable colors, patterns, and personalities |
+| Door system | Agents enter/exit through doors with matrix spawn animation |
+| Break room | Idle agents grab coffee and lounge on the couch |
+| Layout editor | Design your office with floors, walls, and 50+ furniture items |
+| Community gallery | Browse and import layouts shared by other users |
+| Kiosk mode | Auto-framing camera, status sidebar — perfect for wall displays |
+| Multi-PC | WebSocket reporters aggregate agents from multiple machines |
+| SDK agents | Report custom agents (Claude SDK, cron jobs, any process) |
+| VS Code extension | Also works as a panel in VS Code |
+| Cross-tab sync | Layout changes sync across all open tabs/windows |
+| HTTP API | `/api/status` for monitoring, `/api/reload` for remote control |
+
+### Office Pets
+
+Add cats and dogs to your office. Each pet has customizable colors (body, eyes, nose), coat patterns (solid, striped, spotted, bicolor, tuxedo), and personality traits that affect behavior.
+
+![Pet Editor](docs/screenshots/03-pet-editor.png)
+
+### Layout Editor
+
+Toggle the editor to customize your office:
+
+- **Floor** — 7 tile patterns with HSB color controls
+- **Walls** — Auto-tiling with 16 bitmask variants
+- **Furniture** — Desks, chairs, monitors, bookshelves, plants, wall art...
+- **Rotate** (R) / **Toggle** (T) / **Pick** (eyedropper) / **Drag** to move
+- **Undo/Redo** (Ctrl+Z/Y) with 50-level history
+- **Export/Import** layouts as JSON
+
+![Layout Editor](docs/screenshots/04-layout-editor.png)
+
+### Community Gallery
+
+Browse layouts shared by the community and import them with one click. Share your own designs via GitHub.
+
+![Community Gallery](docs/screenshots/07-community-gallery.png)
+
+### Kiosk Mode
+
+Full-screen mode with auto-framing camera that follows agent activity. Perfect for wall-mounted monitors.
+
+![Kiosk Mode](docs/screenshots/06-kiosk-mode.png)
+
 ## Multi-PC Setup
 
 Run a central server on your homeserver and report agents from any machine:
@@ -69,38 +122,6 @@ reporter.taskEnd();
 
 See [docs/standalone.md](docs/standalone.md) for full setup, SDK integration, WebSocket protocol, and API docs.
 
-## Features
-
-| Feature | Description |
-|---|---|
-| Standalone server | No VS Code required — just Node.js |
-| Auto-discovery | Detects active Claude Code sessions across all projects |
-| Live activity | Characters animate based on current tool usage |
-| Sub-agents | Task tool spawns child characters near their parent |
-| Speech bubbles | Permission (amber dots) and waiting (green check) indicators |
-| Sound notifications | Audio chime when an agent finishes and needs attention |
-| Office pets | Cats and dogs roam the office, react to agent activity, and sleep when idle |
-| Door system | Agents enter/exit through doors instead of spawning in place |
-| Break room | Idle agents grab coffee and lounge on the couch |
-| Layout editor | Design your office with floors, walls, and 50+ furniture items |
-| Kiosk mode | Auto-framing camera, status sidebar, 15fps throttle |
-| Multi-PC | WebSocket reporters aggregate agents from multiple machines |
-| SDK agents | Report custom agents (Claude SDK, cron jobs, any process) |
-| VS Code extension | Also works as a panel in VS Code |
-| Cross-tab sync | Layout changes sync across all open tabs/windows |
-| HTTP API | `/api/status` for monitoring, `/api/reload` for remote control |
-
-## Layout Editor
-
-Toggle the editor to customize your office:
-
-- **Floor** — 7 tile patterns with HSB color controls
-- **Walls** — Auto-tiling with 16 bitmask variants
-- **Furniture** — Desks, chairs, monitors, bookshelves, plants, wall art...
-- **Rotate** (R) / **Toggle** (T) / **Pick** (eyedropper) / **Drag** to move
-- **Undo/Redo** (Ctrl+Z/Y) with 50-level history
-- **Export/Import** layouts as JSON
-
 ## Office Assets
 
 The office tileset is **[Office Interior Tileset (16x16)](https://donarg.itch.io/officetileset)** by **Donarg** ($2 on itch.io). Characters are based on **[Metro City](https://jik-a-4.itch.io/metrocity-free-topdown-character-pack)** by **JIK-A-4**.
@@ -122,7 +143,7 @@ The app works without it — you get characters and a basic layout, but not the 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full plan. Next: public launch.
+See [ROADMAP.md](ROADMAP.md) for the full plan. Next: new features.
 
 ## License
 
