@@ -24,8 +24,8 @@ function ToolDot({ tool }: { tool: ToolActivity }) {
         background: tool.done
           ? 'var(--vscode-charts-green, #89d185)'
           : tool.permissionWait
-            ? 'var(--vscode-charts-yellow, #cca700)'
-            : 'var(--vscode-charts-yellow, #e8a84c)',
+            ? 'var(--pixel-status-permission)'
+            : 'var(--pixel-status-active)',
         display: 'inline-block',
         flexShrink: 0,
       }}
@@ -142,7 +142,7 @@ export function DebugView({
                     width: 6,
                     height: 6,
                     borderRadius: '50%',
-                    background: 'var(--vscode-charts-yellow, #cca700)',
+                    background: 'var(--pixel-status-permission)',
                     display: 'inline-block',
                     flexShrink: 0,
                   }}

@@ -134,7 +134,7 @@ export function KioskStatusPanel({
               gap: 10,
               padding: e.isSub ? '6px 10px 6px 24px' : '10px 10px',
               background: e.hasPermission
-                ? 'rgba(232, 200, 76, 0.12)'
+                ? 'var(--pixel-status-permission-bg)'
                 : e.isRunning
                   ? 'rgba(232, 168, 76, 0.08)'
                   : 'transparent',

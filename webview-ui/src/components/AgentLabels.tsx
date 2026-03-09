@@ -73,7 +73,7 @@ export function AgentLabels({
 
         let dotColor = 'transparent'
         if (isWaiting) {
-          dotColor = 'var(--vscode-charts-yellow, #cca700)'
+          dotColor = 'var(--pixel-status-permission)'
         } else if (isActive) {
           dotColor = 'var(--pixel-status-active)'
         }

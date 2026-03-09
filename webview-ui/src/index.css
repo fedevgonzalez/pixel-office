@@ -58,7 +58,10 @@
   --pixel-vignette: radial-gradient(ellipse at center, transparent 50%, rgba(10, 4, 0, 0.6) 100%);
 
   /* Status dots: warm themed */
-  --pixel-status-permission: #e8c84c;
+  /* Permission = urgent/danger: warm red-orange, must pop at kiosk distance */
+  --pixel-status-permission: #e8503a;
+  --pixel-status-permission-bg: rgba(232, 80, 58, 0.12);
+  /* Active = productive: warm amber */
   --pixel-status-active: #e8a84c;
 
   /* Kiosk */
