@@ -296,6 +296,7 @@ function App() {
           onAddPet={handleAddPet}
           onDeletePet={handleDeletePet}
           onEditPet={handleEditPet}
+          getLayout={() => getOfficeState().getLayout()}
         />
       )}
 

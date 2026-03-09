@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
-import { vscode, isStandaloneMode } from '../vscodeApi.js'
+import { vscode } from '../vscodeApi.js'
 import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
+import { ShareModal } from './ShareModal.js'
+import type { OfficeLayout } from '../office/types.js'
 
 interface GalleryLayout {
   id: string
@@ -25,9 +27,8 @@ interface GalleryManifest {
 interface GalleryModalProps {
   isOpen: boolean
   onClose: () => void
+  getLayout: () => OfficeLayout
 }
-
-const GALLERY_REPO_URL = 'https://github.com/fedevgonzalez/pixel-office-layouts'
 
 const actionBtnBase: React.CSSProperties = {
   padding: '6px 16px',
@@ -40,7 +41,7 @@ const actionBtnBase: React.CSSProperties = {
   textAlign: 'left',
 }
 
-export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
+export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) {
   const [manifest, setManifest] = useState<GalleryManifest | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -48,6 +49,7 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
   const [hovered, setHovered] = useState<string | null>(null)
   const [importing, setImporting] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
+  const [isShareOpen, setIsShareOpen] = useState(false)
 
   // Listen for gallery messages from extension/server
   useEffect(() => {
@@ -284,13 +286,7 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
             {manifest ? `${manifest.layouts.length} layout${manifest.layouts.length !== 1 ? 's' : ''}` : ''}
           </span>
           <button
-            onClick={() => {
-              if (isStandaloneMode) {
-                window.open(GALLERY_REPO_URL, '_blank')
-              } else {
-                vscode.postMessage({ type: 'openExternal', url: GALLERY_REPO_URL })
-              }
-            }}
+            onClick={() => setIsShareOpen(true)}
             onMouseEnter={() => setHovered('share')}
             onMouseLeave={() => setHovered(null)}
             style={{
@@ -307,6 +303,7 @@ export function GalleryModal({ isOpen, onClose }: GalleryModalProps) {
           </button>
         </div>
       </div>
+      <ShareModal isOpen={isShareOpen} onClose={() => setIsShareOpen(false)} getLayout={getLayout} />
     </>
   )
 }

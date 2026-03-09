@@ -3,7 +3,7 @@ import { SettingsModal } from './SettingsModal.js'
 import { GalleryModal } from './GalleryModal.js'
 import { PetManagerModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
-import type { PlacedPet, PetColors } from '../office/types.js'
+import type { PlacedPet, PetColors, OfficeLayout } from '../office/types.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
 
 interface BottomToolbarProps {
@@ -17,6 +17,7 @@ interface BottomToolbarProps {
   onAddPet?: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet?: (uid: string) => void
   onEditPet?: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => void
+  getLayout: () => OfficeLayout
 }
 
 const panelStyle: React.CSSProperties = {
@@ -62,6 +63,7 @@ export function BottomToolbar({
   onAddPet,
   onDeletePet,
   onEditPet,
+  getLayout,
 }: BottomToolbarProps) {
   const [hovered, setHovered] = useState<string | null>(null)
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
@@ -193,7 +195,7 @@ export function BottomToolbar({
       >
         Community
       </button>
-      <GalleryModal isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} />
+      <GalleryModal isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} getLayout={getLayout} />
       <button
         onClick={() => setIsPetCreatorOpen((v) => !v)}
         onMouseEnter={() => setHovered('pet')}
