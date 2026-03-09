@@ -36,5 +36,6 @@ All magic numbers centralized — never inline:
 ## Docs
 
 - `docs/architecture.md` — Full technical reference
+- `docs/standalone.md` — Standalone server setup & API
 - `docs/product-plan.md` — Product roadmap
 - `docs/planning.md` — Project docs
