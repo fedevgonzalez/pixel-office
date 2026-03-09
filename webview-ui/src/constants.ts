@@ -84,20 +84,21 @@ export const KIOSK_PAD_VIEWPORT_FRACTION = 0.05
 export const KIOSK_BBOX_MIN = 64
 // Zoom lerp thresholds (adaptive speed: fast approach, slow settle)
 export const KIOSK_ZOOM_LERP_FAST_THRESHOLD = 2
-export const KIOSK_ZOOM_LERP_FAST = 0.08
+export const KIOSK_ZOOM_LERP_FAST = 0.04
 export const KIOSK_ZOOM_LERP_MID_THRESHOLD = 0.5
-export const KIOSK_ZOOM_LERP_MID = 0.06
-export const KIOSK_ZOOM_LERP_SLOW = 0.04
+export const KIOSK_ZOOM_LERP_MID = 0.035
+export const KIOSK_ZOOM_LERP_SLOW = 0.025
 // Pan lerp thresholds (adaptive speed like zoom)
 export const KIOSK_PAN_LERP_FAST_THRESHOLD = 200
-export const KIOSK_PAN_LERP_FAST = 0.10
+export const KIOSK_PAN_LERP_FAST = 0.05
 export const KIOSK_PAN_LERP_MID_THRESHOLD = 50
-export const KIOSK_PAN_LERP_MID = 0.07
-export const KIOSK_PAN_LERP_SLOW = 0.05
+export const KIOSK_PAN_LERP_MID = 0.04
+export const KIOSK_PAN_LERP_SLOW = 0.03
 // Deadzone: ignore target changes smaller than this (world pixels) to prevent jitter
 export const KIOSK_DEADZONE_PX = 3
 // Target smoothing: lerp factor for bbox target itself (smooths active↔idle transitions)
-export const KIOSK_TARGET_SMOOTHING = 0.10
+// Slow value (0.03) means a large bbox shift takes ~3s to complete, giving a cinematic glide
+export const KIOSK_TARGET_SMOOTHING = 0.03
 // React state sync interval (ms) and threshold
 export const KIOSK_SYNC_INTERVAL_MS = 100
 export const KIOSK_SYNC_THRESHOLD = 0.05
