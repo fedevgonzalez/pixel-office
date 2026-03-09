@@ -123,6 +123,9 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - [x] `pixel-office-layouts` GitHub repo with seeded layouts
 - [x] In-app "Community" button with browse/preview/import UI
 - [x] One-click import from community gallery
+- [x] Share flow: ShareModal → pre-filled GitHub Issue → CI bot processes → PR with preview
+- [x] Screenshot mode (`?screenshot`) for CI preview generation
+- [x] GitHub token auth for private gallery repo (`.env` GITHUB_TOKEN)
 - [ ] In-app upload with auto-generated preview (Phase B)
 - [ ] Ratings / download count (Phase B)
 - [ ] "Featured layouts" curated selection
@@ -173,3 +176,8 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - [x] Break room (coffee machine, couch, 25% idle visit chance)
 - [x] SDK vs CLI agent distinction
 - [x] Chrome D-state watchdog for kiosk reliability
+- [x] `/api/client-health` endpoint (WebSocket ping/pong for kiosk health monitoring)
+- [x] GitHub token auth for private gallery repo (`.env` loader, GitHub API with Bearer)
+- [x] Pet boundary clamping (prevent pets/characters from escaping room bounds)
+- [x] Share layout flow (ShareModal → GitHub Issue → CI bot → PR with preview screenshot)
+- [x] Screenshot mode (`?screenshot`) for CI preview generation
