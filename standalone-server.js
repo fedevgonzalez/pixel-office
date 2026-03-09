@@ -146,45 +146,44 @@ function broadcast(msg) {
 // --- Folder name resolution ---
 // Project dir hash: path separators (: \ /) replaced with dash
 // e.g. "G--GitHub-pixel-office" from "G:\GitHub\pixel-office"
-// Try to reconstruct the real path and return basename
+// Uses DFS with early pruning: each dash is a potential path separator.
+// We recurse only when an intermediate path exists as a directory, so invalid
+// branches are cut early and all combinations are implicitly tried.
 function resolveFolderName(hashName) {
   const isWin = process.platform === 'win32';
   const sep = isWin ? '\\' : '/';
-
-  // On Windows: "G--GitHub-pixel-office" → "G:\GitHub-pixel-office" (drive letter reconstruction)
-  // On Unix: "home-user-projects-foo" → "/home-user-projects-foo" (leading slash)
-  let candidate;
+  let prefix, rest;
   if (isWin) {
-    // Match drive letter pattern: single letter followed by --
-    candidate = hashName.replace(/^([a-zA-Z])--/, '$1:' + sep);
+    const m = hashName.match(/^([a-zA-Z])--(.*)$/);
+    if (!m) return hashName;
+    prefix = m[1] + ':' + sep;
+    rest = m[2];
   } else {
-    // Unix paths start with / which becomes a leading dash
-    candidate = sep + hashName;
+    if (!hashName.startsWith('-')) return hashName;
+    prefix = sep;
+    rest = hashName.slice(1);
   }
-
-  // Try progressively replacing dashes with path separators from left to right
-  // and check if the directory exists
-  const startIdx = isWin ? candidate.indexOf(sep) + 1 : 1; // skip drive prefix or leading /
-  const dashes = [];
-  for (let i = startIdx; i < candidate.length; i++) {
-    if (candidate[i] === '-') dashes.push(i);
-  }
-  // Try replacing all dashes (most specific path)
-  let full = candidate;
-  for (const idx of dashes) {
-    full = full.substring(0, idx) + sep + full.substring(idx + 1);
-  }
-  if (fs.existsSync(full)) return path.basename(full);
-  // Try replacing dashes from left to right, checking each time
-  for (let n = dashes.length; n >= 1; n--) {
-    let attempt = candidate;
-    for (let i = 0; i < n; i++) {
-      attempt = attempt.substring(0, dashes[i]) + sep + attempt.substring(dashes[i] + 1);
+  function search(dir, remaining) {
+    for (let i = 1; i <= remaining.length; i++) {
+      const isDash = i < remaining.length && remaining[i] === '-';
+      const isEnd = i === remaining.length;
+      if (!isDash && !isEnd) continue;
+      const component = remaining.slice(0, i);
+      const fullPath = dir + component;
+      if (isEnd) {
+        if (fs.existsSync(fullPath)) return path.basename(fullPath);
+      } else {
+        try {
+          if (fs.statSync(fullPath).isDirectory()) {
+            const found = search(fullPath + sep, remaining.slice(i + 1));
+            if (found) return found;
+          }
+        } catch {}
+      }
     }
-    if (fs.existsSync(attempt)) return path.basename(attempt);
+    return null;
   }
-  // Fallback: just use the hash name
-  return hashName;
+  return search(prefix, rest) || hashName;
 }
 
 // --- Tool status formatting ---

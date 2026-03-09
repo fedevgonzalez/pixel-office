@@ -45,34 +45,45 @@ function send(msg) {
   }
 }
 
-// --- Folder name resolution (simplified) ---
+// --- Folder name resolution ---
+// Uses DFS with early pruning: each dash is a potential path separator.
+// We recurse only when an intermediate path exists as a directory, so invalid
+// branches are cut early and all combinations are implicitly tried.
 function resolveFolderName(hashName) {
   const isWin = process.platform === 'win32';
   const sep = isWin ? '\\' : '/';
-  let candidate;
+  let prefix, rest;
   if (isWin) {
-    candidate = hashName.replace(/^([a-zA-Z])--/, '$1:' + sep);
+    const m = hashName.match(/^([a-zA-Z])--(.*)$/);
+    if (!m) return hashName;
+    prefix = m[1] + ':' + sep;
+    rest = m[2];
   } else {
-    candidate = sep + hashName;
+    if (!hashName.startsWith('-')) return hashName;
+    prefix = sep;
+    rest = hashName.slice(1);
   }
-  const startIdx = isWin ? candidate.indexOf(sep) + 1 : 1;
-  const dashes = [];
-  for (let i = startIdx; i < candidate.length; i++) {
-    if (candidate[i] === '-') dashes.push(i);
-  }
-  let full = candidate;
-  for (const idx of dashes) {
-    full = full.substring(0, idx) + sep + full.substring(idx + 1);
-  }
-  if (fs.existsSync(full)) return path.basename(full);
-  for (let n = dashes.length; n >= 1; n--) {
-    let attempt = candidate;
-    for (let i = 0; i < n; i++) {
-      attempt = attempt.substring(0, dashes[i]) + sep + attempt.substring(dashes[i] + 1);
+  function search(dir, remaining) {
+    for (let i = 1; i <= remaining.length; i++) {
+      const isDash = i < remaining.length && remaining[i] === '-';
+      const isEnd = i === remaining.length;
+      if (!isDash && !isEnd) continue;
+      const component = remaining.slice(0, i);
+      const fullPath = dir + component;
+      if (isEnd) {
+        if (fs.existsSync(fullPath)) return path.basename(fullPath);
+      } else {
+        try {
+          if (fs.statSync(fullPath).isDirectory()) {
+            const found = search(fullPath + sep, remaining.slice(i + 1));
+            if (found) return found;
+          }
+        } catch {}
+      }
     }
-    if (fs.existsSync(attempt)) return path.basename(attempt);
+    return null;
   }
-  return hashName;
+  return search(prefix, rest) || hashName;
 }
 
 // --- Check if session has /exit as the LAST user action ---
