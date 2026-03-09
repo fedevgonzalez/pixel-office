@@ -249,27 +249,26 @@ export function renderScene(
           if (isSelected || isHovered || isKioskMode) {
             const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
             const nameX = petDrawX + petCached.width / 2
-            const fontSize = Math.max(9, Math.round(9 * zoom / 2))
+            const fontSize = Math.max(10, Math.round(11 * zoom / 2))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
             c.textAlign = 'center'
 
             // Dot indicator: small circle in the pet's body color
-            const dotRadius = Math.max(2, Math.round(2 * zoom / 2))
+            const dotRadius = Math.round(fontSize * 0.25)
             const dotColor = pet.petColors?.body ?? '#e8a84c'
-            const dotGap = dotRadius * 2 + Math.round(2 * zoom / 2)
+            const dotGap = Math.round(fontSize * 0.3)
 
             const nameMetrics = c.measureText(pet.name)
-            // Total content width = dot diameter + gap + name width
             const totalW = dotRadius * 2 + dotGap + nameMetrics.width
-            const padH = Math.round(4 * zoom / 2)
-            const padV = Math.round(3 * zoom / 2)
+            const padH = Math.round(fontSize * 0.4)
+            const padV = Math.round(fontSize * 0.2)
 
             const bgX = nameX - totalW / 2 - padH
             const bgY = nameY - fontSize - padV
             const bgW = totalW + padH * 2
             const bgH = fontSize + padV * 2
 
-            // Warm dark background with amber tint
+            // Warm dark background
             c.globalAlpha = 0.85
             c.fillStyle = 'rgba(31, 26, 36, 0.9)'
             c.fillRect(bgX, bgY, bgW, bgH)
@@ -281,7 +280,7 @@ export function renderScene(
             c.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
             c.globalAlpha = 1
 
-            // Dot (pet body color) — centered vertically in label
+            // Dot (pet body color) — centered vertically
             const dotCenterX = bgX + padH + dotRadius
             const dotCenterY = bgY + bgH / 2
             c.beginPath()
@@ -291,7 +290,7 @@ export function renderScene(
 
             // Name text in warm cream
             c.fillStyle = 'rgba(255, 245, 235, 0.95)'
-            const textX = dotCenterX + dotGap
+            const textX = dotCenterX + dotRadius + dotGap
             c.textAlign = 'left'
             c.fillText(pet.name, textX, nameY)
             c.textAlign = 'start'
