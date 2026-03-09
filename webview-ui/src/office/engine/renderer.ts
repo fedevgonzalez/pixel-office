@@ -249,7 +249,7 @@ export function renderScene(
           if (isSelected || isHovered || isKioskMode) {
             const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
             const nameX = petDrawX + petCached.width / 2
-            const fontSize = Math.max(11, Math.round(13 * zoom / 2))
+            const fontSize = Math.max(13, Math.round(16 * zoom / 2))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
             c.textAlign = 'center'
 
