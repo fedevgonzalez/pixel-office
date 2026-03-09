@@ -131,6 +131,23 @@ export function updatePet(
   activeAgentPositions?: Array<{ col: number; row: number }>,
   officeIdleTime?: number,
 ): void {
+  // Bounds check: if pet is outside the grid, relocate to a walkable tile
+  const rows = tileMap.length
+  const cols = rows > 0 ? tileMap[0].length : 0
+  if (pet.tileCol < 0 || pet.tileCol >= cols || pet.tileRow < 0 || pet.tileRow >= rows) {
+    if (walkableTiles.length > 0) {
+      const spawn = walkableTiles[Math.floor(Math.random() * walkableTiles.length)]
+      pet.tileCol = spawn.col
+      pet.tileRow = spawn.row
+      pet.x = spawn.col * TILE_SIZE + TILE_SIZE / 2
+      pet.y = spawn.row * TILE_SIZE + TILE_SIZE / 2
+      pet.path = []
+      pet.state = PetState.IDLE
+      pet.behaviorTimer = randomRange(PET_IDLE_MIN_SEC, PET_IDLE_MAX_SEC)
+    }
+    return
+  }
+
   // Tick reaction bubble
   if (pet.reactionBubble) {
     pet.reactionTimer -= dt

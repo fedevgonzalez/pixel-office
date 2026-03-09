@@ -155,6 +155,13 @@ export class OfficeState {
         this.pets.set(placed.uid, createPet(placed))
       }
     }
+
+    // Relocate any pets that ended up outside bounds or on non-walkable tiles
+    for (const pet of this.pets.values()) {
+      if (pet.tileCol < 0 || pet.tileCol >= this.layout.cols || pet.tileRow < 0 || pet.tileRow >= this.layout.rows) {
+        this.relocatePetToWalkable(pet)
+      }
+    }
   }
 
   /** Move a character to a random walkable tile */
@@ -167,6 +174,17 @@ export class OfficeState {
     ch.y = spawn.row * TILE_SIZE + TILE_SIZE / 2
     ch.path = []
     ch.moveProgress = 0
+  }
+
+  /** Move a pet to a random walkable tile */
+  private relocatePetToWalkable(pet: Pet): void {
+    if (this.walkableTiles.length === 0) return
+    const spawn = this.walkableTiles[Math.floor(Math.random() * this.walkableTiles.length)]
+    pet.tileCol = spawn.col
+    pet.tileRow = spawn.row
+    pet.x = spawn.col * TILE_SIZE + TILE_SIZE / 2
+    pet.y = spawn.row * TILE_SIZE + TILE_SIZE / 2
+    pet.path = []
   }
 
   getLayout(): OfficeLayout {
