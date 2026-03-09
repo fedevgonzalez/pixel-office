@@ -206,7 +206,7 @@ export function renderScene(
             const outlineData = getOutlineSprite(petSpriteData)
             const outlineCached = getCachedSprite(outlineData, zoom)
             c.globalAlpha = isSelected ? SELECTED_OUTLINE_ALPHA : HOVERED_OUTLINE_ALPHA
-            c.drawImage(outlineCached, petDrawX, petDrawY)
+            c.drawImage(outlineCached, petDrawX - zoom, petDrawY - zoom)
             c.globalAlpha = 1
           }
 

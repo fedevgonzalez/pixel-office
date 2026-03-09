@@ -910,7 +910,7 @@ function loadWebviewFiles(dir, prefix) {
     } else {
       const ext = path.extname(entry.name);
       const headers = { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' };
-      if (ext === '.html') headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
       const data = fs.readFileSync(fullPath);
       headers['Content-Length'] = data.length;
       fileCache.set(urlPath, { data, headers });
