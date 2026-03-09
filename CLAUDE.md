@@ -33,6 +33,18 @@ All magic numbers centralized — never inline:
 - `standalone-server.js` — Standalone HTTP + WebSocket server
 - Layout: `~/.pixel-office/layout.json`
 
+## URL Modes
+
+- `?kiosk` — Kiosk mode: hides UI, auto-frames camera on agents
+- `?screenshot` — Screenshot mode: hides all UI, auto-fit zoom, solid dark bg, for CI preview generation
+
+## Community Gallery
+
+- Layouts repo: `fedevgonzalez/pixel-office-layouts` (GitHub)
+- Share flow: ShareModal → pre-filled GitHub Issue → Actions bot → PR with preview screenshot
+- Gallery fetches `gallery.json` from layouts repo (regenerated on merge via `generate-gallery.yml`)
+- Screenshot mode used by CI to generate clean preview.png for each layout
+
 ## Docs
 
 - `docs/architecture.md` — Full technical reference
