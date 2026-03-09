@@ -260,7 +260,7 @@ export function renderScene(
             const bgW = nameMetrics.width + padH * 2
             const bgH = fontSize + padV * 2
             const bgX = nameX - bgW / 2
-            const bgY = nameY - fontSize - padV
+            const bgY = nameY - bgH / 2
 
             // Warm dark background
             c.globalAlpha = 0.85
@@ -275,8 +275,10 @@ export function renderScene(
             c.globalAlpha = 1
 
             // Name text centered in warm cream
+            c.textBaseline = 'middle'
             c.fillStyle = 'rgba(255, 245, 235, 0.95)'
             c.fillText(pet.name, nameX, nameY)
+            c.textBaseline = 'alphabetic'
           }
         },
       })
