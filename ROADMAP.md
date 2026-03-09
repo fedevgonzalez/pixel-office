@@ -74,17 +74,29 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 
 ## Tier 3 — Experience & Ambiance
 
-### Office Pets / Mascots
-- Non-agent decorative characters that roam the office
-- Cats, dogs, birds — selectable from a catalog
-- React to agent activity (perk up when tools run, sleep when idle)
-- Purely cosmetic, adds personality
+### Office Pets / Mascots ✅ Done
+- [x] Cats and dogs with personality-based behavior (lazy, playful, chill, energetic)
+- [x] Pet Creator modal: species, colors, coat patterns, personality, animated preview
+- [x] React to agent activity (perk up when tools run, sleep when office idle >120s)
+- [x] Click interaction (heart/happy bubbles), dogs follow active agents
+- [x] pets feature
+- [ ] Bird, fish, hamster species (future)
+- [ ] Pixel art editor for custom pet sprites (future)
+- [ ] Photo → pixel art conversion (future)
 
-### Door Spawn Animation
-- New agents "enter through a door" instead of matrix effect
-- Door furniture item placed in layout
-- Walk-in animation: door opens, character walks to their seat
-- Despawn: character walks to door, exits, door closes
+### Door Spawn Animation ✅ Done
+- [x] Door furniture item (16x32, wall-placeable, backgroundTiles: 2)
+- [x] Walk-in: character appears at door → ENTERING state → walks to seat
+- [x] Walk-out: character → LEAVING state → walks to nearest door → matrix despawn
+- [x] Fallback: matrix effect when no door exists
+- [ ] Door open/close animation timing (future enhancement)
+
+### Break Room ✅ Done
+- [x] Coffee machine (isInteractionPoint) and break couch (isBreakRoom) furniture
+- [x] Idle agents: 25% chance to visit break room, rest 5-15s
+- [x] `getBreakRoomTiles()` finds walkable tiles adjacent to break room items
+- [ ] Grab coffee / sipping animations (future enhancement)
+- [ ] Water cooler / vending machine (future)
 
 ### Day / Night Cycle
 - Ambient lighting changes based on real clock or configurable schedule
@@ -107,11 +119,13 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 
 ## Tier 4 — Community & SaaS
 
-### Layout Marketplace
-- Share office layouts with the community
-- Gallery of user-created offices (browse, preview, import)
-- "Featured layouts" curated selection
-- Rating / download count
+### Layout Gallery ✅ Phase A Done
+- [x] `pixel-office-layouts` GitHub repo with seeded layouts
+- [x] In-app "Community" button with browse/preview/import UI
+- [x] One-click import from community gallery
+- [ ] In-app upload with auto-generated preview (Phase B)
+- [ ] Ratings / download count (Phase B)
+- [ ] "Featured layouts" curated selection
 
 ### Teams / Multi-User
 - Each dev's agents visible on a shared dashboard
@@ -141,7 +155,7 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - [x] MCP tool permission exemption
 - [x] Multi-project directory scanning
 - [x] Detached agent support (no live terminal required)
-- [x] Accessibility: focus-visible, prefers-reduced-motion
+- [x] Accessibility: focus-visible, prefers-reduced-motion, ARIA
 - [x] Auto-launch script (Windows PowerShell)
 - [x] No-cache headers for HTML (prevents stale bundle after rebuild)
 - [x] Furniture asset loading in standalone server
@@ -152,3 +166,10 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 - [x] Homeserver kiosk auto-display (systemd + X11 + Chrome)
 - [x] Passwordless sudo for service restarts
 - [x] Smart pre-push hook (only restarts server when code changes)
+- [x] Community gallery (browse + import layouts from GitHub repo)
+- [x] Office pets (cats, dogs with personality, colors, patterns, reactions)
+- [x] Pet Creator modal (species, per-part colors, coat patterns, personality)
+- [x] Door system (enter/exit through doors, ENTERING/LEAVING FSM states)
+- [x] Break room (coffee machine, couch, 25% idle visit chance)
+- [x] SDK vs CLI agent distinction
+- [x] Chrome D-state watchdog for kiosk reliability

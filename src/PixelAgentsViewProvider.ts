@@ -347,6 +347,9 @@ export class PixelAgentsViewProvider implements vscode.WebviewViewProvider {
 					this.webview?.postMessage({ type: 'galleryImportResult', success: false, error: 'Invalid layout' });
 					return;
 				}
+				// Pets are personal — never import them from community layouts
+				const currentLayout = readLayoutFromFile();
+				imported.pets = currentLayout?.pets || [];
 				this.layoutWatcher?.markOwnWrite();
 				writeLayoutToFile(imported);
 				this.webview?.postMessage({ type: 'layoutLoaded', layout: imported });

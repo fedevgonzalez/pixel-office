@@ -16,7 +16,7 @@ const menuItemBase: React.CSSProperties = {
   width: '100%',
   padding: '6px 10px',
   fontSize: '24px',
-  color: 'rgba(255, 255, 255, 0.8)',
+  color: 'var(--pixel-text)',
   background: 'transparent',
   border: 'none',
   borderRadius: 0,
@@ -46,6 +46,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
       {/* Dark backdrop — click to close */}
       <div
         onClick={onClose}
+        aria-hidden="true"
         style={{
           position: 'fixed',
           top: 0,
@@ -58,6 +59,9 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
       />
       {/* Centered modal */}
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
         style={{
           position: 'fixed',
           top: '50%',
@@ -92,7 +96,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
               background: hovered === 'close' ? 'rgba(255, 255, 255, 0.08)' : 'transparent',
               border: 'none',
               borderRadius: 0,
-              color: 'rgba(255, 255, 255, 0.6)',
+              color: 'var(--pixel-close-text)',
               fontSize: '24px',
               cursor: 'pointer',
               padding: '4px 8px',
@@ -146,6 +150,8 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
           Import Layout
         </button>
         <button
+          role="checkbox"
+          aria-checked={soundLocal}
           onClick={() => {
             const newVal = !isSoundEnabled()
             setSoundEnabled(newVal)
@@ -161,12 +167,13 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
         >
           <span>Sound Notifications</span>
           <span
+            aria-hidden="true"
             style={{
-              width: 14,
-              height: 14,
-              border: '2px solid rgba(255, 255, 255, 0.5)',
+              width: 16,
+              height: 16,
+              border: '2px solid var(--pixel-border-light)',
               borderRadius: 0,
-              background: soundLocal ? 'rgba(90, 140, 255, 0.8)' : 'transparent',
+              background: soundLocal ? 'var(--pixel-accent)' : 'transparent',
               flexShrink: 0,
               display: 'flex',
               alignItems: 'center',
@@ -180,6 +187,8 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
           </span>
         </button>
         <button
+          role="checkbox"
+          aria-checked={isDebugMode}
           onClick={onToggleDebugMode}
           onMouseEnter={() => setHovered('debug')}
           onMouseLeave={() => setHovered(null)}
@@ -189,17 +198,25 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
           }}
         >
           <span>Debug View</span>
-          {isDebugMode && (
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: 'rgba(90, 140, 255, 0.8)',
-                flexShrink: 0,
-              }}
-            />
-          )}
+          <span
+            aria-hidden="true"
+            style={{
+              width: 16,
+              height: 16,
+              border: '2px solid var(--pixel-border-light)',
+              borderRadius: 0,
+              background: isDebugMode ? 'var(--pixel-accent)' : 'transparent',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              lineHeight: 1,
+              color: '#fff',
+            }}
+          >
+            {isDebugMode ? '✓' : ''}
+          </span>
         </button>
       </div>
     </>

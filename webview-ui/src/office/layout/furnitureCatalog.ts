@@ -9,6 +9,9 @@ import {
   CHAIR_SPRITE,
   PC_SPRITE,
   LAMP_SPRITE,
+  DOOR_SPRITE,
+  COFFEE_MACHINE_SPRITE,
+  BREAK_COUCH_SPRITE,
 } from '../sprites/spriteData.js'
 
 export interface LoadedAssetData {
@@ -31,7 +34,7 @@ export interface LoadedAssetData {
   sprites: Record<string, SpriteData>
 }
 
-export type FurnitureCategory = 'desks' | 'chairs' | 'storage' | 'decor' | 'electronics' | 'wall' | 'misc'
+export type FurnitureCategory = 'desks' | 'chairs' | 'storage' | 'decor' | 'electronics' | 'wall' | 'break_room' | 'misc'
 
 export interface CatalogEntryWithCategory extends FurnitureCatalogEntry {
   category: FurnitureCategory
@@ -47,6 +50,9 @@ export const FURNITURE_CATALOG: CatalogEntryWithCategory[] = [
   { type: FurnitureType.CHAIR,      label: 'Chair',      footprintW: 1, footprintH: 1, sprite: CHAIR_SPRITE,        isDesk: false, category: 'chairs' },
   { type: FurnitureType.PC,         label: 'PC',         footprintW: 1, footprintH: 1, sprite: PC_SPRITE,           isDesk: false, category: 'electronics' },
   { type: FurnitureType.LAMP,       label: 'Lamp',       footprintW: 1, footprintH: 1, sprite: LAMP_SPRITE,         isDesk: false, category: 'decor' },
+  { type: FurnitureType.DOOR,       label: 'Door',       footprintW: 1, footprintH: 2, sprite: DOOR_SPRITE,         isDesk: false, category: 'misc', isDoor: true, canPlaceOnWalls: true, backgroundTiles: 2 },
+  { type: FurnitureType.COFFEE_MACHINE, label: 'Coffee Machine', footprintW: 1, footprintH: 1, sprite: COFFEE_MACHINE_SPRITE, isDesk: false, category: 'break_room', isBreakRoom: true, isInteractionPoint: true },
+  { type: FurnitureType.BREAK_COUCH, label: 'Break Couch', footprintW: 2, footprintH: 1, sprite: BREAK_COUCH_SPRITE, isDesk: false, category: 'break_room', isBreakRoom: true },
 
 ]
 
@@ -265,6 +271,7 @@ export const FURNITURE_CATEGORIES: Array<{ id: FurnitureCategory; label: string 
   { id: 'electronics', label: 'Tech' },
   { id: 'decor', label: 'Decor' },
   { id: 'wall', label: 'Wall' },
+  { id: 'break_room', label: 'Break' },
   { id: 'misc', label: 'Misc' },
 ]
 

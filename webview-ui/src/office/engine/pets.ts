@@ -1,7 +1,7 @@
-import { PetState, Direction, TILE_SIZE } from '../types.js'
-import type { Pet, PlacedPet, SpriteData, TileType as TileTypeVal } from '../types.js'
+import { PetState, Direction, TILE_SIZE, PetPersonality } from '../types.js'
+import type { Pet, PlacedPet, SpriteData, TileType as TileTypeVal, PetPersonality as PetPersonalityType } from '../types.js'
 import { findPath } from '../layout/tileMap.js'
-import { getPetSprites } from '../sprites/petSprites.js'
+import { getPetSprites, colorPetSprite } from '../sprites/petSprites.js'
 import {
   PET_WALK_SPEED_PX_PER_SEC,
   PET_WALK_FRAME_DURATION_SEC,
@@ -12,6 +12,11 @@ import {
   PET_SLEEP_FRAME_DURATION_SEC,
   PET_WANDER_MOVES_MIN,
   PET_WANDER_MOVES_MAX,
+  PET_REACTION_DURATION_SEC,
+  PET_PERK_DURATION_SEC,
+  PET_IDLE_OFFICE_THRESHOLD_SEC,
+  PET_DOG_FOLLOW_CHANCE,
+  PET_DOG_FOLLOW_MAX_DIST,
 } from '../../constants.js'
 
 function randomRange(min: number, max: number): number {
@@ -60,12 +65,27 @@ const DOG_BEHAVIORS: BehaviorWeight[] = [
   { state: PetState.SLEEP, weight: 25, minDuration: PET_SLEEP_MIN_SEC, maxDuration: PET_SLEEP_MAX_SEC },
 ]
 
-function getBehaviors(species: string): BehaviorWeight[] {
-  return species === 'dog' ? DOG_BEHAVIORS : CAT_BEHAVIORS
+/** Personality multipliers for each behavior state */
+const PERSONALITY_MODS: Record<string, Partial<Record<string, number>>> = {
+  [PetPersonality.LAZY]:      { [PetState.SLEEP]: 1.8, [PetState.SIT]: 1.3, [PetState.WALK]: 0.4, [PetState.IDLE]: 1.0 },
+  [PetPersonality.PLAYFUL]:   { [PetState.SLEEP]: 0.5, [PetState.SIT]: 0.6, [PetState.WALK]: 1.8, [PetState.IDLE]: 0.8 },
+  [PetPersonality.CHILL]:     { [PetState.SLEEP]: 1.2, [PetState.SIT]: 1.5, [PetState.WALK]: 0.7, [PetState.IDLE]: 1.3 },
+  [PetPersonality.ENERGETIC]: { [PetState.SLEEP]: 0.3, [PetState.SIT]: 0.5, [PetState.WALK]: 2.0, [PetState.IDLE]: 0.6 },
 }
 
-function pickBehavior(species: string): BehaviorWeight {
-  const behaviors = getBehaviors(species)
+function getBehaviors(species: string, personality?: PetPersonalityType): BehaviorWeight[] {
+  const base = species === 'dog' ? DOG_BEHAVIORS : CAT_BEHAVIORS
+  if (!personality) return base
+  const mods = PERSONALITY_MODS[personality]
+  if (!mods) return base
+  return base.map((b) => ({
+    ...b,
+    weight: b.weight * (mods[b.state] ?? 1),
+  }))
+}
+
+function pickBehavior(species: string, personality?: PetPersonalityType): BehaviorWeight {
+  const behaviors = getBehaviors(species, personality)
   const totalWeight = behaviors.reduce((sum, b) => sum + b.weight, 0)
   let roll = Math.random() * totalWeight
   for (const b of behaviors) {
@@ -93,6 +113,12 @@ export function createPet(placed: PlacedPet): Pet {
     frameTimer: 0,
     behaviorTimer: randomRange(PET_IDLE_MIN_SEC, PET_IDLE_MAX_SEC),
     color: placed.color,
+    petColors: placed.petColors,
+    personality: placed.personality,
+    reactionBubble: null,
+    reactionTimer: 0,
+    isPerkedUp: false,
+    perkTimer: 0,
   }
 }
 
@@ -102,7 +128,37 @@ export function updatePet(
   walkableTiles: Array<{ col: number; row: number }>,
   tileMap: TileTypeVal[][],
   blockedTiles: Set<string>,
+  activeAgentPositions?: Array<{ col: number; row: number }>,
+  officeIdleTime?: number,
 ): void {
+  // Tick reaction bubble
+  if (pet.reactionBubble) {
+    pet.reactionTimer -= dt
+    if (pet.reactionTimer <= 0) {
+      pet.reactionBubble = null
+      pet.reactionTimer = 0
+    }
+  }
+
+  // Tick perk timer
+  if (pet.isPerkedUp) {
+    pet.perkTimer -= dt
+    if (pet.perkTimer <= 0) {
+      pet.isPerkedUp = false
+      pet.perkTimer = 0
+    }
+  }
+
+  // Office idle: pets go to sleep when nobody is active
+  if (officeIdleTime !== undefined && officeIdleTime > PET_IDLE_OFFICE_THRESHOLD_SEC) {
+    if (pet.state === PetState.IDLE || pet.state === PetState.SIT) {
+      pet.state = PetState.SLEEP
+      pet.frame = 0
+      pet.frameTimer = 0
+      pet.behaviorTimer = randomRange(PET_SLEEP_MIN_SEC, PET_SLEEP_MAX_SEC)
+    }
+  }
+
   pet.frameTimer += dt
 
   switch (pet.state) {
@@ -112,7 +168,7 @@ export function updatePet(
       pet.frame = 0 // idle frame
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
       }
       break
     }
@@ -125,7 +181,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
       }
       break
     }
@@ -139,7 +195,7 @@ export function updatePet(
 
       if (pet.path.length === 0) {
         // Arrived — pick new behavior
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
         break
       }
 
@@ -178,7 +234,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
       }
       break
     }
@@ -190,13 +246,46 @@ function transitionToNewBehavior(
   walkableTiles: Array<{ col: number; row: number }>,
   tileMap: TileTypeVal[][],
   blockedTiles: Set<string>,
+  activeAgentPositions?: Array<{ col: number; row: number }>,
 ): void {
-  const behavior = pickBehavior(pet.species)
+  const behavior = pickBehavior(pet.species, pet.personality)
 
   if (behavior.state === PetState.WALK) {
-    // Pick a random walkable tile and pathfind to it
+    // Dogs may follow active agents instead of wandering randomly
+    if (pet.species === 'dog' && activeAgentPositions && activeAgentPositions.length > 0 && Math.random() < PET_DOG_FOLLOW_CHANCE) {
+      // Pick nearest active agent within range
+      let bestAgent: { col: number; row: number } | null = null
+      let bestDist = Infinity
+      for (const pos of activeAgentPositions) {
+        const d = Math.abs(pos.col - pet.tileCol) + Math.abs(pos.row - pet.tileRow)
+        if (d <= PET_DOG_FOLLOW_MAX_DIST && d < bestDist) {
+          bestDist = d
+          bestAgent = pos
+        }
+      }
+      if (bestAgent) {
+        // Walk to a tile adjacent to the agent (not on top of them)
+        const adjacent = walkableTiles.filter((t) => {
+          const d = Math.abs(t.col - bestAgent.col) + Math.abs(t.row - bestAgent.row)
+          return d === 1 || d === 2
+        })
+        if (adjacent.length > 0) {
+          const target = adjacent[Math.floor(Math.random() * adjacent.length)]
+          const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles)
+          if (path.length > 0) {
+            pet.state = PetState.WALK
+            pet.path = path
+            pet.frame = 0
+            pet.frameTimer = 0
+            pet.dir = directionBetween(pet.tileCol, pet.tileRow, path[0].col, path[0].row)
+            return
+          }
+        }
+      }
+    }
+
+    // Default wander: pick a random walkable tile and pathfind to it
     const movesTarget = randomInt(PET_WANDER_MOVES_MIN, PET_WANDER_MOVES_MAX)
-    // Pick a random walkable tile within reasonable distance
     const candidates = walkableTiles.filter((t) => {
       const dist = Math.abs(t.col - pet.tileCol) + Math.abs(t.row - pet.tileRow)
       return dist > 0 && dist <= movesTarget * 2
@@ -231,7 +320,38 @@ function transitionToNewBehavior(
   }
 }
 
-/** Get the current sprite frame for a pet */
+/** Trigger a reaction bubble on a pet (heart for cats, happy for dogs) */
+export function triggerPetReaction(pet: Pet): void {
+  pet.reactionBubble = pet.species === 'cat' ? 'heart' : 'happy'
+  pet.reactionTimer = PET_REACTION_DURATION_SEC
+}
+
+/** Perk up a pet — subtle energy boost when agents are active nearby */
+export function perkUpPet(pet: Pet): void {
+  if (pet.state === PetState.SLEEP) return // don't wake sleeping pets with just perk
+  pet.isPerkedUp = true
+  pet.perkTimer = PET_PERK_DURATION_SEC
+}
+
+/** Send a pet to walk toward a specific tile */
+export function walkPetToTile(
+  pet: Pet,
+  col: number,
+  row: number,
+  tileMap: TileTypeVal[][],
+  blockedTiles: Set<string>,
+): boolean {
+  const path = findPath(pet.tileCol, pet.tileRow, col, row, tileMap, blockedTiles)
+  if (path.length === 0) return false
+  pet.state = PetState.WALK
+  pet.path = path
+  pet.frame = 0
+  pet.frameTimer = 0
+  pet.dir = directionBetween(pet.tileCol, pet.tileRow, path[0].col, path[0].row)
+  return true
+}
+
+/** Get the current sprite frame for a pet (with palette swap if petColors set) */
 export function getPetSprite(pet: Pet): SpriteData {
   const sprites = getPetSprites(pet.species)
   // Direction mapping: DOWN=0, LEFT=flip of RIGHT=2, RIGHT=2, UP=1
@@ -252,8 +372,13 @@ export function getPetSprite(pet: Pet): SpriteData {
       break
   }
 
-  const sprite = sprites.frames[dirIndex]?.[frameIdx]
-  if (!sprite) return sprites.frames[0][2] // fallback to front idle
+  let sprite = sprites.frames[dirIndex]?.[frameIdx]
+  if (!sprite) sprite = sprites.frames[0][2] // fallback to front idle
+
+  // Apply palette swap + pattern
+  if (pet.petColors) {
+    sprite = colorPetSprite(sprite, pet.species, pet.petColors)
+  }
 
   // Flip for LEFT direction
   if (pet.dir === Direction.LEFT) {

@@ -115,6 +115,9 @@ export const ZOOM_LEVEL_FADE_DURATION_SEC = 0.5
 export const ZOOM_SCROLL_THRESHOLD = 50
 export const PAN_MARGIN_FRACTION = 0.25
 
+// ── Screenshot mode ──────────────────────────────────────────
+export const SCREENSHOT_PADDING_TILES = 2 // padding in tiles around the office
+
 // ── Editor ───────────────────────────────────────────────────
 export const UNDO_STACK_MAX_SIZE = 50
 export const LAYOUT_SAVE_DEBOUNCE_MS = 500
@@ -130,6 +133,11 @@ export const NOTIFICATION_NOTE_2_START_SEC = 0.1
 export const NOTIFICATION_NOTE_DURATION_SEC = 0.18
 export const NOTIFICATION_VOLUME = 0.14
 
+// ── Gallery ─────────────────────────────────────────────────
+export const GALLERY_CARD_MIN_WIDTH = 280
+export const GALLERY_CARD_GAP = 12
+export const GALLERY_CARD_PADDING = 8
+
 // ── Pets ────────────────────────────────────────────────────
 export const PET_WALK_SPEED_PX_PER_SEC = 32
 export const PET_WALK_FRAME_DURATION_SEC = 0.2
@@ -143,6 +151,107 @@ export const PET_WANDER_MOVES_MAX = 5
 export const PET_SPRITE_WIDTH = 16
 export const PET_SPRITE_HEIGHT = 16
 export const PET_MAX_FREE = 2
+export const PET_HIT_HALF_WIDTH = 8
+export const PET_HIT_HEIGHT = 16
+export const PET_NAME_LABEL_Y_OFFSET = 18
+export const PET_REACTION_DURATION_SEC = 2.0
+export const PET_IDLE_OFFICE_THRESHOLD_SEC = 120.0
+export const PET_PERK_DURATION_SEC = 1.5
+export const PET_DOG_FOLLOW_CHANCE = 0.3
+export const PET_DOG_FOLLOW_MAX_DIST = 6
+export const PET_ZZZ_FRAME_DURATION_SEC = 0.8
+export const PET_MAX_NAME_LENGTH = 20
+export const PET_PREVIEW_CANVAS_SIZE = 96
+export const PET_PREVIEW_SCALE = 6
+export const PET_LIST_PREVIEW_CANVAS_SIZE = 32
+export const PET_LIST_PREVIEW_SCALE = 2
+
+/** Source palette colors for cat sprites (used for palette swap) */
+export const CAT_PALETTE = {
+  bodyLight: '#e8e0d0',
+  bodyMid: '#b0a090',
+  bodyDark: '#807060',
+  eyes: '#40c040',
+  nose: '#f0a0b0',
+  tail: '#c09080',
+  outline: '#2a2a3a',
+} as const
+
+/** Source palette colors for dog sprites (used for palette swap) */
+export const DOG_PALETTE = {
+  bodyLight: '#c09060',
+  bodyMid: '#906840',
+  bodyDark: '#4a3020',
+  eyes: '#201008',
+  nose: '#302010',
+  outline: '#2a2a3a',
+} as const
+
+/** Preset body colors for the pet color picker */
+export const PET_BODY_PRESETS: Array<{ label: string; hex: string }> = [
+  { label: 'Default', hex: '' },
+  { label: 'Black', hex: '#2a2a2a' },
+  { label: 'White', hex: '#e8e0d8' },
+  { label: 'Orange', hex: '#d08030' },
+  { label: 'Gray', hex: '#808080' },
+  { label: 'Cream', hex: '#d8c8a0' },
+  { label: 'Brown', hex: '#705030' },
+  { label: 'Ginger', hex: '#c06020' },
+  { label: 'Silver', hex: '#a0a8b0' },
+  { label: 'Chocolate', hex: '#503020' },
+]
+
+/** Preset eye colors for the pet color picker */
+export const PET_EYE_PRESETS: Array<{ label: string; hex: string }> = [
+  { label: 'Default', hex: '' },
+  { label: 'Green', hex: '#40c040' },
+  { label: 'Blue', hex: '#4088e0' },
+  { label: 'Amber', hex: '#d0a020' },
+  { label: 'Brown', hex: '#806030' },
+  { label: 'Yellow', hex: '#d0d040' },
+  { label: 'Copper', hex: '#c07020' },
+  { label: 'Aqua', hex: '#40c0c0' },
+  { label: 'Gold', hex: '#e0c030' },
+]
+
+/** Preset nose colors for the pet color picker */
+export const PET_NOSE_PRESETS: Array<{ label: string; hex: string }> = [
+  { label: 'Default', hex: '' },
+  { label: 'Pink', hex: '#f0a0b0' },
+  { label: 'Black', hex: '#303030' },
+  { label: 'Brown', hex: '#704030' },
+  { label: 'Peach', hex: '#e0b090' },
+]
+
+/** Pattern options for the pet pattern picker */
+export const PET_PATTERN_OPTIONS: Array<{ value: string; label: string; desc: string }> = [
+  { value: 'solid', label: 'Solid', desc: 'Single color coat' },
+  { value: 'striped', label: 'Striped', desc: 'Tabby-style bands' },
+  { value: 'spotted', label: 'Spotted', desc: 'Scattered spots' },
+  { value: 'bicolor', label: 'Bicolor', desc: 'Two-tone split' },
+  { value: 'tuxedo', label: 'Tuxedo', desc: 'Dark back, light chest' },
+]
+
+/** Preset secondary colors for patterns */
+export const PET_PATTERN_COLOR_PRESETS: Array<{ label: string; hex: string }> = [
+  { label: 'White', hex: '#e8e0d8' },
+  { label: 'Black', hex: '#2a2a2a' },
+  { label: 'Orange', hex: '#d08030' },
+  { label: 'Gray', hex: '#808080' },
+  { label: 'Cream', hex: '#d8c8a0' },
+  { label: 'Brown', hex: '#705030' },
+  { label: 'Ginger', hex: '#c06020' },
+]
+
+/** Default pattern color for tuxedo (white chest) */
+export const PET_TUXEDO_DEFAULT_COLOR = '#e8e0d8'
+
+// ── Break Room ──────────────────────────────────────────────
+/** Chance (0-1) an idle agent visits a break room item instead of random wandering */
+export const BREAK_ROOM_VISIT_CHANCE = 0.25
+/** How long an agent idles at a break room item (coffee machine, couch) */
+export const BREAK_ROOM_REST_MIN_SEC = 5.0
+export const BREAK_ROOM_REST_MAX_SEC = 15.0
 
 // ── Game Logic ───────────────────────────────────────────────
 export const MAX_DELTA_TIME_SEC = 0.1

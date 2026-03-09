@@ -6,7 +6,7 @@ import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
 import { EditTool } from './office/types.js'
-import type { PlacedPet } from './office/types.js'
+import type { PlacedPet, PetColors } from './office/types.js'
 import { isRotatable } from './office/layout/furnitureCatalog.js'
 import { vscode } from './vscodeApi.js'
 import { useExtensionMessages } from './hooks/useExtensionMessages.js'
@@ -16,7 +16,7 @@ import { useEditorKeyboard } from './hooks/useEditorKeyboard.js'
 import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
-import { isKioskMode } from './vscodeApi.js'
+import { isKioskMode, isScreenshotMode } from './vscodeApi.js'
 
 // Game state lives outside React — updated imperatively by message handlers
 const officeStateRef = { current: null as OfficeState | null }
@@ -31,7 +31,7 @@ function getOfficeState(): OfficeState {
 
 const actionBarBtnStyle: React.CSSProperties = {
   padding: '4px 10px',
-  fontSize: '22px',
+  fontSize: '24px',
   background: 'var(--pixel-btn-bg)',
   color: 'var(--pixel-text-dim)',
   border: '2px solid transparent',
@@ -127,6 +127,7 @@ function App() {
   const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const [isDebugMode, setIsDebugMode] = useState(false)
+  const [petVersion, setPetVersion] = useState(0)
 
   const handleToggleDebugMode = useCallback(() => setIsDebugMode((prev) => !prev), [])
 
@@ -166,7 +167,8 @@ function App() {
       name: petData.name,
       col: tile.col,
       row: tile.row,
-      color: petData.color,
+      petColors: petData.petColors,
+      personality: petData.personality,
     }
     // Add to layout
     const layout = os.getLayout()
@@ -175,6 +177,25 @@ function App() {
     os.rebuildFromLayout(newLayout)
     // Save
     vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+    setPetVersion(v => v + 1)
+  }, [])
+
+  const handleDeletePet = useCallback((uid: string) => {
+    const os = getOfficeState()
+    const newLayout = os.deletePet(uid)
+    if (newLayout) {
+      vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+      setPetVersion(v => v + 1)
+    }
+  }, [])
+
+  const handleEditPet = useCallback((uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => {
+    const os = getOfficeState()
+    const newLayout = os.editPet(uid, updates)
+    if (newLayout) {
+      vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+      setPetVersion(v => v + 1)
+    }
   }, [])
 
   const handleClick = useCallback((agentId: number) => {
@@ -189,6 +210,8 @@ function App() {
 
   // Force dependency on editorTickForKeyboard to propagate keyboard-triggered re-renders
   void editorTickForKeyboard
+  // Force dependency on petVersion so modal re-renders after add/delete/edit
+  void petVersion
 
   // Show "Press R to rotate" hint when a rotatable item is selected or being placed
   const showRotateHint = editor.isEditMode && (() => {
@@ -222,7 +245,7 @@ function App() {
   }
 
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }}>
+    <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden' }} {...(isScreenshotMode ? { 'data-screenshot-ready': 'true' } : {})}>
       <style>{`
         @keyframes pixel-agents-pulse {
           0%, 100% { opacity: 1; }
@@ -248,20 +271,22 @@ function App() {
         panRef={editor.panRef}
       />
 
-      {!isKioskMode && <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />}
+      {!isKioskMode && !isScreenshotMode && <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />}
 
       {/* Vignette overlay */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: 'var(--pixel-vignette)',
-          pointerEvents: 'none',
-          zIndex: 40,
-        }}
-      />
+      {!isScreenshotMode && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'var(--pixel-vignette)',
+            pointerEvents: 'none',
+            zIndex: 40,
+          }}
+        />
+      )}
 
-      {!isKioskMode && (
+      {!isKioskMode && !isScreenshotMode && (
         <BottomToolbar
           isEditMode={editor.isEditMode}
           onOpenClaude={editor.handleOpenClaude}
@@ -269,7 +294,11 @@ function App() {
           isDebugMode={isDebugMode}
           onToggleDebugMode={handleToggleDebugMode}
           workspaceFolders={workspaceFolders}
+          pets={officeState.getLayout().pets || []}
           onAddPet={handleAddPet}
+          onDeletePet={handleDeletePet}
+          onEditPet={handleEditPet}
+          getLayout={() => getOfficeState().getLayout()}
         />
       )}
 
@@ -326,19 +355,21 @@ function App() {
         )
       })()}
 
-      <ToolOverlay
-        officeState={officeState}
-        agents={agents}
-        agentTools={agentTools}
-        subagentTools={subagentTools}
-        subagentCharacters={subagentCharacters}
-        containerRef={containerRef}
-        zoom={editor.zoom}
-        panRef={editor.panRef}
-        onCloseAgent={handleCloseAgent}
-      />
+      {!isScreenshotMode && (
+        <ToolOverlay
+          officeState={officeState}
+          agents={agents}
+          agentTools={agentTools}
+          subagentTools={subagentTools}
+          subagentCharacters={subagentCharacters}
+          containerRef={containerRef}
+          zoom={editor.zoom}
+          panRef={editor.panRef}
+          onCloseAgent={handleCloseAgent}
+        />
+      )}
 
-      {isKioskMode && (
+      {isKioskMode && !isScreenshotMode && (
         <KioskStatusPanel
           officeState={officeState}
           agents={agents}

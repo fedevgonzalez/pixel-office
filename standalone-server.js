@@ -9,7 +9,7 @@ const https = require('https');
 const os = require('os');
 const { PNG } = require('pngjs');
 
-const PORT = 3300;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3300;
 const SCAN_INTERVAL_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const TOOL_DONE_DELAY_MS = 300;
@@ -759,17 +759,8 @@ function scanAndAdoptAgents() {
 const WebSocket = require('ws');
 
 async function handleClientMessage(ws, msg) {
-  if (msg.type === 'healthPong') {
-    ws._healthPongAt = Date.now();
-    ws._lastFrameAge = msg.frameAge ?? -1;
-    // Render is healthy only if rAF ran within the last 5 seconds
-    ws._renderHealthy = typeof msg.frameAge === 'number' && msg.frameAge >= 0 && msg.frameAge < 5;
-    return;
-  }
-
   if (msg.type === 'webviewReady') {
-    if (msg.homeserver) ws._isHomeserver = true;
-    console.log(`webviewReady received${msg.homeserver ? ' (homeserver)' : ''}, sending assets...`);
+    console.log('webviewReady received, sending assets...');
     // Send assets, layout, and existing agents
     try {
       const chars = await loadCharacterSprites();
@@ -889,6 +880,9 @@ async function handleClientMessage(ws, msg) {
     })();
   } else if (msg.type === 'importGalleryLayout') {
     if (msg.layout && msg.layout.version === 1 && Array.isArray(msg.layout.tiles)) {
+      // Pets are personal — never import them from community layouts
+      const currentLayout = loadLayout();
+      msg.layout.pets = currentLayout?.pets || [];
       saveLayout(msg.layout);
       for (const client of wsClients) {
         try { client.send(JSON.stringify({ type: 'layoutLoaded', layout: msg.layout })); } catch {}
@@ -916,7 +910,7 @@ function loadWebviewFiles(dir, prefix) {
     } else {
       const ext = path.extname(entry.name);
       const headers = { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' };
-      if (ext === '.html') headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+      headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
       const data = fs.readFileSync(fullPath);
       headers['Content-Length'] = data.length;
       fileCache.set(urlPath, { data, headers });
@@ -969,27 +963,6 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: String(e) }));
       }
     })();
-    return;
-  }
-
-  // API: client health — reports whether the homeserver kiosk client is responsive
-  // Only checks homeserver-tagged clients so regular browsers (including ?kiosk) don't mask a freeze.
-  // Used by the display script to detect frozen Chrome.
-  if (urlPath === '/api/client-health') {
-    const now = Date.now();
-    const kioskClients = wsClients.filter(ws => ws._isHomeserver);
-    const clients = kioskClients.map(ws => ({
-      lastPongAge: Math.round((now - (ws._lastPongAt || 0)) / 1000),
-      alive: !!ws._isAlive,
-      renderHealthy: ws._renderHealthy !== false, // true until proven otherwise
-      frameAge: ws._lastFrameAge ?? null,
-      lastHealthPongAge: ws._healthPongAt ? Math.round((now - ws._healthPongAt) / 1000) : null,
-    }));
-    // Client is OK only if both WS pong AND JS render pong are recent
-    const anyAlive = clients.some(c => c.lastPongAge < 30 && c.renderHealthy);
-    const body = JSON.stringify({ ok: anyAlive, clients });
-    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(body);
     return;
   }
 
@@ -1048,19 +1021,9 @@ wss.on('connection', (ws, req) => {
 
   // Regular UI client connections
   wsClients.push(ws);
-  ws._lastPongAt = Date.now();
-  ws._isAlive = true;
   console.log('WebSocket client connected');
 
-  ws.on('pong', () => {
-    ws._lastPongAt = Date.now();
-    ws._isAlive = true;
-  });
-
   ws.on('message', (data) => {
-    // Any message counts as proof of life
-    ws._lastPongAt = Date.now();
-    ws._isAlive = true;
     try {
       const msg = JSON.parse(data.toString());
       handleClientMessage(ws, msg);
@@ -1077,49 +1040,17 @@ wss.on('connection', (ws, req) => {
   });
 });
 
-// Ping all UI clients every 15s to detect dead network connections
-setInterval(() => {
-  for (const ws of wsClients) {
-    if (!ws._isAlive) {
-      console.log('WebSocket client unresponsive, terminating');
-      ws.terminate();
-      continue;
-    }
-    ws._isAlive = false;
-    try { ws.ping(); } catch {}
-  }
-}, 15000);
-
-// App-level health ping every 10s — requires JS render thread to respond.
-// WS-level pong only proves the network thread is alive; a frozen Chrome
-// render thread won't execute JS, so healthPong never comes back.
-setInterval(() => {
-  const now = Date.now();
-  for (const ws of wsClients) {
-    if (!ws._isHomeserver) continue;
-    // Check if previous healthPing was answered
-    if (ws._healthPingSentAt && !ws._healthPongAt) {
-      // Never got a pong — first miss, could be slow
-    }
-    if (ws._healthPingSentAt && ws._healthPongAt && ws._healthPongAt < ws._healthPingSentAt) {
-      // Pong is from before the last ping — JS didn't respond
-      const missAge = Math.round((now - ws._healthPingSentAt) / 1000);
-      if (missAge > 30) {
-        ws._renderHealthy = false;
-      }
-    }
-    // Send new health ping
-    ws._healthPingSentAt = now;
-    try { ws.send(JSON.stringify({ type: 'healthPing', ts: now })); } catch {}
-  }
-}, 10000);
-
+const noScan = process.env.NO_SCAN === '1';
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`Pixel Office: http://localhost:${PORT} (listening on all interfaces)`);
-  // Initial scan
-  scanAndAdoptAgents();
-  // Periodic scan for new sessions
-  setInterval(scanAndAdoptAgents, SCAN_INTERVAL_MS);
+  if (!noScan) {
+    // Initial scan
+    scanAndAdoptAgents();
+    // Periodic scan for new sessions
+    setInterval(scanAndAdoptAgents, SCAN_INTERVAL_MS);
+  } else {
+    console.log('NO_SCAN=1: skipping JSONL auto-detection (reporter-only mode)');
+  }
   // Watch layout file for cross-tab sync
   watchLayoutFile();
 });

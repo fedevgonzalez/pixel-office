@@ -4,7 +4,7 @@
 
 Real-time visual dashboard for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) agents. Watch your coding assistants work, wander, and wait — as animated characters in a customizable office.
 
-![Pixel Office](webview-ui/public/Screenshot.jpg)
+![Pixel Office Demo](docs/screenshots/demo.gif)
 
 ## Why Pixel Office?
 
@@ -67,7 +67,7 @@ reporter.toolEnd('Bash');
 reporter.taskEnd();
 ```
 
-See [STANDALONE.md](STANDALONE.md) for full setup, SDK integration, WebSocket protocol, and API docs.
+See [docs/standalone.md](docs/standalone.md) for full setup, SDK integration, WebSocket protocol, and API docs.
 
 ## Features
 
@@ -79,6 +79,9 @@ See [STANDALONE.md](STANDALONE.md) for full setup, SDK integration, WebSocket pr
 | Sub-agents | Task tool spawns child characters near their parent |
 | Speech bubbles | Permission (amber dots) and waiting (green check) indicators |
 | Sound notifications | Audio chime when an agent finishes and needs attention |
+| Office pets | Cats and dogs roam the office, react to agent activity, and sleep when idle |
+| Door system | Agents enter/exit through doors instead of spawning in place |
+| Break room | Idle agents grab coffee and lounge on the couch |
 | Layout editor | Design your office with floors, walls, and 50+ furniture items |
 | Kiosk mode | Auto-framing camera, status sidebar, 15fps throttle |
 | Multi-PC | WebSocket reporters aggregate agents from multiple machines |
@@ -119,7 +122,7 @@ The app works without it — you get characters and a basic layout, but not the 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) — next up: activity timeline, aggregate metrics, and push notifications.
+See [ROADMAP.md](ROADMAP.md) for the full plan. Next: public launch.
 
 ## License
 

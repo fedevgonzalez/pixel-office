@@ -9,18 +9,18 @@ import { getColorizedFloorSprite, getFloorPatternCount, hasFloorSprites } from '
 const btnStyle: React.CSSProperties = {
   padding: '3px 8px',
   fontSize: '22px',
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: 'rgba(255, 255, 255, 0.7)',
-  border: '2px solid transparent',
+  background: 'var(--pixel-btn-bg)',
+  color: 'var(--pixel-text-dim)',
+  border: '2px solid var(--pixel-border)',
   borderRadius: 0,
   cursor: 'pointer',
 }
 
 const activeBtnStyle: React.CSSProperties = {
   ...btnStyle,
-  background: 'rgba(90, 140, 255, 0.25)',
+  background: 'var(--pixel-active-bg)',
   color: 'rgba(255, 255, 255, 0.9)',
-  border: '2px solid #5a8cff',
+  border: '2px solid var(--pixel-accent)',
 }
 
 const tabStyle: React.CSSProperties = {
@@ -37,7 +37,7 @@ const activeTabStyle: React.CSSProperties = {
   ...tabStyle,
   background: 'rgba(255, 255, 255, 0.08)',
   color: 'rgba(255, 255, 255, 0.8)',
-  border: '2px solid #5a8cff',
+  border: '2px solid var(--pixel-accent)',
 }
 
 interface EditorToolbarProps {
@@ -97,12 +97,12 @@ function FloorPatternPreview({ patternIndex, color, selected, onClick }: {
         width: displaySize,
         height: displaySize,
         padding: 0,
-        border: selected ? '2px solid #5a8cff' : '2px solid #4a4a6a',
+        border: selected ? '2px solid var(--pixel-accent)' : '2px solid var(--pixel-border)',
         borderRadius: 0,
         cursor: 'pointer',
         overflow: 'hidden',
         flexShrink: 0,
-        background: '#2A2A3A',
+        background: 'var(--pixel-btn-bg)',
       }}
     >
       <canvas
@@ -123,16 +123,17 @@ function ColorSlider({ label, value, min, max, onChange }: {
 }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-      <span style={{ fontSize: '20px', color: '#999', width: 28, textAlign: 'right', flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: '20px', color: 'var(--pixel-text-dim)', width: 28, textAlign: 'right', flexShrink: 0 }}>{label}</span>
       <input
         type="range"
         min={min}
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        style={{ flex: 1, height: 12, accentColor: 'rgba(90, 140, 255, 0.8)' }}
+        aria-label={label === 'H' ? 'Hue' : label === 'S' ? 'Saturation' : label === 'B' ? 'Brightness' : 'Contrast'}
+        style={{ flex: 1, height: 12, accentColor: 'var(--pixel-accent)' }}
       />
-      <span style={{ fontSize: '20px', color: '#999', width: 48, textAlign: 'right', flexShrink: 0 }}>{value}</span>
+      <span style={{ fontSize: '20px', color: 'var(--pixel-text-dim)', width: 48, textAlign: 'right', flexShrink: 0 }}>{value}</span>
     </div>
   )
 }
@@ -217,14 +218,14 @@ export function EditorToolbar({
         bottom: 68,
         left: 10,
         zIndex: 50,
-        background: '#1e1e2e',
-        border: '2px solid #4a4a6a',
+        background: 'var(--pixel-bg)',
+        border: '2px solid var(--pixel-border)',
         borderRadius: 0,
         padding: '6px 8px',
         display: 'flex',
         flexDirection: 'column-reverse',
         gap: 6,
-        boxShadow: '2px 2px 0px #0a0a14',
+        boxShadow: 'var(--pixel-shadow)',
         maxWidth: 'calc(100vw - 20px)',
       }}
     >
@@ -288,8 +289,8 @@ export function EditorToolbar({
               flexDirection: 'column',
               gap: 3,
               padding: '4px 6px',
-              background: '#181828',
-              border: '2px solid #4a4a6a',
+              background: 'var(--pixel-surface)',
+              border: '2px solid var(--pixel-border)',
               borderRadius: 0,
             }}>
               <ColorSlider label="H" value={floorColor.h} min={0} max={360} onChange={(v) => handleColorChange('h', v)} />
@@ -335,8 +336,8 @@ export function EditorToolbar({
               flexDirection: 'column',
               gap: 3,
               padding: '4px 6px',
-              background: '#181828',
-              border: '2px solid #4a4a6a',
+              background: 'var(--pixel-surface)',
+              border: '2px solid var(--pixel-border)',
               borderRadius: 0,
             }}>
               <ColorSlider label="H" value={wallColor.h} min={0} max={360} onChange={(v) => handleWallColorChange('h', v)} />
@@ -385,8 +386,8 @@ export function EditorToolbar({
                   style={{
                     width: thumbSize,
                     height: thumbSize,
-                    background: '#2A2A3A',
-                    border: isSelected ? '2px solid #5a8cff' : '2px solid #4a4a6a',
+                    background: 'var(--pixel-btn-bg)',
+                    border: isSelected ? '2px solid var(--pixel-accent)' : '2px solid var(--pixel-border)',
                     borderRadius: 0,
                     cursor: 'pointer',
                     padding: 0,
@@ -447,8 +448,8 @@ export function EditorToolbar({
               flexDirection: 'column',
               gap: 3,
               padding: '4px 6px',
-              background: '#181828',
-              border: '2px solid #4a4a6a',
+              background: 'var(--pixel-surface)',
+              border: '2px solid var(--pixel-border)',
               borderRadius: 0,
             }}>
               {effectiveColor.colorize ? (
@@ -464,12 +465,12 @@ export function EditorToolbar({
               )}
               <ColorSlider label="B" value={effectiveColor.b} min={-100} max={100} onChange={(v) => handleSelFurnColorChange('b', v)} />
               <ColorSlider label="C" value={effectiveColor.c} min={-100} max={100} onChange={(v) => handleSelFurnColorChange('c', v)} />
-              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '20px', color: '#999', cursor: 'pointer' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '20px', color: 'var(--pixel-text-dim)', cursor: 'pointer' }}>
                 <input
                   type="checkbox"
                   checked={!!effectiveColor.colorize}
                   onChange={(e) => onSelectedFurnitureColorChange({ ...effectiveColor, colorize: e.target.checked || undefined })}
-                  style={{ accentColor: 'rgba(90, 140, 255, 0.8)' }}
+                  style={{ accentColor: 'var(--pixel-accent)' }}
                 />
                 Colorize
               </label>

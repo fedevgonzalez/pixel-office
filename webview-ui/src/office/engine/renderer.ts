@@ -5,6 +5,7 @@ import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js'
 import { getCharacterSprites, BUBBLE_PERMISSION_SPRITE, BUBBLE_WAITING_SPRITE } from '../sprites/spriteData.js'
 import { getCharacterSprite } from './characters.js'
 import { getPetSprite } from './pets.js'
+import { PET_HEART_SPRITE, PET_HAPPY_SPRITE, PET_ZZZ_SPRITE_1, PET_ZZZ_SPRITE_2 } from '../sprites/petSprites.js'
 import { renderMatrixEffect } from './matrixEffect.js'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles.js'
@@ -40,6 +41,8 @@ import {
   SELECTION_HIGHLIGHT_COLOR,
   DELETE_BUTTON_BG,
   ROTATE_BUTTON_BG,
+  PET_ZZZ_FRAME_DURATION_SEC,
+  PET_NAME_LABEL_Y_OFFSET,
 } from '../../constants.js'
 
 // ── Render functions ────────────────────────────────────────────
@@ -106,6 +109,8 @@ export function renderScene(
   selectedAgentId: number | null,
   hoveredAgentId: number | null,
   pets?: Pet[],
+  selectedPetId?: string | null,
+  hoveredPetId?: string | null,
 ): void {
   const drawables: ZDrawable[] = []
 
@@ -194,6 +199,17 @@ export function renderScene(
       drawables.push({
         zY: petZY,
         draw: (c) => {
+          // Selection/hover outline
+          const isSelected = selectedPetId === pet.uid
+          const isHovered = hoveredPetId === pet.uid
+          if (isSelected || isHovered) {
+            const outlineData = getOutlineSprite(petSpriteData)
+            const outlineCached = getCachedSprite(outlineData, zoom)
+            c.globalAlpha = isSelected ? SELECTED_OUTLINE_ALPHA : HOVERED_OUTLINE_ALPHA
+            c.drawImage(outlineCached, petDrawX - zoom, petDrawY - zoom)
+            c.globalAlpha = 1
+          }
+
           // Sleeping pets are slightly transparent
           if (pet.state === PetState.SLEEP) {
             c.globalAlpha = 0.85
@@ -201,6 +217,54 @@ export function renderScene(
             c.globalAlpha = 1
           } else {
             c.drawImage(petCached, petDrawX, petDrawY)
+          }
+
+          // Zzz bubble for sleeping pets
+          if (pet.state === PetState.SLEEP) {
+            const zzzFrame = Math.floor(pet.frameTimer / PET_ZZZ_FRAME_DURATION_SEC) % 2 === 0
+              ? PET_ZZZ_SPRITE_1 : PET_ZZZ_SPRITE_2
+            const zzzCached = getCachedSprite(zzzFrame, zoom)
+            const zzzX = Math.round(petDrawX + petCached.width / 2)
+            const zzzY = Math.round(petDrawY - zzzCached.height + 2 * zoom)
+            c.globalAlpha = 0.8
+            c.drawImage(zzzCached, zzzX, zzzY)
+            c.globalAlpha = 1
+          }
+
+          // Reaction bubble
+          if (pet.reactionBubble) {
+            const bubbleSprite = pet.reactionBubble === 'heart' ? PET_HEART_SPRITE : PET_HAPPY_SPRITE
+            const bubbleCached = getCachedSprite(bubbleSprite, zoom)
+            const bx = Math.round(petDrawX + petCached.width / 2 - bubbleCached.width / 2)
+            const by = Math.round(petDrawY - bubbleCached.height)
+            // Fade out in last 0.5s
+            const alpha = pet.reactionTimer < 0.5 ? pet.reactionTimer / 0.5 : 1
+            c.globalAlpha = alpha
+            c.drawImage(bubbleCached, bx, by)
+            c.globalAlpha = 1
+          }
+
+          // Name label when selected or hovered
+          if (isSelected || isHovered) {
+            const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
+            const nameX = petDrawX + petCached.width / 2
+            const fontSize = Math.max(10, Math.round(10 * zoom / 2))
+            c.font = `${fontSize}px "FS Pixel Sans", monospace`
+            c.textAlign = 'center'
+            // Background
+            const metrics = c.measureText(pet.name)
+            const pad = 3 * (zoom / 2)
+            c.fillStyle = 'rgba(0, 0, 0, 0.7)'
+            c.fillRect(
+              nameX - metrics.width / 2 - pad,
+              nameY - fontSize - pad / 2,
+              metrics.width + pad * 2,
+              fontSize + pad,
+            )
+            // Text
+            c.fillStyle = 'rgba(255, 255, 255, 0.9)'
+            c.fillText(pet.name, nameX, nameY)
+            c.textAlign = 'start'
           }
         },
       })
@@ -553,6 +617,8 @@ export interface SelectionRenderState {
   hoveredTile: { col: number; row: number } | null
   seats: Map<string, Seat>
   characters: Map<number, Character>
+  selectedPetId?: string | null
+  hoveredPetId?: string | null
 }
 
 export function renderFrame(
@@ -571,9 +637,15 @@ export function renderFrame(
   layoutCols?: number,
   layoutRows?: number,
   pets?: Pet[],
+  hideBubbles?: boolean,
 ): { offsetX: number; offsetY: number } {
-  // Clear
-  ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+  // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
+  if (hideBubbles) {
+    ctx.fillStyle = '#1e1e2e'
+    ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+  } else {
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight)
+  }
 
   // Use layout dimensions (fallback to tileMap size)
   const cols = layoutCols ?? (tileMap.length > 0 ? tileMap[0].length : 0)
@@ -604,10 +676,12 @@ export function renderFrame(
   // Draw walls + furniture + characters (z-sorted)
   const selectedId = selection?.selectedAgentId ?? null
   const hoveredId = selection?.hoveredAgentId ?? null
-  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets)
+  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets, selection?.selectedPetId, selection?.hoveredPetId)
 
-  // Speech bubbles (always on top of characters)
-  renderBubbles(ctx, characters, offsetX, offsetY, zoom)
+  // Speech bubbles (always on top of characters) — hidden in screenshot mode
+  if (!hideBubbles) {
+    renderBubbles(ctx, characters, offsetX, offsetY, zoom)
+  }
 
   // Editor overlays
   if (editor) {

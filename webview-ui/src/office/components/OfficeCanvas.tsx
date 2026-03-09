@@ -13,10 +13,11 @@ import {
   KIOSK_PAN_LERP_FAST_THRESHOLD, KIOSK_PAN_LERP_FAST, KIOSK_PAN_LERP_MID_THRESHOLD, KIOSK_PAN_LERP_MID, KIOSK_PAN_LERP_SLOW,
   KIOSK_DEADZONE_PX, KIOSK_TARGET_SMOOTHING, KIOSK_SYNC_INTERVAL_MS, KIOSK_SYNC_THRESHOLD,
   KIOSK_STATUS_PANEL_WIDTH,
+  SCREENSHOT_PADDING_TILES,
 } from '../../constants.js'
 import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js'
 import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js'
-import { vscode, isKioskMode } from '../../vscodeApi.js'
+import { vscode, isKioskMode, isScreenshotMode } from '../../vscodeApi.js'
 import { unlockAudio } from '../../notificationSound.js'
 
 interface OfficeCanvasProps {
@@ -318,6 +319,19 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           }
         }
 
+        // Screenshot mode: auto-fit office in viewport with padding, no pan
+        if (isScreenshotMode) {
+          const layout = officeState.getLayout()
+          const padTiles = SCREENSHOT_PADDING_TILES * 2 // both sides
+          const fitW = w / ((layout.cols + padTiles) * TILE_SIZE)
+          // +1 row for wall tops that extend above the grid
+          const fitH = h / ((layout.rows + 1 + padTiles) * TILE_SIZE)
+          // Integer zoom for pixel-perfect rendering, clamped to [2, 8]
+          effectiveZoom = Math.min(8, Math.max(2, Math.round(Math.min(fitW, fitH))))
+          // Shift pan up slightly to account for wall tops extending above grid
+          panRef.current = { x: 0, y: -TILE_SIZE * effectiveZoom / 2 }
+        }
+
         // Build selection render state
         const selectionRender: SelectionRenderState = {
           selectedAgentId: officeState.selectedAgentId,
@@ -325,6 +339,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           hoveredTile: officeState.hoveredTile,
           seats: officeState.seats,
           characters: officeState.characters,
+          selectedPetId: officeState.selectedPetId,
+          hoveredPetId: officeState.hoveredPetId,
         }
 
         const { offsetX, offsetY } = renderFrame(
@@ -337,12 +353,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           effectiveZoom,
           panRef.current.x,
           panRef.current.y,
-          selectionRender,
-          editorRender,
+          isScreenshotMode ? undefined : selectionRender,
+          isScreenshotMode ? undefined : editorRender,
           officeState.getLayout().tileColors,
           officeState.getLayout().cols,
           officeState.getLayout().rows,
           [...officeState.pets.values()],
+          isScreenshotMode,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 
@@ -500,9 +517,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
       const tile = screenToTile(e.clientX, e.clientY)
       officeState.hoveredTile = tile
       const canvas = canvasRef.current
+      // Pet hover
+      const petHitId = pos ? officeState.getPetAt(pos.worldX, pos.worldY) : null
+      officeState.hoveredPetId = petHitId
+
       if (canvas) {
         let cursor = 'default'
-        if (hitId !== null) {
+        if (hitId !== null || petHitId !== null) {
           cursor = 'pointer'
         } else if (officeState.selectedAgentId !== null && tile) {
           // Check if hovering over a clickable seat (available or own)
@@ -684,11 +705,26 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           officeState.selectedAgentId = hitId
           officeState.cameraFollowId = hitId
         }
+        officeState.selectedPetId = null // deselect pet when clicking agent
         onClick(hitId) // still focus terminal
         return
       }
 
-      // No agent hit — check seat click while agent is selected
+      // Check pet hit
+      const hitPetId = officeState.getPetAt(pos.worldX, pos.worldY)
+      if (hitPetId !== null) {
+        officeState.selectedAgentId = null // deselect agent
+        officeState.cameraFollowId = null
+        if (officeState.selectedPetId === hitPetId) {
+          officeState.selectedPetId = null
+        } else {
+          officeState.selectedPetId = hitPetId
+          officeState.triggerPetReaction(hitPetId) // reaction on click
+        }
+        return
+      }
+
+      // No agent or pet hit — check seat click while agent is selected
       if (officeState.selectedAgentId !== null) {
         const selectedCh = officeState.characters.get(officeState.selectedAgentId)
         // Skip seat reassignment for sub-agents
@@ -726,6 +762,15 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         // Clicked empty space — deselect
         officeState.selectedAgentId = null
         officeState.cameraFollowId = null
+      }
+      // Also deselect pet if clicking empty space
+      if (officeState.selectedPetId !== null && hitPetId === null) {
+        // If pet is selected and user clicks walkable tile, send pet there
+        const tile = screenToTile(e.clientX, e.clientY)
+        if (tile) {
+          officeState.walkPetToTile(officeState.selectedPetId, tile.col, tile.row)
+        }
+        officeState.selectedPetId = null
       }
     },
     [officeState, onClick, screenToWorld, screenToTile, isEditMode],

@@ -81,3 +81,5 @@ export const isStandaloneMode = _isStandalone
 // Para activar "kiosk mode" en localhost:3300, agrega "?kiosk" a la URL: 
 // Ejemplo: http://localhost:3300/?kiosk
 export const isKioskMode = new URLSearchParams(window.location.search).has('kiosk')
+// Screenshot mode: ?screenshot — hides all UI, auto-fits camera to office bounds
+export const isScreenshotMode = new URLSearchParams(window.location.search).has('screenshot')
