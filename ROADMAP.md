@@ -2,7 +2,7 @@
 
 ## Vision
 
-Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code required), supports kiosk mode for wall-mounted displays, and monitors all agents across projects. Evolving into a full "virtual office" experience with personality, ambiance, and community.
+Real-time visual dashboard for Claude Code agents. Standalone web server with kiosk mode for wall-mounted displays, monitoring all agents across projects. Evolving into a full "virtual office" experience with personality, ambiance, and community.
 
 ---
 
@@ -150,7 +150,7 @@ Real-time visual dashboard for Claude Code agents. Runs standalone (no VS Code r
 
 ## Current State (Done)
 
-- [x] Standalone web server (HTTP + WebSocket, no VS Code needed)
+- [x] Standalone web server (HTTP + WebSocket)
 - [x] Auto-discovery of agents across all projects
 - [x] Kiosk mode with auto-framing camera system
 - [x] Status sidebar panel for wall-mounted displays

@@ -55,7 +55,6 @@ For wall displays, use [http://localhost:3300/?kiosk](http://localhost:3300/?kio
 | Kiosk mode | Auto-framing camera, status sidebar — perfect for wall displays |
 | Multi-PC | WebSocket reporters aggregate agents from multiple machines |
 | SDK agents | Report custom agents (Claude SDK, cron jobs, any process) |
-| VS Code extension | Also works as a panel in VS Code |
 | Cross-tab sync | Layout changes sync across all open tabs/windows |
 | HTTP API | `/api/status` for monitoring, `/api/reload` for remote control |
 
@@ -145,7 +144,6 @@ The app works without it — you get characters and a basic layout, but not the 
 ## Tech Stack
 
 - **Server**: Node.js, WebSocket (`ws`)
-- **Extension**: TypeScript, VS Code Webview API, esbuild
 - **Frontend**: React 19, TypeScript, Vite, Canvas 2D
 - **Rendering**: Pixel-perfect integer scaling, z-sorted isometric-style sprites
 

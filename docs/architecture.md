@@ -2,22 +2,14 @@
 
 > **Origin:** Pixel Office originated as a fork of [Pixel Agents](https://github.com/pablodelucca/pixel-agents) by [Pablo De Lucca](https://github.com/pablodelucca). While the architecture has diverged significantly (standalone server, multi-machine support, community gallery, pet system, etc.), the pixel art rendering engine and office concept trace back to Pablo's original work. We are grateful for the foundation he built and open-sourced.
 
-VS Code extension with embedded React webview: pixel art office where AI agents (Claude Code terminals) are animated characters.
+Standalone web server with React webview: pixel art office where AI agents (Claude Code terminals) are animated characters.
 
 ## Architecture
 
 ```
-src/                          — Extension backend (Node.js, VS Code API)
-  constants.ts                — All backend magic numbers/strings (timing, truncation, asset parsing, VS Code IDs)
-  extension.ts                — Entry: activate(), deactivate()
-  PixelAgentsViewProvider.ts   — WebviewViewProvider, message dispatch, asset loading
-  assetLoader.ts              — PNG parsing, sprite conversion, catalog building, default layout loading
-  agentManager.ts             — Terminal lifecycle: launch, remove, restore, persist
-  layoutPersistence.ts        — User-level layout file I/O (~/.pixel-office/layout.json), migration, cross-window watching
-  fileWatcher.ts              — fs.watch + polling, readNewLines, /clear detection, terminal adoption
-  transcriptParser.ts         — JSONL parsing: tool_use/tool_result → webview messages
-  timerManager.ts             — Waiting/permission timer logic
-  types.ts                    — Shared interfaces (AgentState, PersistedAgent)
+standalone-server.js          — HTTP + WebSocket server (Node.js)
+                                Agent discovery, file watching, transcript parsing,
+                                asset loading, layout persistence, gallery proxy, API endpoints
 
 webview-ui/src/               — React + TypeScript (Vite)
   constants.ts                — All webview magic numbers/strings (grid, animation, rendering, camera, zoom, editor, game logic, notification sound)
@@ -77,9 +69,9 @@ scripts/                      — 7-stage asset extraction pipeline
 
 ## Core Concepts
 
-**Vocabulary**: Terminal = VS Code terminal running Claude. Session = JSONL conversation file. Agent = webview character bound 1:1 to a terminal.
+**Vocabulary**: Session = JSONL conversation file. Agent = webview character bound 1:1 to a detected Claude session.
 
-**Extension ↔ Webview**: `postMessage` protocol. Key messages: `openClaude`, `agentCreated/Closed`, `focusAgent`, `agentToolStart/Done/Clear`, `agentStatus`, `existingAgents`, `layoutLoaded`, `furnitureAssetsLoaded`, `floorTilesLoaded`, `wallTilesLoaded`, `saveLayout`, `saveAgentSeats`, `exportLayout`, `importLayout`, `settingsLoaded`, `setSoundEnabled`.
+**Server ↔ Webview**: WebSocket JSON protocol. Key messages: `openClaude`, `agentCreated/Closed`, `focusAgent`, `agentToolStart/Done/Clear`, `agentStatus`, `existingAgents`, `layoutLoaded`, `furnitureAssetsLoaded`, `floorTilesLoaded`, `wallTilesLoaded`, `saveLayout`, `saveAgentSeats`, `exportLayout`, `importLayout`, `settingsLoaded`, `setSoundEnabled`.
 
 **One-agent-per-terminal**: Each "+ Agent" click → new terminal (`claude --session-id <uuid>`) → immediate agent creation → 1s poll for `<uuid>.jsonl` → file watching starts.
 
@@ -93,9 +85,9 @@ JSONL transcripts at `~/.claude/projects/<project-hash>/<session-id>.jsonl`. Pro
 
 **File watching**: Hybrid `fs.watch` + 2s polling backup. Partial line buffering for mid-write reads. Tool done messages delayed 300ms to prevent flicker.
 
-**Extension state per agent**: `id, terminalRef, projectDir, jsonlFile, fileOffset, lineBuffer, activeToolIds, activeToolStatuses, activeSubagentToolNames, isWaiting`.
+**Server state per agent**: `id, projectDir, jsonlFile, fileOffset, lineBuffer, activeToolIds, activeToolStatuses, activeSubagentToolNames, isWaiting`.
 
-**Persistence**: Agents persisted to `workspaceState` key `'pixel-office.agents'` (includes palette/hueShift/seatId). **Layout persisted to `~/.pixel-office/layout.json`** (user-level, shared across all VS Code windows/workspaces). `layoutPersistence.ts` handles all file I/O: `readLayoutFromFile()`, `writeLayoutToFile()` (atomic via `.tmp` + rename), `migrateAndLoadLayout()` (checks file → migrates old workspace state → falls back to bundled default), `watchLayoutFile()` (hybrid `fs.watch` + 2s polling for cross-window sync). On save, `markOwnWrite()` prevents the watcher from re-reading our own write. External changes push `layoutLoaded` to the webview; skipped if the editor has unsaved changes (last-save-wins). On webview ready: `restoreAgents()` matches persisted entries to live terminals. `nextAgentId`/`nextTerminalIndex` advanced past restored values. **Default layout**: When no saved layout file exists and no workspace state to migrate, a bundled `default-layout.json` is loaded from `assets/` and written to the file. If that also doesn't exist, `createDefaultLayout()` generates a basic office. To update the default: run "Pixel Agents: Export Layout as Default" from the command palette (writes current layout to `webview-ui/public/assets/default-layout.json`), then rebuild. **Export/Import**: Settings modal offers Export Layout (save dialog → JSON file) and Import Layout (open dialog → validates `version: 1` + `tiles` array → writes to layout file + pushes `layoutLoaded` to webview).
+**Persistence**: Agent seat assignments persisted in layout. **Layout persisted to `~/.pixel-office/layout.json`** (user-level, shared across all connected clients). Standalone server handles all file I/O: read, write (atomic via `.tmp` + rename), watch (hybrid `fs.watch` + polling for cross-client sync). On save, own-write detection prevents re-reading. External changes push `layoutLoaded` to all WebSocket clients. **Default layout**: When no saved layout file exists, a bundled `default-layout.json` is loaded from `assets/`. If that also doesn't exist, `createDefaultLayout()` generates a basic office. **Export/Import**: Settings modal offers Export Layout (download JSON) and Import Layout (upload → validates `version: 1` + `tiles` array → writes to layout file + pushes `layoutLoaded` to all clients).
 
 ## Office UI
 
@@ -115,7 +107,7 @@ JSONL transcripts at `~/.claude/projects/<project-hash>/<session-id>.jsonl`. Pro
 
 **Speech bubbles**: Permission ("..." amber dots) stays until clicked/cleared. Waiting (green checkmark) auto-fades 2s. Sprites in `spriteData.ts`.
 
-**Sound notifications**: Ascending two-note chime (E5 → E6) via Web Audio API plays when waiting bubble appears (`agentStatus: 'waiting'`). `notificationSound.ts` manages AudioContext lifecycle; `unlockAudio()` called on canvas mousedown to ensure context is resumed (webviews start suspended). Toggled via "Sound Notifications" checkbox in Settings modal. Enabled by default; persisted in extension `globalState` key `pixel-office.soundEnabled`, sent to webview as `settingsLoaded` on init.
+**Sound notifications**: Ascending two-note chime (E5 → E6) via Web Audio API plays when waiting bubble appears (`agentStatus: 'waiting'`). `notificationSound.ts` manages AudioContext lifecycle; `unlockAudio()` called on canvas mousedown to ensure context is resumed. Toggled via "Sound Notifications" checkbox in Settings modal. Enabled by default; persisted server-side, sent to webview as `settingsLoaded` on init.
 
 **Pets**: Decorative animals (cats, dogs) that live in the office. FSM states: idle/walk/sleep/play/sit with personality-weighted behavior selection (lazy, playful, chill, energetic). Per-part color customization via palette-swap (`PetColors`: body, eyes, nose hex + pattern type/color). Patterns: solid, striped, spotted, bicolor, tuxedo — applied positionally at render time. React to clicks (heart/happy bubble), perk up when agents use tools nearby (4-tile radius), auto-sleep when office idle >120s. Dogs follow active agents (30% chance, 6-tile max). Pet Creator modal: list/create/edit views with animated preview canvas. Persisted in `layout.pets[]`. Pet preservation: importing community layouts never replaces user's pets.
 
@@ -143,7 +135,7 @@ Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Er
 
 ## Asset System
 
-**Loading**: `esbuild.js` copies `webview-ui/public/assets/` → `dist/assets/`. Loader checks bundled path first, falls back to workspace root. PNG → pngjs → SpriteData (2D hex array, alpha≥128 = opaque). `loadDefaultLayout()` reads `assets/default-layout.json` (JSON OfficeLayout) as fallback for new workspaces.
+**Loading**: Vite builds webview-ui/public/assets/ into dist/webview/assets/. Standalone server loads PNGs at startup → pngjs → SpriteData (2D hex array, alpha≥128 = opaque). `loadDefaultLayout()` reads `assets/default-layout.json` (JSON OfficeLayout) as fallback.
 
 **Catalog**: `furniture-catalog.json` with id, name, label, category, footprint, isDesk, canPlaceOnWalls, groupId?, orientation?, state?, canPlaceOnSurfaces?, backgroundTiles?. String-based type system (no enum constraint). Categories: desks, chairs, storage, electronics, decor, wall, break_room, misc. Wall-placeable items (`canPlaceOnWalls: true`) use the `wall` category and appear in a dedicated "Wall" tab in the editor. Asset naming convention: `{BASE}[_{ORIENTATION}][_{STATE}]` (e.g., `MONITOR_FRONT_OFF`, `CRT_MONITOR_BACK`). `orientation` is stored on `FurnitureCatalogEntry` and used for chair z-sorting and seat facing direction.
 
@@ -163,9 +155,9 @@ Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Er
 
 **Floor tiles**: `floors.png` (112×16, 7 patterns). Cached by (pattern, h, s, b, c). Migration: old layouts auto-mapped to new patterns.
 
-**Wall tiles**: `walls.png` (64×128, 4×4 grid of 16×32 pieces). 4-bit auto-tile bitmask (N=1, E=2, S=4, W=8). Sprites extend 16px above tile (3D face). Loaded by extension → `wallTilesLoaded` message. `wallTiles.ts` computes bitmask at render time. Colorizable via HSBC sliders (Colorize mode, stored per-tile in `tileColors`). Wall sprites are z-sorted with furniture and characters (`getWallInstances()` builds `FurnitureInstance[]` with `zY = (row+1)*TILE_SIZE`); only the flat base color is rendered in the tile pass. `generate-walls.js` creates the PNG; `wall-tile-editor.html` for visual editing.
+**Wall tiles**: `walls.png` (64×128, 4×4 grid of 16×32 pieces). 4-bit auto-tile bitmask (N=1, E=2, S=4, W=8). Sprites extend 16px above tile (3D face). Loaded by server → `wallTilesLoaded` message. `wallTiles.ts` computes bitmask at render time. Colorizable via HSBC sliders (Colorize mode, stored per-tile in `tileColors`). Wall sprites are z-sorted with furniture and characters (`getWallInstances()` builds `FurnitureInstance[]` with `zY = (row+1)*TILE_SIZE`); only the flat base color is rendered in the tile pass. `generate-walls.js` creates the PNG; `wall-tile-editor.html` for visual editing.
 
-**Character sprites**: 6 pre-colored PNGs (`assets/characters/char_0.png`–`char_5.png`), one per palette. Each 112×96: 7 frames × 16px wide, 3 direction rows × 32px tall (24px sprite bottom-aligned with 8px top padding). Row 0 = down, Row 1 = up, Row 2 = right. Frame order: walk1, walk2, walk3, type1, type2, read1, read2. No dedicated idle frames — idle uses walk2 (standing pose). Left = flipped right at runtime. Generated by `scripts/export-characters.ts` which bakes `CHARACTER_PALETTES` colors into templates. Loaded by extension → `characterSpritesLoaded` message (array of 6 character sprite sets). `spriteData.ts` uses pre-colored data directly (no palette swapping); hardcoded template fallback when PNGs not loaded. When `hueShift !== 0`, `hueShiftSprites()` applies `adjustSprite()` (HSL hue rotation) to all frames before caching.
+**Character sprites**: 6 pre-colored PNGs (`assets/characters/char_0.png`–`char_5.png`), one per palette. Each 112×96: 7 frames × 16px wide, 3 direction rows × 32px tall (24px sprite bottom-aligned with 8px top padding). Row 0 = down, Row 1 = up, Row 2 = right. Frame order: walk1, walk2, walk3, type1, type2, read1, read2. No dedicated idle frames — idle uses walk2 (standing pose). Left = flipped right at runtime. Generated by `scripts/export-characters.ts` which bakes `CHARACTER_PALETTES` colors into templates. Loaded by server → `characterSpritesLoaded` message (array of 6 character sprite sets). `spriteData.ts` uses pre-colored data directly (no palette swapping); hardcoded template fallback when PNGs not loaded. When `hueShift !== 0`, `hueShiftSprites()` applies `adjustSprite()` (HSL hue rotation) to all frames before caching.
 
 **Load order**: `characterSpritesLoaded` → `floorTilesLoaded` → `wallTilesLoaded` → `furnitureAssetsLoaded` (catalog built synchronously) → `layoutLoaded`.
 

@@ -1,11 +1,11 @@
 # Pixel Office — Standalone Server
 
-Run the pixel art office visualization in your browser, independent of VS Code.
+Run the pixel art office visualization in your browser.
 
 ## Requirements
 
 - Node.js 18+ (Node 22+ recommended for native WebSocket)
-- The extension must be built first (`npm run build` from the project root)
+- The webview must be built first (`npm run build` from the project root)
 - Claude Code CLI sessions running on the same machine (or connected via reporter)
 
 ## Quick Start (Single PC)
