@@ -286,6 +286,14 @@ export const DN_GLOW_COOL = 'rgba(100, 160, 255, 1)'
 /** Transition speed: seconds to fully blend between time periods */
 export const DN_TRANSITION_BLEND_SEC = 1800 // 30 minutes real-time equivalent
 
+// ── Kiosk Clock Widget ───────────────────────────────────────
+/** How often the kiosk clock re-reads wall time (ms) */
+export const KIOSK_CLOCK_UPDATE_MS = 60_000
+/** Default opacity of the widget — dim so it recedes into the scene */
+export const KIOSK_CLOCK_OPACITY = 0.55
+/** Margin from the bottom-right viewport edge (px) */
+export const KIOSK_CLOCK_MARGIN = 16
+
 // ── Game Logic ───────────────────────────────────────────────
 export const MAX_DELTA_TIME_SEC = 0.1
 export const WAITING_BUBBLE_DURATION_SEC = 2.0

@@ -101,6 +101,12 @@ export function KioskStatusPanel({
     }
   }
 
+  // Sort: needs approval first, then running, then idle
+  entries.sort((a, b) => {
+    const priority = (e: typeof a) => e.hasPermission ? 0 : e.isRunning ? 1 : 2
+    return priority(a) - priority(b)
+  })
+
   if (entries.length === 0) return null
 
   return (

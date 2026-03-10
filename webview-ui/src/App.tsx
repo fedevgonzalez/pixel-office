@@ -16,6 +16,7 @@ import { useEditorKeyboard } from './hooks/useEditorKeyboard.js'
 import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
+import { KioskClock } from './components/KioskClock.js'
 import { isKioskMode, isScreenshotMode } from './vscodeApi.js'
 import { useDayNight } from './hooks/useDayNight.js'
 
@@ -384,6 +385,10 @@ function App() {
           subagentTools={subagentTools}
           subagentCharacters={subagentCharacters}
         />
+      )}
+
+      {isKioskMode && !isScreenshotMode && (
+        <KioskClock dayNight={dayNight.state} />
       )}
 
       {!isKioskMode && isDebugMode && (
