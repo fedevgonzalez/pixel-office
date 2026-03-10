@@ -1,5 +1,5 @@
-import { TileType, TILE_SIZE, CharacterState } from '../types.js'
-import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture } from '../types.js'
+import { TileType, TILE_SIZE, CharacterState, ZoneType } from '../types.js'
+import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture, ZoneType as ZoneTypeVal } from '../types.js'
 import { PetState } from '../types.js'
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js'
 import { getCharacterSprites, BUBBLE_PERMISSION_SPRITE, BUBBLE_WAITING_SPRITE } from '../sprites/spriteData.js'
@@ -53,6 +53,10 @@ import {
   RESTING_AGENT_LABEL_TEXT_ALPHA,
   RESTING_AGENT_LABEL_BG_ALPHA,
   RESTING_AGENT_LABEL_BORDER_ALPHA,
+  ZONE_CHILL_FILL,
+  ZONE_CHILL_BORDER,
+  ZONE_FOCUS_FILL,
+  ZONE_FOCUS_BORDER,
 } from '../../constants.js'
 
 // ── Render functions ────────────────────────────────────────────
@@ -431,6 +435,45 @@ export function renderGridOverlay(
   }
 }
 
+// ── Zone overlays (edit mode only) ──────────────────────────────
+
+export function renderZoneOverlay(
+  ctx: CanvasRenderingContext2D,
+  zones: Array<ZoneTypeVal | null>,
+  cols: number,
+  rows: number,
+  offsetX: number,
+  offsetY: number,
+  zoom: number,
+): void {
+  const s = TILE_SIZE * zoom
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const zone = zones[r * cols + c]
+      if (!zone) continue
+      const x = offsetX + c * s
+      const y = offsetY + r * s
+      // Fill
+      ctx.fillStyle = zone === ZoneType.CHILL ? ZONE_CHILL_FILL : ZONE_FOCUS_FILL
+      ctx.fillRect(x, y, s, s)
+      // Border on edges where adjacent tile has different/no zone
+      const borderColor = zone === ZoneType.CHILL ? ZONE_CHILL_BORDER : ZONE_FOCUS_BORDER
+      ctx.strokeStyle = borderColor
+      ctx.lineWidth = Math.max(1, zoom)
+      const left = c === 0 || zones[r * cols + (c - 1)] !== zone
+      const right = c === cols - 1 || zones[r * cols + (c + 1)] !== zone
+      const top = r === 0 || zones[(r - 1) * cols + c] !== zone
+      const bottom = r === rows - 1 || zones[(r + 1) * cols + c] !== zone
+      ctx.beginPath()
+      if (left) { ctx.moveTo(x, y); ctx.lineTo(x, y + s) }
+      if (right) { ctx.moveTo(x + s, y); ctx.lineTo(x + s, y + s) }
+      if (top) { ctx.moveTo(x, y); ctx.lineTo(x + s, y) }
+      if (bottom) { ctx.moveTo(x, y + s); ctx.lineTo(x + s, y + s) }
+      ctx.stroke()
+    }
+  }
+}
+
 /** Draw faint expansion placeholders 1 tile outside grid bounds (ghost border). */
 export function renderGhostBorder(
   ctx: CanvasRenderingContext2D,
@@ -708,6 +751,7 @@ export function renderFrame(
   dayNight?: DayNightState,
   placedFurniture?: PlacedFurniture[],
   backgroundTheme?: WorldBackgroundTheme,
+  zones?: Array<ZoneTypeVal | null>,
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -767,6 +811,10 @@ export function renderFrame(
   if (editor) {
     if (editor.showGrid) {
       renderGridOverlay(ctx, offsetX, offsetY, zoom, cols, rows, tileMap)
+    }
+    // Zone overlays — always visible in edit mode
+    if (zones) {
+      renderZoneOverlay(ctx, zones, cols, rows, offsetX, offsetY, zoom)
     }
     if (editor.showGhostBorder) {
       renderGhostBorder(ctx, offsetX, offsetY, zoom, cols, rows, editor.ghostBorderHoverCol, editor.ghostBorderHoverRow)

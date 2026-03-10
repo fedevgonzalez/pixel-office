@@ -3,7 +3,7 @@ import type { OfficeState } from '../office/engine/officeState.js'
 import type { EditorState } from '../office/editor/editorState.js'
 import { EditTool } from '../office/types.js'
 import { TileType } from '../office/types.js'
-import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture } from '../office/types.js'
+import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture, ZoneType as ZoneTypeVal } from '../office/types.js'
 import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout } from '../office/editor/editorActions.js'
 import type { ExpandDirection } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
@@ -35,6 +35,7 @@ export interface EditorActions {
   handleReset: () => void
   handleSave: () => void
   handleZoomChange: (zoom: number) => void
+  handleZoneTypeChange: (type: ZoneTypeVal) => void
   handleEditorTileAction: (col: number, row: number) => void
   handleEditorEraseAction: (col: number, row: number) => void
   handleEditorSelectionChange: () => void
@@ -471,6 +472,18 @@ export function useEditorActions(
         editorState.activeTool = EditTool.WALL_PAINT
       }
       setEditorTick((n) => n + 1)
+    } else if (editorState.activeTool === EditTool.ZONE_PAINT) {
+      if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return
+      const idx = row * layout.cols + col
+      // Only paint zones on walkable floor tiles
+      const tile = layout.tiles[idx]
+      if (tile === TileType.WALL || tile === TileType.VOID) return
+      const zones = layout.zones ? [...layout.zones] : new Array(layout.cols * layout.rows).fill(null)
+      const currentZone = zones[idx]
+      // Toggle: if same zone type already set, clear it; otherwise set it
+      zones[idx] = currentZone === editorState.selectedZoneType ? null : editorState.selectedZoneType
+      const newLayout: OfficeLayout = { ...layout, zones }
+      applyEdit(newLayout)
     } else if (editorState.activeTool === EditTool.SELECT) {
       const hit = layout.furniture.find((f) => {
         const entry = getCatalogEntry(f.type)
@@ -495,6 +508,11 @@ export function useEditorActions(
     }
   }, [getOfficeState, applyEdit])
 
+  const handleZoneTypeChange = useCallback((type: ZoneTypeVal) => {
+    editorState.selectedZoneType = type
+    setEditorTick((n) => n + 1)
+  }, [editorState])
+
   return {
     isEditMode,
     editorTick,
@@ -511,6 +529,7 @@ export function useEditorActions(
     handleWallColorChange,
     handleSelectedFurnitureColorChange,
     handleFurnitureTypeChange,
+    handleZoneTypeChange,
     handleDeleteSelected,
     handleRotateSelected,
     handleToggleState,

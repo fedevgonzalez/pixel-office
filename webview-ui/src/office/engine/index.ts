@@ -7,6 +7,7 @@ export {
   renderTileGrid,
   renderScene,
   renderGridOverlay,
+  renderZoneOverlay,
   renderGhostPreview,
   renderSelectionHighlight,
   renderDeleteButton,

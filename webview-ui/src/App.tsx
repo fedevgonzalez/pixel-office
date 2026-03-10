@@ -360,6 +360,7 @@ function App() {
             selectedFurnitureType={editorState.selectedFurnitureType}
             selectedFurnitureUid={selUid}
             selectedFurnitureColor={selColor}
+            selectedZoneType={editorState.selectedZoneType}
             floorColor={editorState.floorColor}
             wallColor={editorState.wallColor}
             onToolChange={editor.handleToolChange}
@@ -368,6 +369,7 @@ function App() {
             onWallColorChange={editor.handleWallColorChange}
             onSelectedFurnitureColorChange={editor.handleSelectedFurnitureColorChange}
             onFurnitureTypeChange={editor.handleFurnitureTypeChange}
+            onZoneTypeChange={editor.handleZoneTypeChange}
             loadedAssets={loadedAssets}
           />
         )

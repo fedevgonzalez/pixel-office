@@ -64,6 +64,12 @@ export const GHOST_BORDER_STROKE = 'rgba(255, 255, 255, 0.06)'
 export const GHOST_VALID_TINT = '#00ff00'
 export const GHOST_INVALID_TINT = '#ff0000'
 export const SELECTION_HIGHLIGHT_COLOR = '#007fd4'
+
+// ── Zone Overlay Colors (edit mode only) ─────────────────────
+export const ZONE_CHILL_FILL = 'rgba(124, 200, 140, 0.22)'
+export const ZONE_CHILL_BORDER = 'rgba(124, 200, 140, 0.55)'
+export const ZONE_FOCUS_FILL = 'rgba(100, 140, 220, 0.22)'
+export const ZONE_FOCUS_BORDER = 'rgba(100, 140, 220, 0.55)'
 export const DELETE_BUTTON_BG = 'rgba(200, 50, 50, 0.85)'
 export const ROTATE_BUTTON_BG = 'rgba(50, 120, 200, 0.85)'
 

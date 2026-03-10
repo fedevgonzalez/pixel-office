@@ -107,6 +107,7 @@ export const EditTool = {
   SELECT: 'select',
   EYEDROPPER: 'eyedropper',
   ERASE: 'erase',
+  ZONE_PAINT: 'zone_paint',
 } as const
 export type EditTool = (typeof EditTool)[keyof typeof EditTool]
 
@@ -268,6 +269,12 @@ export interface WorldBackground {
   decorations?: PlacedDecoration[]
 }
 
+export const ZoneType = {
+  CHILL: 'chill',
+  FOCUS: 'focus',
+} as const
+export type ZoneType = (typeof ZoneType)[keyof typeof ZoneType]
+
 export interface OfficeLayout {
   version: 1
   cols: number
@@ -276,6 +283,8 @@ export interface OfficeLayout {
   furniture: PlacedFurniture[]
   /** Per-tile color settings, parallel to tiles array. null = wall/no color */
   tileColors?: Array<FloorColor | null>
+  /** Per-tile zone designations, parallel to tiles array. null = no zone */
+  zones?: Array<ZoneType | null>
   /** Pets placed in the office */
   pets?: PlacedPet[]
   /** World background theme and outdoor decorations */

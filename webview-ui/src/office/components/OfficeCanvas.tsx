@@ -383,6 +383,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           isScreenshotMode ? undefined : dayNightRef.current,
           isScreenshotMode ? undefined : officeState.getLayout().furniture,
           officeState.getLayout().background?.theme,
+          isEditMode ? officeState.getLayout().zones : undefined,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 
@@ -492,7 +493,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           }
 
           // Paint on drag (tile/wall/erase paint tool only, not during furniture drag)
-          if (editorState.isDragging && (editorState.activeTool === EditTool.TILE_PAINT || editorState.activeTool === EditTool.WALL_PAINT || editorState.activeTool === EditTool.ERASE) && !editorState.dragUid) {
+          if (editorState.isDragging && (editorState.activeTool === EditTool.TILE_PAINT || editorState.activeTool === EditTool.WALL_PAINT || editorState.activeTool === EditTool.ERASE || editorState.activeTool === EditTool.ZONE_PAINT) && !editorState.dragUid) {
             onEditorTileAction(tile.col, tile.row)
           }
           // Right-click erase drag

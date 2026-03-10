@@ -271,6 +271,22 @@ export class OfficeState {
     return tiles
   }
 
+  /** Build a Set of "col,row" keys for tiles designated as focus zones */
+  getFocusZoneTiles(): Set<string> {
+    const zones = this.layout.zones
+    if (!zones) return new Set()
+    const result = new Set<string>()
+    const cols = this.layout.cols
+    for (let i = 0; i < zones.length; i++) {
+      if (zones[i] === 'focus') {
+        const col = i % cols
+        const row = Math.floor(i / cols)
+        result.add(`${col},${row}`)
+      }
+    }
+    return result
+  }
+
   /**
    * Pick a diverse palette for a new agent based on currently active agents.
    * First 6 agents each get a unique skin (random order). Beyond 6, skins
@@ -855,6 +871,7 @@ export class OfficeState {
   update(dt: number): void {
     const toDelete: number[] = []
     const breakRoomTiles = this.getBreakRoomTiles()
+    const focusZoneTiles = this.getFocusZoneTiles()
     for (const ch of this.characters.values()) {
       // Handle matrix effect animation
       if (ch.matrixEffect) {
@@ -875,7 +892,7 @@ export class OfficeState {
 
       // Temporarily unblock own seat so character can pathfind to it
       this.withOwnSeatUnblocked(ch, () =>
-        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles, breakRoomTiles)
+        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles, breakRoomTiles, focusZoneTiles)
       )
 
       // Tick bubble timer for waiting bubbles

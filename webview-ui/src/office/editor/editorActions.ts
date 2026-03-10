@@ -1,6 +1,6 @@
 import { TileType, MAX_COLS, MAX_ROWS } from '../types.js'
 import { DEFAULT_NEUTRAL_COLOR } from '../../constants.js'
-import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal } from '../types.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../layout/furnitureCatalog.js'
 import { getPlacementBlockedTiles } from '../layout/layoutSerializer.js'
 
@@ -170,8 +170,9 @@ export function expandLayout(
   layout: OfficeLayout,
   direction: ExpandDirection,
 ): { layout: OfficeLayout; shift: { col: number; row: number } } | null {
-  const { cols, rows, tiles, furniture, tileColors } = layout
+  const { cols, rows, tiles, furniture, tileColors, zones } = layout
   const existingColors = tileColors || new Array(tiles.length).fill(null)
+  const existingZones = zones || new Array(tiles.length).fill(null)
 
   let newCols = cols
   let newRows = rows
@@ -195,6 +196,7 @@ export function expandLayout(
   // Build new tile array
   const newTiles: TileTypeVal[] = new Array(newCols * newRows).fill(TileType.VOID as TileTypeVal)
   const newColors: Array<FloorColor | null> = new Array(newCols * newRows).fill(null)
+  const newZones: Array<ZoneTypeVal | null> = new Array(newCols * newRows).fill(null)
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -202,6 +204,7 @@ export function expandLayout(
       const newIdx = (r + shiftRow) * newCols + (c + shiftCol)
       newTiles[newIdx] = tiles[oldIdx]
       newColors[newIdx] = existingColors[oldIdx]
+      newZones[newIdx] = existingZones[oldIdx]
     }
   }
 
@@ -213,7 +216,7 @@ export function expandLayout(
   }))
 
   return {
-    layout: { ...layout, cols: newCols, rows: newRows, tiles: newTiles, tileColors: newColors, furniture: newFurniture },
+    layout: { ...layout, cols: newCols, rows: newRows, tiles: newTiles, tileColors: newColors, zones: newZones, furniture: newFurniture },
     shift: { col: shiftCol, row: shiftRow },
   }
 }

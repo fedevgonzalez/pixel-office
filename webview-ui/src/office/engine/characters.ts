@@ -93,6 +93,7 @@ export function updateCharacter(
   tileMap: TileTypeVal[][],
   blockedTiles: Set<string>,
   breakRoomTiles: Array<{ col: number; row: number }> = [],
+  focusZoneTiles: Set<string> = new Set(),
 ): void {
   ch.frameTimer += dt
 
@@ -191,7 +192,13 @@ export function updateCharacter(
         if (breakRoomTiles.length > 0 && Math.random() < BREAK_ROOM_VISIT_CHANCE) {
           wanderTarget = breakRoomTiles[Math.floor(Math.random() * breakRoomTiles.length)]
         } else if (walkableTiles.length > 0) {
-          wanderTarget = walkableTiles[Math.floor(Math.random() * walkableTiles.length)]
+          // Filter out focus zone tiles — idle agents should not wander into work areas
+          const candidates = focusZoneTiles.size > 0
+            ? walkableTiles.filter(t => !focusZoneTiles.has(`${t.col},${t.row}`))
+            : walkableTiles
+          if (candidates.length > 0) {
+            wanderTarget = candidates[Math.floor(Math.random() * candidates.length)]
+          }
         }
         if (wanderTarget) {
           const path = findPath(ch.tileCol, ch.tileRow, wanderTarget.col, wanderTarget.row, tileMap, blockedTiles)

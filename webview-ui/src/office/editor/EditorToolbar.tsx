@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { EditTool } from '../types.js'
-import type { TileType as TileTypeVal, FloorColor } from '../types.js'
+import { EditTool, ZoneType } from '../types.js'
+import type { TileType as TileTypeVal, FloorColor, ZoneType as ZoneTypeVal } from '../types.js'
 import { getCatalogByCategory, buildDynamicCatalog, getActiveCategories } from '../layout/furnitureCatalog.js'
 import type { FurnitureCategory, LoadedAssetData } from '../layout/furnitureCatalog.js'
 import { getCachedSprite } from '../sprites/spriteCache.js'
@@ -46,6 +46,7 @@ interface EditorToolbarProps {
   selectedFurnitureType: string
   selectedFurnitureUid: string | null
   selectedFurnitureColor: FloorColor | null
+  selectedZoneType: ZoneTypeVal
   floorColor: FloorColor
   wallColor: FloorColor
   onToolChange: (tool: EditTool) => void
@@ -54,6 +55,7 @@ interface EditorToolbarProps {
   onWallColorChange: (color: FloorColor) => void
   onSelectedFurnitureColorChange: (color: FloorColor | null) => void
   onFurnitureTypeChange: (type: string) => void
+  onZoneTypeChange: (type: ZoneTypeVal) => void
   loadedAssets?: LoadedAssetData
 }
 
@@ -146,6 +148,7 @@ export function EditorToolbar({
   selectedFurnitureType,
   selectedFurnitureUid,
   selectedFurnitureColor,
+  selectedZoneType,
   floorColor,
   wallColor,
   onToolChange,
@@ -154,6 +157,7 @@ export function EditorToolbar({
   onWallColorChange,
   onSelectedFurnitureColorChange,
   onFurnitureTypeChange,
+  onZoneTypeChange,
   loadedAssets,
 }: EditorToolbarProps) {
   const [activeCategory, setActiveCategory] = useState<FurnitureCategory>('desks')
@@ -210,6 +214,7 @@ export function EditorToolbar({
   const isWallActive = activeTool === EditTool.WALL_PAINT
   const isEraseActive = activeTool === EditTool.ERASE
   const isFurnitureActive = activeTool === EditTool.FURNITURE_PLACE || activeTool === EditTool.FURNITURE_PICK
+  const isZoneActive = activeTool === EditTool.ZONE_PAINT
 
   return (
     <div
@@ -258,6 +263,13 @@ export function EditorToolbar({
           title="Place furniture"
         >
           Furniture
+        </button>
+        <button
+          style={isZoneActive ? activeBtnStyle : btnStyle}
+          onClick={() => onToolChange(EditTool.ZONE_PAINT)}
+          title="Designate zones (chill/focus areas)"
+        >
+          Zones
         </button>
       </div>
 
@@ -417,6 +429,37 @@ export function EditorToolbar({
                 </button>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Sub-panel: Zones */}
+      {isZoneActive && (
+        <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 6 }}>
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <button
+              style={selectedZoneType === ZoneType.CHILL ? activeBtnStyle : btnStyle}
+              onClick={() => onZoneTypeChange(ZoneType.CHILL)}
+              title="Chill zone — idle agents wander here"
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(124, 200, 140, 0.8)', flexShrink: 0 }} />
+                Chill
+              </span>
+            </button>
+            <button
+              style={selectedZoneType === ZoneType.FOCUS ? activeBtnStyle : btnStyle}
+              onClick={() => onZoneTypeChange(ZoneType.FOCUS)}
+              title="Focus zone — idle agents avoid this area"
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'rgba(100, 140, 220, 0.8)', flexShrink: 0 }} />
+                Focus
+              </span>
+            </button>
+          </div>
+          <div style={{ fontSize: '18px', color: 'var(--pixel-text-dim)', padding: '2px 4px' }}>
+            Click tiles to designate. Click again to clear.
           </div>
         </div>
       )}
