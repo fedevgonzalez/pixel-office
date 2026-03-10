@@ -6,18 +6,44 @@ const STORAGE_KEY_MODE = 'pixel-office-dn-mode'
 const STORAGE_KEY_HEMISPHERE = 'pixel-office-dn-hemisphere'
 const UPDATE_INTERVAL_MS = 30_000 // re-evaluate every 30s
 
-/** Load persisted setting or return default */
-function loadSetting<T extends string>(key: string, fallback: T): T {
+/** Timezone prefixes/patterns for southern hemisphere regions */
+const SOUTH_TZ_PATTERNS = [
+  'America/Argentina', 'America/Buenos_Aires', 'America/Sao_Paulo',
+  'America/Santiago', 'America/Montevideo', 'America/Asuncion',
+  'America/Lima', 'America/La_Paz', 'America/Bogota',
+  'Australia/', 'Pacific/Auckland', 'Pacific/Fiji',
+  'Africa/Johannesburg', 'Africa/Maputo', 'Africa/Harare',
+  'Africa/Nairobi', 'Indian/Antananarivo',
+]
+
+/** Detect hemisphere from browser timezone (no permissions needed) */
+function detectHemisphere(): Hemisphere {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (tz && SOUTH_TZ_PATTERNS.some((p) => tz.startsWith(p))) {
+      return Hemisphere.SOUTH
+    }
+  } catch { /* ignore */ }
+  return Hemisphere.NORTH
+}
+
+/** Load persisted setting or return null if not set */
+function loadSetting<T extends string>(key: string): T | null {
   try {
     const v = localStorage.getItem(key)
     if (v) return v as T
   } catch { /* ignore */ }
-  return fallback
+  return null
 }
 
 export function useDayNight() {
-  const [mode, setModeState] = useState<TimeMode>(() => loadSetting(STORAGE_KEY_MODE, TimeMode.REAL))
-  const [hemisphere, setHemisphereState] = useState<Hemisphere>(() => loadSetting(STORAGE_KEY_HEMISPHERE, Hemisphere.SOUTH))
+  const [mode, setModeState] = useState<TimeMode>(() =>
+    loadSetting<TimeMode>(STORAGE_KEY_MODE) ?? TimeMode.REAL
+  )
+  const [hemisphere, setHemisphereState] = useState<Hemisphere>(() =>
+    // Use saved preference if exists, otherwise auto-detect from timezone
+    loadSetting<Hemisphere>(STORAGE_KEY_HEMISPHERE) ?? detectHemisphere()
+  )
   const [state, setState] = useState<DayNightState>(() => getDayNightState(mode, hemisphere))
 
   const setMode = useCallback((m: TimeMode) => {
