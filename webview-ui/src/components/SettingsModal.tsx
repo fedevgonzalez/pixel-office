@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
 import { vscode } from '../vscodeApi.js'
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js'
-import { useServerConfig } from '../context/ServerConfigContext.js'
-import { ProBadge } from './ProBadge.js'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -29,7 +27,6 @@ const menuItemBase: React.CSSProperties = {
 
 export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode }: SettingsModalProps) {
   const dialogRef = useModalFocus(isOpen)
-  const { featureFlag } = useServerConfig()
   const [soundLocal, setSoundLocal] = useState(isSoundEnabled)
 
   useEffect(() => {
@@ -199,56 +196,6 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             {isDebugMode ? '✓' : ''}
           </span>
         </button>
-        {/* Pro section */}
-        <div style={{
-          marginTop: 8,
-          borderTop: '1px solid var(--pixel-border)',
-          paddingTop: 8,
-        }}>
-          {featureFlag ? (
-            <div style={{
-              padding: '4px 10px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-              fontSize: '16px',
-              color: 'rgba(255, 245, 235, 0.4)',
-            }}>
-              <ProBadge />
-              <span>Pro active</span>
-            </div>
-          ) : (
-            <>
-              <div style={{
-                padding: '4px 10px 6px',
-                fontSize: '13px',
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'rgba(255, 245, 235, 0.35)',
-                fontWeight: 'bold',
-              }}>
-                Pro Features
-              </div>
-              {['Unlimited pets', 'Activity timeline', 'Aggregate metrics', 'Push notifications'].map((feature) => (
-                <div
-                  key={feature}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '5px 10px',
-                    fontSize: '16px',
-                    color: 'rgba(255, 245, 235, 0.35)',
-                  }}
-                >
-                  <span>{feature}</span>
-                  <ProBadge />
-                </div>
-              ))}
-            </>
-          )}
-        </div>
-
         {/* About */}
         <div style={{
           marginTop: 16,

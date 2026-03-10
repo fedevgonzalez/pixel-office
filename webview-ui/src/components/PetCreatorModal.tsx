@@ -3,7 +3,6 @@ import { useModalFocus } from '../hooks/useModalFocus.js'
 import type { PetSpecies, PlacedPet, PetPersonality, PetColors, PetPattern, SpriteData } from '../office/types.js'
 import { PetPersonality as PetPersonalityConst } from '../office/types.js'
 import {
-  PET_MAX_FREE,
   PET_MAX_NAME_LENGTH,
   PET_WALK_FRAME_DURATION_SEC,
   PET_PREVIEW_CANVAS_SIZE,
@@ -18,8 +17,6 @@ import {
   PET_TUXEDO_DEFAULT_COLOR,
 } from '../constants.js'
 import { getPetSprites, colorPetSprite } from '../office/sprites/petSprites.js'
-import { useServerConfig } from '../context/ServerConfigContext.js'
-import { ProUnlockHint } from './ProUnlockHint.js'
 
 interface PetManagerModalProps {
   isOpen: boolean
@@ -517,7 +514,6 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const [name, setName] = useState('')
   const [petColors, setPetColors] = useState<PetColors>(emptyPetColors)
   const [personality, setPersonality] = useState<PetPersonality>(PetPersonalityConst.CHILL)
-  const { featureFlag } = useServerConfig()
 
   useEffect(() => {
     if (!isOpen) return
@@ -549,7 +545,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
 
   if (!isOpen) return null
 
-  const canAddMore = featureFlag || pets.length < PET_MAX_FREE
+  const canAddMore = true // no pet limit — fully open source
 
   const hasPetColors = petColors.body || petColors.eyes || petColors.nose || (petColors.pattern && petColors.pattern !== 'solid')
 
@@ -862,13 +858,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 >
                   + Add Pet
                 </button>
-              ) : (
-                <ProUnlockHint
-                  currentCount={pets.length}
-                  maxCount={PET_MAX_FREE}
-                  message="Unlimited pets with Pro"
-                />
-              )}
+              ) : null}
             </div>
           </>
         )}

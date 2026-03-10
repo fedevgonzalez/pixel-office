@@ -153,7 +153,6 @@ export const PET_WANDER_MOVES_MIN = 2
 export const PET_WANDER_MOVES_MAX = 5
 export const PET_SPRITE_WIDTH = 16
 export const PET_SPRITE_HEIGHT = 16
-export const PET_MAX_FREE = 2
 export const PET_HIT_HALF_WIDTH = 8
 export const PET_HIT_HEIGHT = 16
 export const PET_NAME_LABEL_Y_OFFSET = 18
