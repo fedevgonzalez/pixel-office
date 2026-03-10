@@ -48,4 +48,5 @@ All magic numbers centralized — never inline:
 
 - `docs/architecture.md` — Full technical reference
 - `docs/standalone.md` — Standalone server setup & API
-- `docs/product-plan.md` — Feature roadmap & ideas
+- `docs/asset-sources.md` — Open source sprite libraries
+- `ROADMAP.md` — Feature roadmap & ideas

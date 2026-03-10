@@ -79,29 +79,32 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [x] React to agent activity (perk up when tools run, sleep when office idle >120s)
 - [x] Click interaction (heart/happy bubbles), dogs follow active agents
 - [x] Unlimited pets (no restrictions)
-- [ ] Bird, fish, hamster species (future)
-- [ ] Pixel art editor for custom pet sprites (future)
-- [ ] Photo → pixel art conversion (future)
+- [ ] Bird, fish, hamster species
+- [ ] In-app pixel art editor for custom pet sprites (draw/modify sprites, auto walk cycle from single pose)
+- [ ] Photo → pixel art (template color match, or Claude Vision for higher quality)
 
 ### Door Spawn Animation (done)
 - [x] Door furniture item (16x32, wall-placeable, backgroundTiles: 2)
 - [x] Walk-in: character appears at door → ENTERING state → walks to seat
 - [x] Walk-out: character → LEAVING state → walks to nearest door → matrix despawn
 - [x] Fallback: matrix effect when no door exists
-- [ ] Door open/close animation timing (future enhancement)
+- [ ] Door open/close animation timing
 
 ### Break Room (done)
 - [x] Coffee machine (isInteractionPoint) and break couch (isBreakRoom) furniture
 - [x] Idle agents: 25% chance to visit break room, rest 5-15s
 - [x] `getBreakRoomTiles()` finds walkable tiles adjacent to break room items
-- [ ] Grab coffee / sipping animations (future enhancement)
-- [ ] Water cooler / vending machine (future)
+- [ ] Grab coffee / sipping animations
+- [ ] Water cooler / vending machine
 
-### Day / Night Cycle
-- Ambient lighting changes based on real clock or configurable schedule
-- Daytime: bright palette, sun through windows
-- Night: darker palette, desk lamps glow, monitor light on faces
-- Sunset/sunrise transitions with gradual color shift
+### Day/Night Cycle (done)
+- [x] 5 time periods (night, sunrise, day, sunset, evening) with seasonal offset
+- [x] Canvas tint overlay + radial light glows (warm amber lamps, cool blue PCs)
+- [x] Time modes: Real Clock, Always Day/Night/Sunset/Sunrise
+- [x] Hemisphere auto-detected from browser timezone, overridable in Settings
+- [x] Settings persisted in localStorage, state updates every 30s
+- [ ] Window furniture shows sky color change
+- [ ] Character shadows change with sun position
 
 ### Weather & Seasons
 - Rain on windows, snow outside, leaves falling
@@ -110,8 +113,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 
 ### Visual Customization
 - Themes beyond pixel art: cyberpunk, minimal, terminal-style, cozy cafe
-- Custom sprites (upload your own avatar per agent)
-- Animated office backgrounds
+- Custom character sprites (upload your own avatar per agent)
 - Per-agent name tags / custom labels
 
 ---
@@ -133,6 +135,19 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - Load old JSONL files and replay sessions as if live
 - Useful for demos, debugging, onboarding
 - Shareable replay links
+
+---
+
+## Art Direction
+
+- **Resolution**: 16×16 tiles, 16×32 characters
+- **Palette**: Limited palette per theme (16-32 colors)
+- **Style**: Top-down with slight perspective (Stardew Valley / office RPG feel)
+- **Animation**: 2-3 frame animations, smooth but pixel-crisp
+- **Consistency**: All new sprites must match the existing tileset aesthetic
+- **Pets**: Same proportional scale as characters (16×16 footprint, 16×32 sprite height)
+
+See `docs/asset-sources.md` for open source sprite libraries.
 
 ---
 
@@ -169,3 +184,6 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [x] Pet boundary clamping (prevent pets/characters from escaping room bounds)
 - [x] Share layout flow (ShareModal → GitHub Issue → CI bot → PR with preview screenshot)
 - [x] Screenshot mode (`?screenshot`) for CI preview generation
+- [x] Day/night cycle (5 periods, seasonal offsets, light glows, hemisphere auto-detect)
+- [x] Warm branding palette (amber/gold accent, cozy dark purple bg)
+- [x] Modal UI unification (Settings, Pets, Community, Share)
