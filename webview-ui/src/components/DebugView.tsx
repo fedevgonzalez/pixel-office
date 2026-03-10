@@ -22,7 +22,7 @@ function ToolDot({ tool }: { tool: ToolActivity }) {
         height: 6,
         borderRadius: '50%',
         background: tool.done
-          ? '#89d185'
+          ? 'var(--pixel-green)'
           : tool.permissionWait
             ? 'var(--pixel-status-permission)'
             : 'var(--pixel-status-active)',
