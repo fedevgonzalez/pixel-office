@@ -99,7 +99,8 @@ function renderLightGlows(
 
     const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius)
     gradient.addColorStop(0, replaceAlpha(color, alpha))
-    gradient.addColorStop(0.5, replaceAlpha(color, alpha * 0.4))
+    gradient.addColorStop(0.25, replaceAlpha(color, alpha * 0.65))
+    gradient.addColorStop(0.6, replaceAlpha(color, alpha * 0.2))
     gradient.addColorStop(1, replaceAlpha(color, 0))
 
     ctx.fillStyle = gradient

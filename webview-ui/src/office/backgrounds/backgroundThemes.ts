@@ -46,7 +46,7 @@ export interface ThemeConfig {
 
 const SUBURBAN_THEME: ThemeConfig = {
   dayFill: '#3a7a28',
-  nightFill: '#0a1208',
+  nightFill: '#080d1e',
   groundTiles: [GRASS_TILE, GRASS_TILE_2],
   sidewalkTile: SIDEWALK_TILE,
   roadTile: ROAD_TILE,

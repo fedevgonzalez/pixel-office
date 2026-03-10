@@ -272,20 +272,20 @@ export const DN_SUMMER_OFFSET_H = 1.5
 export const DN_WINTER_OFFSET_H = -1.5
 
 /** Tint colors per time period (RGBA overlays using globalCompositeOperation 'multiply') */
-export const DN_TINT_NIGHT = 'rgba(20, 15, 45, 0.55)'
-export const DN_TINT_SUNRISE = 'rgba(255, 180, 100, 0.12)'
+export const DN_TINT_NIGHT = 'rgba(8, 6, 28, 0.72)'
+export const DN_TINT_SUNRISE = 'rgba(255, 195, 120, 0.18)'
 export const DN_TINT_DAY = 'rgba(0, 0, 0, 0)'
-export const DN_TINT_SUNSET = 'rgba(255, 120, 60, 0.18)'
-export const DN_TINT_EVENING = 'rgba(30, 20, 50, 0.35)'
+export const DN_TINT_SUNSET = 'rgba(240, 100, 40, 0.28)'
+export const DN_TINT_EVENING = 'rgba(22, 12, 48, 0.50)'
 
 /** Light source glow radius (in tile units, scaled by zoom) */
-export const DN_GLOW_RADIUS_TILES = 3.0
+export const DN_GLOW_RADIUS_TILES = 5.0
 /** Maximum glow alpha at night */
-export const DN_GLOW_MAX_ALPHA = 0.45
+export const DN_GLOW_MAX_ALPHA = 0.72
 /** Warm light color (lamps, etc.) */
-export const DN_GLOW_WARM = 'rgba(255, 200, 100, 1)'
+export const DN_GLOW_WARM = 'rgba(255, 185, 80, 1)'
 /** Cool light color (monitors, PCs) */
-export const DN_GLOW_COOL = 'rgba(100, 160, 255, 1)'
+export const DN_GLOW_COOL = 'rgba(140, 185, 255, 1)'
 
 /** Transition speed: seconds to fully blend between time periods */
 export const DN_TRANSITION_BLEND_SEC = 1800 // 30 minutes real-time equivalent
