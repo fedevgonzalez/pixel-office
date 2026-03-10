@@ -255,6 +255,37 @@ export const BREAK_ROOM_VISIT_CHANCE = 0.25
 export const BREAK_ROOM_REST_MIN_SEC = 5.0
 export const BREAK_ROOM_REST_MAX_SEC = 15.0
 
+// ── Day/Night Cycle ─────────────────────────────────────────
+/** Time period boundaries (24h clock) */
+export const DN_SUNRISE_START = 5.5   // 5:30 AM
+export const DN_SUNRISE_END = 7.0     // 7:00 AM
+export const DN_SUNSET_START = 18.0   // 6:00 PM (adjusted per season)
+export const DN_SUNSET_END = 20.0     // 8:00 PM (adjusted per season)
+export const DN_EVENING_END = 21.5    // 9:30 PM
+
+/** Seasonal sunset offset (hours): summer = later sunset, winter = earlier */
+export const DN_SUMMER_OFFSET_H = 1.5
+export const DN_WINTER_OFFSET_H = -1.5
+
+/** Tint colors per time period (RGBA overlays using globalCompositeOperation 'multiply') */
+export const DN_TINT_NIGHT = 'rgba(20, 15, 45, 0.55)'
+export const DN_TINT_SUNRISE = 'rgba(255, 180, 100, 0.12)'
+export const DN_TINT_DAY = 'rgba(0, 0, 0, 0)'
+export const DN_TINT_SUNSET = 'rgba(255, 120, 60, 0.18)'
+export const DN_TINT_EVENING = 'rgba(30, 20, 50, 0.35)'
+
+/** Light source glow radius (in tile units, scaled by zoom) */
+export const DN_GLOW_RADIUS_TILES = 3.0
+/** Maximum glow alpha at night */
+export const DN_GLOW_MAX_ALPHA = 0.45
+/** Warm light color (lamps, etc.) */
+export const DN_GLOW_WARM = 'rgba(255, 200, 100, 1)'
+/** Cool light color (monitors, PCs) */
+export const DN_GLOW_COOL = 'rgba(100, 160, 255, 1)'
+
+/** Transition speed: seconds to fully blend between time periods */
+export const DN_TRANSITION_BLEND_SEC = 1800 // 30 minutes real-time equivalent
+
 // ── Game Logic ───────────────────────────────────────────────
 export const MAX_DELTA_TIME_SEC = 0.1
 export const WAITING_BUBBLE_DURATION_SEC = 2.0

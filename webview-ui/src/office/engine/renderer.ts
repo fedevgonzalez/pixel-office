@@ -1,5 +1,5 @@
 import { TileType, TILE_SIZE, CharacterState } from '../types.js'
-import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet } from '../types.js'
+import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture } from '../types.js'
 import { PetState } from '../types.js'
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js'
 import { getCharacterSprites, BUBBLE_PERMISSION_SPRITE, BUBBLE_WAITING_SPRITE } from '../sprites/spriteData.js'
@@ -8,6 +8,8 @@ import { getPetSprite } from './pets.js'
 import { PET_HEART_SPRITE, PET_HAPPY_SPRITE, PET_ZZZ_SPRITE_1, PET_ZZZ_SPRITE_2 } from '../sprites/petSprites.js'
 import { renderMatrixEffect } from './matrixEffect.js'
 import { isKioskMode } from '../../vscodeApi.js'
+import type { DayNightState } from './dayNightCycle.js'
+import { renderDayNightOverlay } from './dayNightRenderer.js'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles.js'
 import {
@@ -652,6 +654,8 @@ export function renderFrame(
   layoutRows?: number,
   pets?: Pet[],
   hideBubbles?: boolean,
+  dayNight?: DayNightState,
+  placedFurniture?: PlacedFurniture[],
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -695,6 +699,11 @@ export function renderFrame(
   // Speech bubbles (always on top of characters) — hidden in screenshot mode
   if (!hideBubbles) {
     renderBubbles(ctx, characters, offsetX, offsetY, zoom)
+  }
+
+  // Day/night cycle overlay (after scene + bubbles, before editor UI)
+  if (dayNight && !hideBubbles) {
+    renderDayNightOverlay(ctx, canvasWidth, canvasHeight, dayNight, offsetX, offsetY, zoom, placedFurniture ?? [])
   }
 
   // Editor overlays

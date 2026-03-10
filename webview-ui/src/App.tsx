@@ -17,6 +17,7 @@ import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
 import { isKioskMode, isScreenshotMode } from './vscodeApi.js'
+import { useDayNight } from './hooks/useDayNight.js'
 
 // Game state lives outside React — updated imperatively by message handlers
 const officeStateRef = { current: null as OfficeState | null }
@@ -127,6 +128,8 @@ function App() {
   const isEditDirty = useCallback(() => editor.isEditMode && editor.isDirty, [editor.isEditMode, editor.isDirty])
 
   const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
+
+  const dayNight = useDayNight()
 
   const [isDebugMode, setIsDebugMode] = useState(false)
   const [petVersion, setPetVersion] = useState(0)
@@ -271,6 +274,7 @@ function App() {
         zoom={editor.zoom}
         onZoomChange={editor.handleZoomChange}
         panRef={editor.panRef}
+        dayNight={dayNight.state}
       />
 
       {!isKioskMode && !isScreenshotMode && <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />}
@@ -301,6 +305,7 @@ function App() {
           onDeletePet={handleDeletePet}
           onEditPet={handleEditPet}
           getLayout={() => getOfficeState().getLayout()}
+          dayNight={dayNight}
         />
       )}
 

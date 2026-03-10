@@ -5,6 +5,7 @@ import { PetManagerModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
 import type { PlacedPet, PetColors, OfficeLayout } from '../office/types.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
+import type { TimeMode, Hemisphere, DayNightState } from '../office/engine/dayNightCycle.js'
 
 interface BottomToolbarProps {
   isEditMode: boolean
@@ -18,6 +19,13 @@ interface BottomToolbarProps {
   onDeletePet?: (uid: string) => void
   onEditPet?: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => void
   getLayout: () => OfficeLayout
+  dayNight?: {
+    state: DayNightState
+    mode: TimeMode
+    setMode: (m: TimeMode) => void
+    hemisphere: Hemisphere
+    setHemisphere: (h: Hemisphere) => void
+  }
 }
 
 const panelStyle: React.CSSProperties = {
@@ -58,6 +66,7 @@ export function BottomToolbar({
   onDeletePet,
   onEditPet,
   getLayout,
+  dayNight,
 }: BottomToolbarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
@@ -224,6 +233,7 @@ export function BottomToolbar({
           onClose={() => setIsSettingsOpen(false)}
           isDebugMode={isDebugMode}
           onToggleDebugMode={onToggleDebugMode}
+          dayNight={dayNight}
         />
       </div>
     </div>

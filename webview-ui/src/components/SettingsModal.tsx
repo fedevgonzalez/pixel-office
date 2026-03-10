@@ -2,12 +2,21 @@ import { useState, useEffect } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
 import { vscode } from '../vscodeApi.js'
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js'
+import { TimeMode, Hemisphere } from '../office/engine/dayNightCycle.js'
+import type { DayNightState } from '../office/engine/dayNightCycle.js'
 
 interface SettingsModalProps {
   isOpen: boolean
   onClose: () => void
   isDebugMode: boolean
   onToggleDebugMode: () => void
+  dayNight?: {
+    state: DayNightState
+    mode: TimeMode
+    setMode: (m: TimeMode) => void
+    hemisphere: Hemisphere
+    setHemisphere: (h: Hemisphere) => void
+  }
 }
 
 const menuItemBase: React.CSSProperties = {
@@ -25,7 +34,17 @@ const menuItemBase: React.CSSProperties = {
   textAlign: 'left',
 }
 
-export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode }: SettingsModalProps) {
+const selectStyle: React.CSSProperties = {
+  padding: '4px 6px',
+  fontSize: '20px',
+  color: 'var(--pixel-text)',
+  background: 'rgba(0, 0, 0, 0.3)',
+  border: '2px solid var(--pixel-border)',
+  borderRadius: 0,
+  cursor: 'pointer',
+}
+
+export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode, dayNight }: SettingsModalProps) {
   const dialogRef = useModalFocus(isOpen)
   const [soundLocal, setSoundLocal] = useState(isSoundEnabled)
 
@@ -197,6 +216,53 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
             {isDebugMode ? '✓' : ''}
           </span>
         </button>
+        {/* Day/Night Cycle */}
+        {dayNight && (
+          <>
+            <div style={{
+              padding: '6px 10px',
+              fontSize: '20px',
+              color: 'var(--pixel-text-hint)',
+              borderTop: '1px solid var(--pixel-border)',
+              marginTop: 4,
+            }}>
+              Day/Night Cycle
+            </div>
+            <div style={{ ...menuItemBase, cursor: 'default' }}>
+              <span>Time Mode</span>
+              <select
+                value={dayNight.mode}
+                onChange={(e) => dayNight.setMode(e.target.value as TimeMode)}
+                style={selectStyle}
+              >
+                <option value={TimeMode.REAL}>Real Clock</option>
+                <option value={TimeMode.FIXED_DAY}>Always Day</option>
+                <option value={TimeMode.FIXED_NIGHT}>Always Night</option>
+                <option value={TimeMode.FIXED_SUNSET}>Always Sunset</option>
+                <option value={TimeMode.FIXED_SUNRISE}>Always Sunrise</option>
+              </select>
+            </div>
+            <div style={{ ...menuItemBase, cursor: 'default' }}>
+              <span>Hemisphere</span>
+              <select
+                value={dayNight.hemisphere}
+                onChange={(e) => dayNight.setHemisphere(e.target.value as Hemisphere)}
+                style={selectStyle}
+              >
+                <option value={Hemisphere.SOUTH}>Southern</option>
+                <option value={Hemisphere.NORTH}>Northern</option>
+              </select>
+            </div>
+            <div style={{
+              padding: '2px 10px 6px',
+              fontSize: '18px',
+              color: 'var(--pixel-text-dim)',
+              opacity: 0.7,
+            }}>
+              {dayNight.state.period} &middot; {Math.floor(dayNight.state.hour)}:{String(Math.floor((dayNight.state.hour % 1) * 60)).padStart(2, '0')}
+            </div>
+          </>
+        )}
         {/* About */}
         <div style={{
           marginTop: 16,

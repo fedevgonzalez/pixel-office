@@ -19,6 +19,7 @@ import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js'
 import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js'
 import { vscode, isKioskMode, isScreenshotMode } from '../../vscodeApi.js'
 import { unlockAudio } from '../../notificationSound.js'
+import type { DayNightState } from '../engine/dayNightCycle.js'
 
 interface OfficeCanvasProps {
   officeState: OfficeState
@@ -35,9 +36,10 @@ interface OfficeCanvasProps {
   zoom: number
   onZoomChange: (zoom: number) => void
   panRef: React.MutableRefObject<{ x: number; y: number }>
+  dayNight?: DayNightState
 }
 
-export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef }: OfficeCanvasProps) {
+export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef, dayNight }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const offsetRef = useRef({ x: 0, y: 0 })
@@ -54,6 +56,9 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
   // Zoom ref: keeps game loop stable (no restart on zoom changes)
   const zoomRef = useRef(zoom)
   zoomRef.current = zoom
+  // Day/night ref: read in render callback without restarting game loop
+  const dayNightRef = useRef(dayNight)
+  dayNightRef.current = dayNight
   // Kiosk smooth zoom (float, lerped each frame)
   const kioskZoomRef = useRef(zoom)
   const kioskLastSyncRef = useRef(0)
@@ -375,6 +380,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           officeState.getLayout().rows,
           [...officeState.pets.values()],
           isScreenshotMode,
+          isScreenshotMode ? undefined : dayNightRef.current,
+          isScreenshotMode ? undefined : officeState.getLayout().furniture,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 
