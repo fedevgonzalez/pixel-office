@@ -715,6 +715,10 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
 
       editorState.isDragging = false
       editorState.wallDragAdding = null
+      editorState.zoneDragAdding = null
+      editorState.zoneDragUndoPushed = false
+      editorState.zoneDragLastCol = -1
+      editorState.zoneDragLastRow = -1
     },
     [editorState, isEditMode, officeState, onDragMove, onEditorSelectionChange],
   )
@@ -814,6 +818,10 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
     isEraseDraggingRef.current = false
     editorState.isDragging = false
     editorState.wallDragAdding = null
+    editorState.zoneDragAdding = null
+    editorState.zoneDragUndoPushed = false
+    editorState.zoneDragLastCol = -1
+    editorState.zoneDragLastRow = -1
     editorState.clearDrag()
     editorState.ghostCol = -1
     editorState.ghostRow = -1

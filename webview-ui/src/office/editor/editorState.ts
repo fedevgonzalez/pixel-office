@@ -20,6 +20,18 @@ export class EditorState {
   // Tracks toggle direction during wall drag (true=adding walls, false=removing, null=undecided)
   wallDragAdding: boolean | null = null
 
+  // Tracks paint direction during zone drag (true=adding zones, false=clearing, null=undecided)
+  // Set on the first tile touched; subsequent tiles in the same drag respect this direction.
+  zoneDragAdding: boolean | null = null
+
+  // Whether undo has been pushed for the current zone drag session.
+  // Prevents N undo entries for a single drag stroke.
+  zoneDragUndoPushed = false
+
+  // The last col/row painted during a zone drag (avoids redundant repaints on same tile).
+  zoneDragLastCol = -1
+  zoneDragLastRow = -1
+
   // Picked furniture color (copied by pick tool, applied on placement)
   pickedFurnitureColor: FloorColor | null = null
 
@@ -108,6 +120,10 @@ export class EditorState {
     this.ghostValid = false
     this.isDragging = false
     this.wallDragAdding = null
+    this.zoneDragAdding = null
+    this.zoneDragUndoPushed = false
+    this.zoneDragLastCol = -1
+    this.zoneDragLastRow = -1
     this.undoStack = []
     this.redoStack = []
     this.isDirty = false

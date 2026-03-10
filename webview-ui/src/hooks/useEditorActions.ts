@@ -474,16 +474,48 @@ export function useEditorActions(
       setEditorTick((n) => n + 1)
     } else if (editorState.activeTool === EditTool.ZONE_PAINT) {
       if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return
+      // Skip if we already painted this exact tile this drag (avoids redundant rebuilds)
+      if (col === editorState.zoneDragLastCol && row === editorState.zoneDragLastRow) return
       const idx = row * layout.cols + col
       // Only paint zones on walkable floor tiles
       const tile = layout.tiles[idx]
       if (tile === TileType.WALL || tile === TileType.VOID) return
       const zones = layout.zones ? [...layout.zones] : new Array(layout.cols * layout.rows).fill(null)
       const currentZone = zones[idx]
-      // Toggle: if same zone type already set, clear it; otherwise set it
-      zones[idx] = currentZone === editorState.selectedZoneType ? null : editorState.selectedZoneType
+
+      // First tile of drag determines direction: if zone already set → clearing, else → painting.
+      // This prevents inadvertent toggles when dragging back over a just-painted tile.
+      if (editorState.zoneDragAdding === null) {
+        editorState.zoneDragAdding = currentZone !== editorState.selectedZoneType
+      }
+      const newZoneValue = editorState.zoneDragAdding ? editorState.selectedZoneType : null
+
+      // No change needed (e.g. clearing a tile that was already clear)
+      if (currentZone === newZoneValue) {
+        editorState.zoneDragLastCol = col
+        editorState.zoneDragLastRow = row
+        return
+      }
+
+      zones[idx] = newZoneValue
       const newLayout: OfficeLayout = { ...layout, zones }
-      applyEdit(newLayout)
+
+      // Push undo only once for the entire drag stroke
+      if (!editorState.zoneDragUndoPushed) {
+        editorState.pushUndo(layout)
+        editorState.clearRedo()
+        editorState.zoneDragUndoPushed = true
+      }
+
+      // Apply without calling applyEdit to avoid setEditorTick re-renders on every tile.
+      // The game loop redraws every frame via rAF — no React tick needed mid-stroke.
+      editorState.isDirty = true
+      setIsDirty(true)
+      os.rebuildFromLayout(newLayout)
+      saveLayout(newLayout)
+
+      editorState.zoneDragLastCol = col
+      editorState.zoneDragLastRow = row
     } else if (editorState.activeTool === EditTool.SELECT) {
       const hit = layout.furniture.find((f) => {
         const entry = getCatalogEntry(f.type)
