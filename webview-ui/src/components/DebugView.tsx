@@ -22,7 +22,7 @@ function ToolDot({ tool }: { tool: ToolActivity }) {
         height: 6,
         borderRadius: '50%',
         background: tool.done
-          ? 'var(--vscode-charts-green, #89d185)'
+          ? '#89d185'
           : tool.permissionWait
             ? 'var(--pixel-status-permission)'
             : 'var(--pixel-status-active)',
@@ -112,7 +112,7 @@ export function DebugView({
                 {subs[tool.toolId] && subs[tool.toolId].length > 0 && (
                   <div
                     style={{
-                      borderLeft: '2px solid var(--vscode-widget-border, rgba(255,255,255,0.12))',
+                      borderLeft: '2px solid rgba(255,255,255,0.12)',
                       marginLeft: 3,
                       paddingLeft: 8,
                       marginTop: 1,
@@ -165,7 +165,7 @@ export function DebugView({
         left: 0,
         width: '100%',
         height: '100%',
-        background: 'var(--vscode-editor-background, var(--pixel-bg))',
+        background: 'var(--pixel-bg)',
         zIndex: DEBUG_Z,
         overflow: 'auto',
       }}

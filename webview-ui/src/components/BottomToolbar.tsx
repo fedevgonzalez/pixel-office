@@ -1,19 +1,15 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState } from 'react'
 import { SettingsModal } from './SettingsModal.js'
 import { GalleryModal } from './GalleryModal.js'
 import { PetManagerModal } from './PetCreatorModal.js'
-import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
 import type { PlacedPet, PetColors, OfficeLayout, WorldBackgroundTheme } from '../office/types.js'
-import { ws } from '../wsClient.js'
 import type { TimeMode, Hemisphere, DayNightState } from '../office/engine/dayNightCycle.js'
 
 interface BottomToolbarProps {
   isEditMode: boolean
-  onOpenClaude: () => void
   onToggleEditMode: () => void
   isDebugMode: boolean
   onToggleDebugMode: () => void
-  workspaceFolders: WorkspaceFolder[]
   pets: PlacedPet[]
   onAddPet?: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet?: (uid: string) => void
@@ -58,11 +54,9 @@ const btnBase: React.CSSProperties = {
 
 export function BottomToolbar({
   isEditMode,
-  onOpenClaude,
   onToggleEditMode,
   isDebugMode,
   onToggleDebugMode,
-  workspaceFolders,
   pets,
   onAddPet,
   onDeletePet,
@@ -75,88 +69,9 @@ export function BottomToolbar({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
   const [isPetCreatorOpen, setIsPetCreatorOpen] = useState(false)
-  const [isFolderPickerOpen, setIsFolderPickerOpen] = useState(false)
-  const folderPickerRef = useRef<HTMLDivElement>(null)
-
-  // Close folder picker on outside click
-  useEffect(() => {
-    if (!isFolderPickerOpen) return
-    const handleClick = (e: MouseEvent) => {
-      if (folderPickerRef.current && !folderPickerRef.current.contains(e.target as Node)) {
-        setIsFolderPickerOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [isFolderPickerOpen])
-
-  const hasMultipleFolders = workspaceFolders.length > 1
-
-  const handleAgentClick = () => {
-    if (hasMultipleFolders) {
-      setIsFolderPickerOpen((v) => !v)
-    } else {
-      onOpenClaude()
-    }
-  }
-
-  const handleFolderSelect = (folder: WorkspaceFolder) => {
-    setIsFolderPickerOpen(false)
-    ws.postMessage({ type: 'openClaude', folderPath: folder.path })
-  }
-
-  const agentBtnStyle = useMemo<React.CSSProperties>(() => ({
-    ...btnBase,
-    padding: '8px 14px',
-    background: isFolderPickerOpen ? 'var(--pixel-agent-hover-bg)' : 'var(--pixel-agent-bg)',
-    border: '2px solid var(--pixel-agent-border)',
-    color: 'var(--pixel-agent-text)',
-  }), [isFolderPickerOpen])
 
   return (
     <div style={panelStyle}>
-      <div ref={folderPickerRef} style={{ position: 'relative' }}>
-        {isFolderPickerOpen && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '100%',
-              left: 0,
-              marginBottom: 4,
-              background: 'var(--pixel-bg)',
-              border: '2px solid var(--pixel-border)',
-              borderRadius: 0,
-              boxShadow: 'var(--pixel-shadow)',
-              minWidth: 160,
-              zIndex: 'var(--pixel-controls-z)',
-            }}
-          >
-            {workspaceFolders.map((folder) => (
-              <button
-                key={folder.path}
-                onClick={() => handleFolderSelect(folder)}
-                className="pixel-menu-item"
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  textAlign: 'left',
-                  padding: '8px 10px',
-                  fontSize: '22px',
-                  color: 'var(--pixel-text)',
-                  background: 'transparent',
-                  border: 'none',
-                  borderRadius: 0,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {folder.name}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-      {/* Separator between agent button and other toolbar buttons */}
       <button
         onClick={onToggleEditMode}
         className={`pixel-btn ${isEditMode ? 'active' : ''}`}

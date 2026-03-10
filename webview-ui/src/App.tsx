@@ -131,7 +131,7 @@ function App() {
 
   const isEditDirty = useCallback(() => editor.isEditMode && editor.isDirty, [editor.isEditMode, editor.isDirty])
 
-  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
+  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const dayNight = useDayNight()
 
@@ -244,7 +244,7 @@ function App() {
 
   if (!layoutReady) {
     return (
-      <div role="status" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--vscode-foreground, var(--pixel-text))' }}>
+      <div role="status" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--pixel-text)' }}>
         <span
           className="pixel-agents-pulse"
           style={{
@@ -307,11 +307,9 @@ function App() {
       {!isKioskMode && !isScreenshotMode && (
         <BottomToolbar
           isEditMode={editor.isEditMode}
-          onOpenClaude={editor.handleOpenClaude}
           onToggleEditMode={editor.handleToggleEditMode}
           isDebugMode={isDebugMode}
           onToggleDebugMode={handleToggleDebugMode}
-          workspaceFolders={workspaceFolders}
           pets={officeState.getLayout().pets || []}
           onAddPet={handleAddPet}
           onDeletePet={handleDeletePet}
