@@ -1,5 +1,5 @@
 import type { ToolActivity } from '../office/types.js'
-import { vscode } from '../wsClient.js'
+import { ws } from '../wsClient.js'
 
 interface DebugViewProps {
   agents: number[]
@@ -89,7 +89,7 @@ export function DebugView({
             Agent #{id}
           </button>
           <button
-            onClick={() => vscode.postMessage({ type: 'closeAgent', id })}
+            onClick={() => ws.postMessage({ type: 'closeAgent', id })}
             aria-label={`Close agent ${id}`}
             style={{
               borderRadius: 0,

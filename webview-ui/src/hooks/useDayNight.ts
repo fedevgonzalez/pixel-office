@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getDayNightState, TimeMode, Hemisphere } from '../office/engine/dayNightCycle.js'
 import type { DayNightState } from '../office/engine/dayNightCycle.js'
-import { vscode } from '../wsClient.js'
+import { ws } from '../wsClient.js'
 
 const STORAGE_KEY_MODE = 'pixel-office-dn-mode'
 const STORAGE_KEY_HEMISPHERE = 'pixel-office-dn-hemisphere'
@@ -53,13 +53,13 @@ export function useDayNight() {
   const setMode = useCallback((m: TimeMode) => {
     setModeState(m)
     try { localStorage.setItem(STORAGE_KEY_MODE, m) } catch { /* ignore */ }
-    vscode.postMessage({ type: 'saveSettings', settings: { timeMode: m } })
+    ws.postMessage({ type: 'saveSettings', settings: { timeMode: m } })
   }, [])
 
   const setHemisphere = useCallback((h: Hemisphere) => {
     setHemisphereState(h)
     try { localStorage.setItem(STORAGE_KEY_HEMISPHERE, h) } catch { /* ignore */ }
-    vscode.postMessage({ type: 'saveSettings', settings: { hemisphere: h } })
+    ws.postMessage({ type: 'saveSettings', settings: { hemisphere: h } })
   }, [])
 
   // Listen for settings broadcast from server (another client changed settings)

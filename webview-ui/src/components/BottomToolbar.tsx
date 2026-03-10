@@ -4,7 +4,7 @@ import { GalleryModal } from './GalleryModal.js'
 import { PetManagerModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
 import type { PlacedPet, PetColors, OfficeLayout, WorldBackgroundTheme } from '../office/types.js'
-import { vscode, isStandaloneMode } from '../wsClient.js'
+import { ws } from '../wsClient.js'
 import type { TimeMode, Hemisphere, DayNightState } from '../office/engine/dayNightCycle.js'
 
 interface BottomToolbarProps {
@@ -102,7 +102,7 @@ export function BottomToolbar({
 
   const handleFolderSelect = (folder: WorkspaceFolder) => {
     setIsFolderPickerOpen(false)
-    vscode.postMessage({ type: 'openClaude', folderPath: folder.path })
+    ws.postMessage({ type: 'openClaude', folderPath: folder.path })
   }
 
   const agentBtnStyle = useMemo<React.CSSProperties>(() => ({
@@ -116,15 +116,6 @@ export function BottomToolbar({
   return (
     <div style={panelStyle}>
       <div ref={folderPickerRef} style={{ position: 'relative' }}>
-        {!isStandaloneMode && (
-        <button
-          onClick={handleAgentClick}
-          className="pixel-btn pixel-btn-primary"
-          style={agentBtnStyle}
-        >
-          + Agent
-        </button>
-        )}
         {isFolderPickerOpen && (
           <div
             style={{
@@ -166,14 +157,6 @@ export function BottomToolbar({
         )}
       </div>
       {/* Separator between agent button and other toolbar buttons */}
-      {!isStandaloneMode && (
-        <div role="separator" aria-orientation="vertical" style={{
-          width: 1,
-          height: 20,
-          background: 'var(--pixel-border)',
-          margin: '0 4px',
-        }} />
-      )}
       <button
         onClick={onToggleEditMode}
         className={`pixel-btn ${isEditMode ? 'active' : ''}`}

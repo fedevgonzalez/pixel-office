@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
-import { vscode } from '../wsClient.js'
+import { ws } from '../wsClient.js'
 import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
 import { ShareModal } from './ShareModal.js'
 import type { OfficeLayout } from '../office/types.js'
@@ -68,7 +68,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           // Request screenshots for each layout
           for (const layout of msg.manifest.layouts) {
             if (layout.screenshot) {
-              vscode.postMessage({ type: 'fetchGalleryScreenshot', path: layout.screenshot })
+              ws.postMessage({ type: 'fetchGalleryScreenshot', path: layout.screenshot })
             }
           }
         }
@@ -82,7 +82,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         }
       } else if (msg.type === 'galleryLayout') {
         if (msg.layout) {
-          vscode.postMessage({ type: 'importGalleryLayout', layout: msg.layout })
+          ws.postMessage({ type: 'importGalleryLayout', layout: msg.layout })
         } else {
           setImporting(null)
           setError('Failed to download layout')
@@ -110,7 +110,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     if (!isOpen) return
     setLoading(true)
     setError(null)
-    vscode.postMessage({ type: 'fetchGalleryManifest' })
+    ws.postMessage({ type: 'fetchGalleryManifest' })
   }, [isOpen])
 
   // Escape to close
@@ -131,7 +131,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
 
   const handleImport = useCallback((layout: GalleryLayout) => {
     setImporting(layout.id)
-    vscode.postMessage({ type: 'fetchGalleryLayout', path: layout.layout })
+    ws.postMessage({ type: 'fetchGalleryLayout', path: layout.layout })
   }, [])
 
   if (!isOpen) return null
@@ -219,7 +219,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                 onClick={() => {
                   setLoading(true)
                   setError(null)
-                  vscode.postMessage({ type: 'fetchGalleryManifest' })
+                  ws.postMessage({ type: 'fetchGalleryManifest' })
                 }}
                 className="pixel-btn"
                 style={actionBtnBase}

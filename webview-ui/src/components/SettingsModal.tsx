@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
-import { vscode } from '../wsClient.js'
+import { ws } from '../wsClient.js'
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js'
 import { TimeMode, Hemisphere } from '../office/engine/dayNightCycle.js'
 import type { DayNightState } from '../office/engine/dayNightCycle.js'
@@ -238,7 +238,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
             const newVal = !isSoundEnabled()
             setSoundEnabled(newVal)
             setSoundLocal(newVal)
-            vscode.postMessage({ type: 'saveSettings', settings: { soundEnabled: newVal } })
+            ws.postMessage({ type: 'saveSettings', settings: { soundEnabled: newVal } })
           }}
           className="pixel-menu-item"
           style={row}

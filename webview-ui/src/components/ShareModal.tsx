@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
-import { vscode, isStandaloneMode } from '../wsClient.js'
 import type { OfficeLayout } from '../office/types.js'
 
 interface ShareModalProps {
@@ -138,11 +137,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
       setTimeout(onClose, 400)
     }
 
-    if (isStandaloneMode) {
-      window.open(issueUrl, '_blank')
-    } else {
-      vscode.postMessage({ type: 'openExternal', url: issueUrl })
-    }
+    window.open(issueUrl, '_blank')
   }, [name, author, description, tags, getLayout, onClose])
 
   const handleCopyLayout = useCallback(() => {

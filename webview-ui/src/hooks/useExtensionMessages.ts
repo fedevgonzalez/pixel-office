@@ -7,7 +7,7 @@ import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js'
 import { setFloorSprites } from '../office/floorTiles.js'
 import { setWallSprites } from '../office/wallTiles.js'
 import { setCharacterTemplates } from '../office/sprites/spriteData.js'
-import { vscode, isNoAgentsMode } from '../wsClient.js'
+import { ws, isNoAgentsMode } from '../wsClient.js'
 import { playDoneSound, setSoundEnabled } from '../notificationSound.js'
 
 export interface SubagentCharacter {
@@ -58,7 +58,7 @@ function saveAgentSeats(os: OfficeState): void {
     if (ch.isSubagent) continue
     seats[ch.id] = { palette: ch.palette, hueShift: ch.hueShift, seatId: ch.seatId }
   }
-  vscode.postMessage({ type: 'saveAgentSeats', seats })
+  ws.postMessage({ type: 'saveAgentSeats', seats })
 }
 
 export function useExtensionMessages(
@@ -359,7 +359,7 @@ export function useExtensionMessages(
       }
     }
     window.addEventListener('message', handler)
-    vscode.postMessage({ type: 'webviewReady' })
+    ws.postMessage({ type: 'webviewReady' })
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 

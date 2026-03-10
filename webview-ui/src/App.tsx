@@ -8,7 +8,7 @@ import { EditorState } from './office/editor/editorState.js'
 import { EditTool } from './office/types.js'
 import type { PlacedPet, PetColors, WorldBackgroundTheme } from './office/types.js'
 import { isRotatable } from './office/layout/furnitureCatalog.js'
-import { vscode } from './wsClient.js'
+import { ws } from './wsClient.js'
 import { useExtensionMessages } from './hooks/useExtensionMessages.js'
 import { PULSE_ANIMATION_DURATION_SEC } from './constants.js'
 import { useEditorActions } from './hooks/useEditorActions.js'
@@ -141,7 +141,7 @@ function App() {
   const handleToggleDebugMode = useCallback(() => setIsDebugMode((prev) => !prev), [])
 
   const handleSelectAgent = useCallback((id: number) => {
-    vscode.postMessage({ type: 'focusAgent', id })
+    ws.postMessage({ type: 'focusAgent', id })
   }, [])
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -160,7 +160,7 @@ function App() {
   )
 
   const handleCloseAgent = useCallback((id: number) => {
-    vscode.postMessage({ type: 'closeAgent', id })
+    ws.postMessage({ type: 'closeAgent', id })
   }, [])
 
   const handleAddPet = useCallback((petData: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => {
@@ -185,7 +185,7 @@ function App() {
     const newLayout = { ...layout, pets }
     os.rebuildFromLayout(newLayout)
     // Save
-    vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+    ws.postMessage({ type: 'saveLayout', layout: newLayout })
     setPetVersion(v => v + 1)
   }, [])
 
@@ -193,7 +193,7 @@ function App() {
     const os = getOfficeState()
     const newLayout = os.deletePet(uid)
     if (newLayout) {
-      vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+      ws.postMessage({ type: 'saveLayout', layout: newLayout })
       setPetVersion(v => v + 1)
     }
   }, [])
@@ -202,7 +202,7 @@ function App() {
     const os = getOfficeState()
     const newLayout = os.editPet(uid, updates)
     if (newLayout) {
-      vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+      ws.postMessage({ type: 'saveLayout', layout: newLayout })
       setPetVersion(v => v + 1)
     }
   }, [])
@@ -212,7 +212,7 @@ function App() {
     const layout = os.getLayout()
     const newLayout = { ...layout, background: { ...(layout.background || {}), theme } }
     os.rebuildFromLayout(newLayout)
-    vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+    ws.postMessage({ type: 'saveLayout', layout: newLayout })
   }, [])
 
   const handleClick = useCallback((agentId: number) => {
@@ -220,7 +220,7 @@ function App() {
     const os = getOfficeState()
     const meta = os.subagentMeta.get(agentId)
     const focusId = meta ? meta.parentAgentId : agentId
-    vscode.postMessage({ type: 'focusAgent', id: focusId })
+    ws.postMessage({ type: 'focusAgent', id: focusId })
   }, [])
 
   const officeState = getOfficeState()

@@ -17,7 +17,7 @@ import {
 } from '../../constants.js'
 import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js'
 import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js'
-import { vscode, isKioskMode, isScreenshotMode } from '../../wsClient.js'
+import { ws, isKioskMode, isScreenshotMode } from '../../wsClient.js'
 import { unlockAudio } from '../../notificationSound.js'
 import type { DayNightState } from '../engine/dayNightCycle.js'
 
@@ -789,7 +789,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
                     if (ch.isSubagent) continue
                     seats[ch.id] = { palette: ch.palette, seatId: ch.seatId }
                   }
-                  vscode.postMessage({ type: 'saveAgentSeats', seats })
+                  ws.postMessage({ type: 'saveAgentSeats', seats })
                   return
                 }
               }
