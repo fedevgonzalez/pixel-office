@@ -102,6 +102,47 @@ Only 1 file needed — no other dependencies.
 | `PIXEL_OFFICE_SERVER` | `ws://localhost:3300/ws/report` | Central server WebSocket URL |
 | `PIXEL_OFFICE_MACHINE_ID` | system hostname | Label for this machine (shown in server logs) |
 
+### Auto-Launch (macOS — launchd)
+
+The recommended way to run the reporter on Mac is as a LaunchAgent: starts at login, auto-restarts on crash.
+
+**1. Find your node path:**
+```bash
+which node
+# e.g. /Users/you/.nvm/versions/node/v22.17.0/bin/node
+```
+
+> **nvm users**: launchd doesn't source your shell profile, so the path must be absolute — not `~/.nvm/...` but the full `/Users/you/...` expansion.
+
+**2. Install the plist:**
+```bash
+cp infra/com.pixel-office.reporter.plist ~/Library/LaunchAgents/
+```
+
+Edit `~/Library/LaunchAgents/com.pixel-office.reporter.plist` and replace:
+- `/path/to/node` → full path from `which node`
+- `/path/to/pixel-office` → full path to this repo
+- `YOUR_SERVER` → server hostname or IP (e.g. `pixel.lab`)
+
+**3. Load it:**
+```bash
+launchctl load ~/Library/LaunchAgents/com.pixel-office.reporter.plist
+```
+
+**Common commands:**
+
+| Action | Command |
+|--------|---------|
+| Load / start | `launchctl load ~/Library/LaunchAgents/com.pixel-office.reporter.plist` |
+| Unload / stop | `launchctl unload ~/Library/LaunchAgents/com.pixel-office.reporter.plist` |
+| Restart (e.g. after `git pull`) | `launchctl unload ... && launchctl load ...` |
+| View logs | `tail -f /tmp/pixel-office-reporter.log` |
+| Check running | `launchctl list \| grep pixel-office` |
+
+> After any `git pull` that updates `pixel-office-reporter.js`, do unload + load to pick up the new code.
+
+---
+
 ### Auto-Launch (Windows)
 
 `auto-launch.ps1` watches for `claude.exe` and automatically starts/stops both the local server and the reporter:
@@ -274,6 +315,7 @@ The display script:
 | Endpoint | Method | Description |
 |---|---|---|
 | `/api/status` | GET | Returns JSON with all agents and their state |
+| `/api/agents/:id` | DELETE | Remove an agent by id (broadcasts `agentClosed` to all clients) |
 | `/api/reload` | GET | Forces all connected browsers to reload |
 | `/api/restart` | GET | Gracefully restarts the server process |
 
