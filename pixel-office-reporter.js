@@ -103,7 +103,13 @@ function resolveFolderName(hashName) {
     }
   }
   deepestPrefix(prefix, rest);
-  return bestGuess || hashName;
+  // Only clean fallback results — if the path resolved exactly we have the real name already.
+  // Strips common path boilerplate left in partial hashes (e.g. Local by Flywheel paths
+  // like ~/Local Sites/<name>/app/public → hash fallback: Local-Sites-<name>-app-public).
+  const fallback = bestGuess || hashName;
+  return fallback
+    .replace(/^Local-Sites-/i, '')
+    .replace(/-app-public$/i, '');
 }
 
 // --- Check if session has /exit as the LAST user action ---

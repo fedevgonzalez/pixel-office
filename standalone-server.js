@@ -203,7 +203,11 @@ function resolveFolderName(hashName) {
     }
   }
   deepestPrefix(prefix, rest);
-  return bestGuess || hashName;
+  // Only clean fallback results — if the path resolved exactly we have the real name already.
+  const fallback = bestGuess || hashName;
+  return fallback
+    .replace(/^Local-Sites-/i, '')
+    .replace(/-app-public$/i, '');
 }
 
 // --- Tool status formatting ---
@@ -1047,6 +1051,25 @@ const server = http.createServer((req, res) => {
     const body = JSON.stringify({ agents: agentList, count: agentList.length });
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(body);
+    return;
+  }
+
+  // API: remove an agent by id
+  const deleteMatch = urlPath.match(/^\/api\/agents\/(\d+)$/);
+  if (deleteMatch && req.method === 'DELETE') {
+    const id = parseInt(deleteMatch[1], 10);
+    if (!agents.has(id)) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Agent not found' }));
+      return;
+    }
+    // Also clean up remoteAgents index if applicable
+    for (const [remoteKey, agentId] of remoteAgents) {
+      if (agentId === id) { remoteAgents.delete(remoteKey); break; }
+    }
+    removeAgent(id, 'removed via API');
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: true, id }));
     return;
   }
 
