@@ -189,6 +189,16 @@ a:focus-visible,
   color: var(--pixel-agent-text);
 }
 
+/* Settings — hemisphere toggle buttons */
+.pixel-hemisphere-btn:hover {
+  border-color: var(--pixel-border-light) !important;
+}
+
+/* Settings — styled select hover */
+.pixel-settings-select:hover {
+  border-color: var(--pixel-border-light);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pixel-agents-pulse { animation: none; }
   *, *::before, *::after {
