@@ -373,6 +373,29 @@ function App() {
         )
       })()}
 
+      {!isKioskMode && !isScreenshotMode && agents.length === 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 45,
+            opacity: 0.6,
+          }}
+        >
+          <div style={{ fontSize: '28px', color: 'rgba(255, 245, 235, 0.85)', marginBottom: 8 }}>
+            Waiting for agents...
+          </div>
+          <div style={{ fontSize: '18px', color: 'rgba(255, 245, 235, 0.55)' }}>
+            Start a Claude Code session to see your agents here
+          </div>
+        </div>
+      )}
+
       {!isScreenshotMode && (
         <ToolOverlay
           officeState={officeState}

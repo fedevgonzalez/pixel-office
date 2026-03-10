@@ -290,7 +290,7 @@ export const DN_TRANSITION_BLEND_SEC = 1800 // 30 minutes real-time equivalent
 /** How often the kiosk clock re-reads wall time (ms) */
 export const KIOSK_CLOCK_UPDATE_MS = 60_000
 /** Default opacity of the widget — dim so it recedes into the scene */
-export const KIOSK_CLOCK_OPACITY = 0.55
+export const KIOSK_CLOCK_OPACITY = 0.75
 /** Margin from the bottom-right viewport edge (px) */
 export const KIOSK_CLOCK_MARGIN = 16
 

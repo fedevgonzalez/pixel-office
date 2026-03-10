@@ -208,13 +208,23 @@ export function KioskStatusPanel({
         <div
           style={{
             marginTop: 'auto',
+            display: 'flex',
+            justifyContent: 'center',
             padding: '12px 10px',
-            fontSize: `${RESTING_COUNT_LABEL_FONT_SIZE}px`,
-            color: 'rgba(255, 245, 235, 0.35)',
-            textAlign: 'center',
           }}
         >
-          {restingCount} on break
+          <span
+            style={{
+              fontSize: `${RESTING_COUNT_LABEL_FONT_SIZE}px`,
+              color: 'rgba(255, 245, 235, 0.35)',
+              background: 'rgba(255, 245, 235, 0.06)',
+              border: '1px solid rgba(255, 245, 235, 0.12)',
+              padding: '8px 16px',
+              borderRadius: '999px',
+            }}
+          >
+            {restingCount} on break
+          </span>
         </div>
       )}
     </div>
