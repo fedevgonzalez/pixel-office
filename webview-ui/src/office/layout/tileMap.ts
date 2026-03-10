@@ -6,12 +6,17 @@ export function isWalkable(
   row: number,
   tileMap: TileType[][],
   blockedTiles: Set<string>,
+  doorTiles?: Set<string>,
 ): boolean {
   const rows = tileMap.length
   const cols = rows > 0 ? tileMap[0].length : 0
   if (row < 0 || row >= rows || col < 0 || col >= cols) return false
   const t = tileMap[row][col]
-  if (t === TileType.WALL || t === TileType.VOID) return false
+  if (t === TileType.WALL || t === TileType.VOID) {
+    // Door tiles on walls are walkable
+    if (doorTiles?.has(`${col},${row}`)) return true
+    return false
+  }
   if (blockedTiles.has(`${col},${row}`)) return false
   return true
 }
@@ -20,13 +25,14 @@ export function isWalkable(
 export function getWalkableTiles(
   tileMap: TileType[][],
   blockedTiles: Set<string>,
+  doorTiles?: Set<string>,
 ): Array<{ col: number; row: number }> {
   const rows = tileMap.length
   const cols = rows > 0 ? tileMap[0].length : 0
   const tiles: Array<{ col: number; row: number }> = []
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
-      if (isWalkable(c, r, tileMap, blockedTiles)) {
+      if (isWalkable(c, r, tileMap, blockedTiles, doorTiles)) {
         tiles.push({ col: c, row: r })
       }
     }
@@ -42,6 +48,7 @@ export function findPath(
   endRow: number,
   tileMap: TileType[][],
   blockedTiles: Set<string>,
+  doorTiles?: Set<string>,
 ): Array<{ col: number; row: number }> {
   if (startCol === endCol && startRow === endRow) return []
 
@@ -51,7 +58,7 @@ export function findPath(
 
   // End must be walkable (or be a chair tile which may be adjacent to desk)
   // We allow the end tile even if it's not strictly walkable for chair positions
-  const endWalkable = isWalkable(endCol, endRow, tileMap, blockedTiles)
+  const endWalkable = isWalkable(endCol, endRow, tileMap, blockedTiles, doorTiles)
   if (!endWalkable) {
     // If the end is a desk tile, we still can't path there
     return []
@@ -92,7 +99,7 @@ export function findPath(
       const nk = key(nc, nr)
 
       if (visited.has(nk)) continue
-      if (!isWalkable(nc, nr, tileMap, blockedTiles)) continue
+      if (!isWalkable(nc, nr, tileMap, blockedTiles, doorTiles)) continue
 
       visited.add(nk)
       parent.set(nk, currKey)

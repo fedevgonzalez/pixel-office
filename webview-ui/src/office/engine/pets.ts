@@ -130,6 +130,7 @@ export function updatePet(
   blockedTiles: Set<string>,
   activeAgentPositions?: Array<{ col: number; row: number }>,
   officeIdleTime?: number,
+  doorTiles?: Set<string>,
 ): void {
   // Bounds check: if pet is outside the grid, relocate to a walkable tile
   const rows = tileMap.length
@@ -185,7 +186,7 @@ export function updatePet(
       pet.frame = 0 // idle frame
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
       }
       break
     }
@@ -198,7 +199,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
       }
       break
     }
@@ -212,7 +213,7 @@ export function updatePet(
 
       if (pet.path.length === 0) {
         // Arrived — pick new behavior
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
         break
       }
 
@@ -251,7 +252,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
       }
       break
     }
@@ -264,6 +265,7 @@ function transitionToNewBehavior(
   tileMap: TileTypeVal[][],
   blockedTiles: Set<string>,
   activeAgentPositions?: Array<{ col: number; row: number }>,
+  doorTiles?: Set<string>,
 ): void {
   const behavior = pickBehavior(pet.species, pet.personality)
 
@@ -288,7 +290,7 @@ function transitionToNewBehavior(
         })
         if (adjacent.length > 0) {
           const target = adjacent[Math.floor(Math.random() * adjacent.length)]
-          const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles)
+          const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
           if (path.length > 0) {
             pet.state = PetState.WALK
             pet.path = path
@@ -310,7 +312,7 @@ function transitionToNewBehavior(
 
     if (candidates.length > 0) {
       const target = candidates[Math.floor(Math.random() * candidates.length)]
-      const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles)
+      const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
       if (path.length > 0) {
         pet.state = PetState.WALK
         pet.path = path
@@ -357,8 +359,9 @@ export function walkPetToTile(
   row: number,
   tileMap: TileTypeVal[][],
   blockedTiles: Set<string>,
+  doorTiles?: Set<string>,
 ): boolean {
-  const path = findPath(pet.tileCol, pet.tileRow, col, row, tileMap, blockedTiles)
+  const path = findPath(pet.tileCol, pet.tileRow, col, row, tileMap, blockedTiles, doorTiles)
   if (path.length === 0) return false
   pet.state = PetState.WALK
   pet.path = path

@@ -52,13 +52,17 @@ export class OfficeState {
   subagentMeta: Map<number, { parentAgentId: number; parentToolId: string }> = new Map()
   private nextSubagentId = -1
 
+  /** Tiles occupied by doors — walkable even though underlying tile is WALL */
+  doorTiles: Set<string> = new Set()
+
   constructor(layout?: OfficeLayout) {
     this.layout = layout || createDefaultLayout()
     this.tileMap = layoutToTileMap(this.layout)
     this.seats = layoutToSeats(this.layout.furniture)
     this.blockedTiles = getBlockedTiles(this.layout.furniture)
+    this.doorTiles = this.computeDoorTiles()
     this.furniture = layoutToFurnitureInstances(this.layout.furniture)
-    this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles)
+    this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles, this.doorTiles)
   }
 
   /** Rebuild all derived state from a new layout. Reassigns existing characters.
@@ -68,8 +72,9 @@ export class OfficeState {
     this.tileMap = layoutToTileMap(layout)
     this.seats = layoutToSeats(layout.furniture)
     this.blockedTiles = getBlockedTiles(layout.furniture)
+    this.doorTiles = this.computeDoorTiles()
     this.rebuildFurnitureInstances()
-    this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles)
+    this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles, this.doorTiles)
 
     // Shift character positions when grid expands left/up
     if (shift && (shift.col !== 0 || shift.row !== 0)) {
@@ -215,6 +220,19 @@ export class OfficeState {
     return null
   }
 
+  /** Compute the set of tiles occupied by doors (both rows) for walkability override */
+  private computeDoorTiles(): Set<string> {
+    const tiles = new Set<string>()
+    for (const f of this.layout.furniture) {
+      const entry = getCatalogEntry(f.type)
+      if (!entry?.isDoor) continue
+      for (let dr = 0; dr < entry.footprintH; dr++) {
+        tiles.add(`${f.col},${f.row + dr}`)
+      }
+    }
+    return tiles
+  }
+
   /** Find the bottom tile of the nearest door furniture, or null if no doors exist */
   private findNearestDoorTile(fromCol: number, fromRow: number): { col: number; row: number } | null {
     let best: { col: number; row: number } | null = null
@@ -261,7 +279,7 @@ export class OfficeState {
           const row = f.row + dr
           const key = `${col},${row}`
           if (seen.has(key)) continue
-          if (isWalkable(col, row, this.tileMap, this.blockedTiles)) {
+          if (isWalkable(col, row, this.tileMap, this.blockedTiles, this.doorTiles)) {
             tiles.push({ col, row })
             seen.add(key)
           }
@@ -372,7 +390,7 @@ export class OfficeState {
         ch.y = doorTile.row * TILE_SIZE + TILE_SIZE / 2
         // Pathfind from door to seat
         const path = this.withOwnSeatUnblocked(ch, () =>
-          findPath(doorTile.col, doorTile.row, seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles),
+          findPath(doorTile.col, doorTile.row, seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles, this.doorTiles),
         )
         if (path.length > 0) {
           ch.state = CharacterState.ENTERING
@@ -417,7 +435,7 @@ export class OfficeState {
     // Try door-based despawn: walk to nearest door then remove
     const doorTile = this.findNearestDoorTile(ch.tileCol, ch.tileRow)
     if (doorTile) {
-      const path = findPath(ch.tileCol, ch.tileRow, doorTile.col, doorTile.row, this.tileMap, this.blockedTiles)
+      const path = findPath(ch.tileCol, ch.tileRow, doorTile.col, doorTile.row, this.tileMap, this.blockedTiles, this.doorTiles)
       if (path.length > 0) {
         ch.state = CharacterState.LEAVING
         ch.path = path
@@ -459,7 +477,7 @@ export class OfficeState {
     ch.seatId = seatId
     // Pathfind to new seat (unblock own seat tile for this query)
     const path = this.withOwnSeatUnblocked(ch, () =>
-      findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles)
+      findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles, this.doorTiles)
     )
     if (path.length > 0) {
       ch.path = path
@@ -486,7 +504,7 @@ export class OfficeState {
     const seat = this.seats.get(ch.seatId)
     if (!seat) return
     const path = this.withOwnSeatUnblocked(ch, () =>
-      findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles)
+      findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles, this.doorTiles)
     )
     if (path.length > 0) {
       ch.path = path
@@ -510,13 +528,13 @@ export class OfficeState {
   walkToTile(agentId: number, col: number, row: number): boolean {
     const ch = this.characters.get(agentId)
     if (!ch || ch.isSubagent) return false
-    if (!isWalkable(col, row, this.tileMap, this.blockedTiles)) {
+    if (!isWalkable(col, row, this.tileMap, this.blockedTiles, this.doorTiles)) {
       // Also allow walking to own seat tile (blocked for others but not self)
       const key = this.ownSeatKey(ch)
       if (!key || key !== `${col},${row}`) return false
     }
     const path = this.withOwnSeatUnblocked(ch, () =>
-      findPath(ch.tileCol, ch.tileRow, col, row, this.tileMap, this.blockedTiles)
+      findPath(ch.tileCol, ch.tileRow, col, row, this.tileMap, this.blockedTiles, this.doorTiles)
     )
     if (path.length === 0) return false
     ch.path = path
@@ -855,7 +873,7 @@ export class OfficeState {
   walkPetToTile(uid: string, col: number, row: number): boolean {
     const pet = this.pets.get(uid)
     if (!pet) return false
-    return petWalkToTile(pet, col, row, this.tileMap, this.blockedTiles)
+    return petWalkToTile(pet, col, row, this.tileMap, this.blockedTiles, this.doorTiles)
   }
 
   /** Perk up nearby pets when an agent does something */
@@ -892,7 +910,7 @@ export class OfficeState {
 
       // Temporarily unblock own seat so character can pathfind to it
       this.withOwnSeatUnblocked(ch, () =>
-        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles, breakRoomTiles, focusZoneTiles)
+        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles, breakRoomTiles, focusZoneTiles, this.doorTiles)
       )
 
       // Tick bubble timer for waiting bubbles
@@ -926,7 +944,7 @@ export class OfficeState {
 
     // Update pets
     for (const pet of this.pets.values()) {
-      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime)
+      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles)
     }
   }
 

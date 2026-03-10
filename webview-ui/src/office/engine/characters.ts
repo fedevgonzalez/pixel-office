@@ -94,6 +94,7 @@ export function updateCharacter(
   blockedTiles: Set<string>,
   breakRoomTiles: Array<{ col: number; row: number }> = [],
   focusZoneTiles: Set<string> = new Set(),
+  doorTiles: Set<string> = new Set(),
 ): void {
   ch.frameTimer += dt
 
@@ -129,7 +130,7 @@ export function updateCharacter(
         const alreadyAtBreak = breakRoomTiles.some((t) => t.col === ch.tileCol && t.row === ch.tileRow)
         if (!alreadyAtBreak && breakRoomTiles.length > 0) {
           const target = breakRoomTiles[Math.floor(Math.random() * breakRoomTiles.length)]
-          const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, tileMap, blockedTiles)
+          const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
           if (path.length > 0) {
             ch.path = path
             ch.moveProgress = 0
@@ -152,7 +153,7 @@ export function updateCharacter(
         }
         const seat = seats.get(ch.seatId)
         if (seat) {
-          const path = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles)
+          const path = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles, doorTiles)
           if (path.length > 0) {
             ch.path = path
             ch.moveProgress = 0
@@ -176,7 +177,7 @@ export function updateCharacter(
         if (ch.wanderCount >= ch.wanderLimit && ch.seatId) {
           const seat = seats.get(ch.seatId)
           if (seat) {
-            const path = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles)
+            const path = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles, doorTiles)
             if (path.length > 0) {
               ch.path = path
               ch.moveProgress = 0
@@ -201,7 +202,7 @@ export function updateCharacter(
           }
         }
         if (wanderTarget) {
-          const path = findPath(ch.tileCol, ch.tileRow, wanderTarget.col, wanderTarget.row, tileMap, blockedTiles)
+          const path = findPath(ch.tileCol, ch.tileRow, wanderTarget.col, wanderTarget.row, tileMap, blockedTiles, doorTiles)
           if (path.length > 0) {
             ch.path = path
             ch.moveProgress = 0
@@ -313,7 +314,7 @@ export function updateCharacter(
         if (seat) {
           const lastStep = ch.path[ch.path.length - 1]
           if (!lastStep || lastStep.col !== seat.seatCol || lastStep.row !== seat.seatRow) {
-            const newPath = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles)
+            const newPath = findPath(ch.tileCol, ch.tileRow, seat.seatCol, seat.seatRow, tileMap, blockedTiles, doorTiles)
             if (newPath.length > 0) {
               ch.path = newPath
               ch.moveProgress = 0
