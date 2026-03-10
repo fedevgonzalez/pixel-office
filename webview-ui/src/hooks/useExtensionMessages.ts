@@ -232,6 +232,7 @@ export function useExtensionMessages(
           return { ...prev, [id]: status }
         })
         os.setAgentActive(id, status === 'active')
+        os.setAgentResting(id, status === 'resting')
         if (status === 'waiting') {
           os.showWaitingBubble(id)
           playDoneSound()

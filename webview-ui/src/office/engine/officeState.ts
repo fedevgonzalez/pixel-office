@@ -663,6 +663,18 @@ export class OfficeState {
     }
   }
 
+  setAgentResting(id: number, resting: boolean): void {
+    const ch = this.characters.get(id)
+    if (ch) {
+      ch.isResting = resting
+      if (resting) {
+        ch.isActive = false
+        ch.path = []
+        ch.moveProgress = 0
+      }
+    }
+  }
+
   /** Rebuild furniture instances with auto-state applied (active agents turn electronics ON) */
   private rebuildFurnitureInstances(): void {
     // Collect tiles where active agents face desks

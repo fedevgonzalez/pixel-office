@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import type { ToolActivity } from '../types.js'
 import type { OfficeState } from '../engine/officeState.js'
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js'
-import { KIOSK_STATUS_PANEL_UPDATE_MS, KIOSK_STATUS_PANEL_WIDTH } from '../../constants.js'
+import { KIOSK_STATUS_PANEL_UPDATE_MS, KIOSK_STATUS_PANEL_WIDTH, RESTING_COUNT_LABEL_FONT_SIZE } from '../../constants.js'
 
 interface KioskStatusPanelProps {
   officeState: OfficeState
@@ -69,10 +69,18 @@ export function KioskStatusPanel({
 
   // Build entries: main agents first, then sub-agents grouped under parents
   const entries: { id: number; name: string; status: string; hasPermission: boolean; isRunning: boolean; isSub: boolean }[] = []
+  let restingCount = 0
 
   for (const agentId of agents) {
     const ch = officeState.characters.get(agentId)
     if (!ch) continue
+
+    // Resting agents are hidden from sidebar (shown as canvas labels instead)
+    if (ch.isResting) {
+      restingCount++
+      continue
+    }
+
     const { text, hasPermission, isRunning } = getAgentStatus(agentId, agentTools, ch.isActive)
     entries.push({
       id: agentId,
@@ -107,7 +115,7 @@ export function KioskStatusPanel({
     return priority(a) - priority(b)
   })
 
-  if (entries.length === 0) return null
+  if (entries.length === 0 && restingCount === 0) return null
 
   return (
     <div
@@ -196,6 +204,19 @@ export function KioskStatusPanel({
           </div>
         )
       })}
+      {restingCount > 0 && (
+        <div
+          style={{
+            marginTop: 'auto',
+            padding: '12px 10px',
+            fontSize: `${RESTING_COUNT_LABEL_FONT_SIZE}px`,
+            color: 'rgba(255, 245, 235, 0.35)',
+            textAlign: 'center',
+          }}
+        >
+          {restingCount} on break
+        </div>
+      )}
     </div>
   )
 }

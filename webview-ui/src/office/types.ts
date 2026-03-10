@@ -288,6 +288,8 @@ export interface Character {
   wanderLimit: number
   /** Whether the agent is actively working */
   isActive: boolean
+  /** Whether the agent is in resting/break state (sustained idle) */
+  isResting: boolean
   /** Assigned seat uid, or null if no seat */
   seatId: string | null
   /** Active speech bubble type, or null if none showing */

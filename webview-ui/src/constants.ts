@@ -294,6 +294,20 @@ export const KIOSK_CLOCK_OPACITY = 0.55
 /** Margin from the bottom-right viewport edge (px) */
 export const KIOSK_CLOCK_MARGIN = 16
 
+// ── Resting Agent System ────────────────────────────────────
+/** Sprite alpha for resting (on-break) agents — dimmer than active */
+export const RESTING_AGENT_SPRITE_ALPHA = 0.72
+/** Font scale factor for resting agent name labels (vs 16 for pets) */
+export const RESTING_AGENT_LABEL_FONT_SCALE = 14
+/** Text alpha for resting agent labels — hint tier */
+export const RESTING_AGENT_LABEL_TEXT_ALPHA = 0.55
+/** Background alpha for resting agent label pills */
+export const RESTING_AGENT_LABEL_BG_ALPHA = 0.75
+/** Border alpha for resting agent label pills (amber) */
+export const RESTING_AGENT_LABEL_BORDER_ALPHA = 0.25
+/** Font size (px) for kiosk sidebar "N on break" footer */
+export const RESTING_COUNT_LABEL_FONT_SIZE = 22
+
 // ── Game Logic ───────────────────────────────────────────────
 export const MAX_DELTA_TIME_SEC = 0.1
 export const WAITING_BUBBLE_DURATION_SEC = 2.0

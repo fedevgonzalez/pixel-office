@@ -72,6 +72,7 @@ export function createCharacter(
     wanderCount: 0,
     wanderLimit: randomInt(WANDER_MOVES_BEFORE_REST_MIN, WANDER_MOVES_BEFORE_REST_MAX),
     isActive: true,
+    isResting: false,
     seatId,
     bubbleType: null,
     bubbleTimer: 0,
@@ -122,6 +123,23 @@ export function updateCharacter(
       // No idle animation — static pose
       ch.frame = 0
       if (ch.seatTimer < 0) ch.seatTimer = 0 // clear turn-end sentinel
+      // If resting, walk to break room and stay
+      if (ch.isResting) {
+        const alreadyAtBreak = breakRoomTiles.some((t) => t.col === ch.tileCol && t.row === ch.tileRow)
+        if (!alreadyAtBreak && breakRoomTiles.length > 0) {
+          const target = breakRoomTiles[Math.floor(Math.random() * breakRoomTiles.length)]
+          const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, tileMap, blockedTiles)
+          if (path.length > 0) {
+            ch.path = path
+            ch.moveProgress = 0
+            ch.state = CharacterState.WALK
+            ch.frame = 0
+            ch.frameTimer = 0
+          }
+        }
+        // Stay put at break room — don't wander
+        break
+      }
       // If became active, pathfind to seat
       if (ch.isActive) {
         if (!ch.seatId) {
@@ -204,6 +222,14 @@ export function updateCharacter(
         ch.x = center.x
         ch.y = center.y
 
+        if (ch.isResting) {
+          // Arrived at break room — stay idle
+          ch.state = CharacterState.IDLE
+          ch.frame = 0
+          ch.frameTimer = 0
+          ch.wanderTimer = 9999 // don't wander while resting
+          break
+        }
         if (ch.isActive) {
           if (!ch.seatId) {
             // No seat — type in place

@@ -24,6 +24,9 @@ const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const TOOL_DONE_DELAY_MS = 300;
 const TEXT_IDLE_DELAY_MS = 5000;
 const PERMISSION_TIMER_DELAY_MS = 7000;
+const IDLE_REST_MS = 5 * 60 * 1000;   // 5 min idle → resting (walk to break room)
+const IDLE_LEAVE_MS = 30 * 60 * 1000; // 30 min idle → leave office
+const IDLE_CHECK_INTERVAL_MS = 30000;  // check every 30s
 const BASH_CMD_MAX = 30;
 const TASK_DESC_MAX = 40;
 const PNG_ALPHA_THRESHOLD = 128;
@@ -498,6 +501,12 @@ function readNewLines(agentId) {
     agent.lineBuffer = lines.pop() || '';
     const hasLines = lines.some(l => l.trim());
     if (hasLines && !replaying) {
+      agent.lastDataMs = Date.now();
+      // Wake from resting state if new data arrives
+      if (agent.isResting) {
+        agent.isResting = false;
+        broadcast({ type: 'agentStatus', id: agentId, status: 'active' });
+      }
       cancelTimer(waitingTimers, agentId);
       cancelTimer(permissionTimers, agentId);
       if (agent.permissionSent) {
@@ -701,6 +710,7 @@ function handleReporterMessage(ws, msg) {
       isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false,
       isReplaying: true, folderName, machineId, remote: true, isSDK: !!msg.sdk,
       permissionMode: msg.sdk ? 'bypassPermissions' : undefined,
+      lastDataMs: Date.now(), isResting: false,
     };
     agents.set(id, agent);
     remoteAgents.set(remoteKey, id);
@@ -813,6 +823,7 @@ function scanAndAdoptAgents() {
         id, isReplaying: false,
         replayedToolIds: new Set(tempAgent.activeToolIds),
         folderName,
+        lastDataMs: Date.now(), isResting: false,
       };
       agents.set(id, agent);
       console.log(`Agent ${id}: detected ${path.basename(file)} in ${path.basename(projDir)}`);
@@ -821,6 +832,23 @@ function scanAndAdoptAgents() {
 
       // Start watching for new content (all future reads broadcast normally)
       startFileWatching(id, file);
+    }
+  }
+}
+
+// --- Idle agent lifecycle (resting → leave) ---
+function checkIdleAgents() {
+  const now = Date.now();
+  for (const [id, agent] of agents) {
+    // Skip remote/SDK agents — they have their own lifecycle
+    if (agent.remote) continue;
+    const idleMs = now - (agent.lastDataMs || now);
+    if (idleMs >= IDLE_LEAVE_MS) {
+      removeAgent(id, `idle for ${Math.round(idleMs / 60000)}m — left the office`);
+    } else if (idleMs >= IDLE_REST_MS && !agent.isResting) {
+      agent.isResting = true;
+      broadcast({ type: 'agentStatus', id, status: 'resting' });
+      console.log(`Agent ${id} resting after ${Math.round(idleMs / 60000)}m idle`);
     }
   }
 }
@@ -1166,6 +1194,7 @@ server.listen(PORT, '0.0.0.0', () => {
     scanAndAdoptAgents();
     // Periodic scan for new sessions
     setInterval(scanAndAdoptAgents, SCAN_INTERVAL_MS);
+    setInterval(checkIdleAgents, IDLE_CHECK_INTERVAL_MS);
   } else {
     console.log('NO_SCAN=1: skipping JSONL auto-detection (reporter-only mode)');
   }

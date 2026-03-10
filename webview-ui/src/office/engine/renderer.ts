@@ -46,6 +46,11 @@ import {
   ROTATE_BUTTON_BG,
   PET_ZZZ_FRAME_DURATION_SEC,
   PET_NAME_LABEL_Y_OFFSET,
+  RESTING_AGENT_SPRITE_ALPHA,
+  RESTING_AGENT_LABEL_FONT_SCALE,
+  RESTING_AGENT_LABEL_TEXT_ALPHA,
+  RESTING_AGENT_LABEL_BG_ALPHA,
+  RESTING_AGENT_LABEL_BORDER_ALPHA,
 } from '../../constants.js'
 
 // ── Render functions ────────────────────────────────────────────
@@ -181,10 +186,54 @@ export function renderScene(
       })
     }
 
+    // Capture resting state for closure
+    const chResting = ch.isResting
+    const chName = ch.folderName
+
     drawables.push({
       zY: charZY,
       draw: (c) => {
-        c.drawImage(cached, drawX, drawY)
+        if (chResting) {
+          c.globalAlpha = RESTING_AGENT_SPRITE_ALPHA
+          c.drawImage(cached, drawX, drawY)
+          c.globalAlpha = 1
+
+          // Name label (always in kiosk, hover-only otherwise)
+          if (isKioskMode || isHovered) {
+            const labelText = chName || 'Agent'
+            const nameY = drawY - 4 * (zoom / 2)
+            const nameX = drawX + cached.width / 2
+            const fontSize = Math.max(13, Math.round(RESTING_AGENT_LABEL_FONT_SCALE * zoom / 2))
+            c.font = `${fontSize}px "FS Pixel Sans", monospace`
+            c.textAlign = 'center'
+
+            const nameMetrics = c.measureText(labelText)
+            const padH = Math.round(fontSize * 0.45)
+            const padV = Math.round(fontSize * 0.25)
+            const bgW = nameMetrics.width + padH * 2
+            const bgH = fontSize + padV * 2
+            const bgX = nameX - bgW / 2
+            const bgY = nameY - bgH / 2
+
+            c.globalAlpha = RESTING_AGENT_LABEL_BG_ALPHA
+            c.fillStyle = 'rgba(31, 26, 36, 0.9)'
+            c.fillRect(bgX, bgY, bgW, bgH)
+
+            c.globalAlpha = RESTING_AGENT_LABEL_BORDER_ALPHA
+            c.strokeStyle = 'rgba(232, 168, 76, 0.6)'
+            c.lineWidth = 1
+            c.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
+
+            c.globalAlpha = RESTING_AGENT_LABEL_TEXT_ALPHA
+            c.textBaseline = 'middle'
+            c.fillStyle = 'rgba(255, 245, 235, 0.95)'
+            c.fillText(labelText, nameX, nameY)
+            c.textBaseline = 'alphabetic'
+            c.globalAlpha = 1
+          }
+        } else {
+          c.drawImage(cached, drawX, drawY)
+        }
       },
     })
   }
