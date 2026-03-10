@@ -165,7 +165,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
         style={{
           position: 'fixed',
           top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0, 0, 0, 0.6)',
+          background: 'rgba(0, 0, 0, 0.65)',
           zIndex: 51,
         }}
       />
@@ -184,7 +184,6 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
           background: 'var(--pixel-bg)',
           border: '2px solid var(--pixel-border)',
           borderRadius: 0,
-          padding: '4px',
           boxShadow: 'var(--pixel-shadow)',
           width: '90%',
           maxWidth: 480,
@@ -199,9 +198,8 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '4px 10px',
+            padding: '6px 12px',
             borderBottom: '1px solid var(--pixel-border)',
-            marginBottom: '4px',
             flexShrink: 0,
           }}
         >
@@ -210,12 +208,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
             onClick={onClose}
             aria-label="Close share dialog"
             className="pixel-close-btn"
-            style={{
-              borderRadius: 0,
-              fontSize: '24px',
-              padding: '4px 8px',
-              lineHeight: 1,
-            }}
+            style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
           >
             &#215;
           </button>
@@ -375,9 +368,8 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
         {/* Footer */}
         <div
           style={{
-            padding: '6px 10px',
+            padding: '6px 12px',
             borderTop: '1px solid var(--pixel-border)',
-            marginTop: '4px',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',

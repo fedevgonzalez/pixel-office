@@ -612,7 +612,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
           left: 0,
           width: '100%',
           height: '100%',
-          background: 'rgba(0, 0, 0, 0.55)',
+          background: 'rgba(0, 0, 0, 0.65)',
           zIndex: 49,
         }}
       />
@@ -649,9 +649,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '8px 12px',
-            borderBottom: '2px solid var(--pixel-border)',
-            background: 'rgba(0, 0, 0, 0.2)',
+            padding: '6px 12px',
+            borderBottom: '1px solid var(--pixel-border)',
             flexShrink: 0,
           }}
         >
@@ -660,13 +659,10 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
               <button
                 onClick={() => setView('list')}
                 aria-label="Back to pet list"
+                className="pixel-close-btn"
                 style={{
-                  background: 'transparent',
-                  border: 'none',
                   borderRadius: 0,
-                  color: 'rgba(255, 245, 235, 0.5)',
                   fontSize: '20px',
-                  cursor: 'pointer',
                   padding: '2px 8px 2px 4px',
                   lineHeight: 1,
                 }}
@@ -674,23 +670,15 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 &#8592;
               </button>
             )}
-            <span id="pet-modal-title" style={{ fontSize: '22px', color: 'var(--pixel-text)', fontWeight: 'bold' }}>
+            <span id="pet-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>
               {headerTitle}
             </span>
           </div>
           <button
             onClick={onClose}
             aria-label="Close pet manager"
-            style={{
-              background: 'transparent',
-              border: 'none',
-              borderRadius: 0,
-              color: 'rgba(255, 245, 235, 0.45)',
-              fontSize: '22px',
-              cursor: 'pointer',
-              padding: '4px 6px',
-              lineHeight: 1,
-            }}
+            className="pixel-close-btn"
+            style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
           >
             &#215;
           </button>
