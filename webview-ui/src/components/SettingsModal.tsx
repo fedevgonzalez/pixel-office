@@ -238,7 +238,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
             const newVal = !isSoundEnabled()
             setSoundEnabled(newVal)
             setSoundLocal(newVal)
-            vscode.postMessage({ type: 'setSoundEnabled', enabled: newVal })
+            vscode.postMessage({ type: 'saveSettings', settings: { soundEnabled: newVal } })
           }}
           className="pixel-menu-item"
           style={row}

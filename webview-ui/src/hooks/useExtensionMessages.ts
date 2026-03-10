@@ -344,8 +344,7 @@ export function useExtensionMessages(
         const folders = msg.folders as WorkspaceFolder[]
         setWorkspaceFolders(folders)
       } else if (msg.type === 'settingsLoaded') {
-        const soundOn = msg.soundEnabled as boolean
-        setSoundEnabled(soundOn)
+        if (typeof msg.soundEnabled === 'boolean') setSoundEnabled(msg.soundEnabled)
       } else if (msg.type === 'furnitureAssetsLoaded') {
         try {
           const catalog = msg.catalog as FurnitureAsset[]

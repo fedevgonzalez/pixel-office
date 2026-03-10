@@ -615,6 +615,7 @@ function loadDefaultLayout() {
 
 const LAYOUT_DIR = path.join(os.homedir(), '.pixel-office');
 const LAYOUT_FILE = path.join(LAYOUT_DIR, 'layout.json');
+const SETTINGS_FILE = path.join(LAYOUT_DIR, 'settings.json');
 
 function loadLayout() {
   if (!fs.existsSync(LAYOUT_FILE)) return null;
@@ -631,6 +632,23 @@ function saveLayout(layout) {
     console.log('Layout saved to', LAYOUT_FILE);
   } catch (e) {
     console.error('Failed to save layout:', e.message);
+  }
+}
+
+function loadSettings() {
+  if (!fs.existsSync(SETTINGS_FILE)) return { soundEnabled: true };
+  try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8')); } catch { return { soundEnabled: true }; }
+}
+
+function saveSettings(settings) {
+  try {
+    if (!fs.existsSync(LAYOUT_DIR)) fs.mkdirSync(LAYOUT_DIR, { recursive: true });
+    const tmp = SETTINGS_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(settings, null, 2), 'utf-8');
+    fs.renameSync(tmp, SETTINGS_FILE);
+    console.log('Settings saved to', SETTINGS_FILE);
+  } catch (e) {
+    console.error('Failed to save settings:', e.message);
   }
 }
 
@@ -894,8 +912,9 @@ async function handleClientMessage(ws, msg) {
       console.log(`  furnitureAssets: sent (${catalog.length} items, ${Object.keys(sprites).length} sprites)`);
     } catch (e) { console.error('  furnitureAssets error:', e.message); }
 
-    // Send settings
-    ws.send(JSON.stringify({ type: 'settingsLoaded', soundEnabled: true }));
+    // Send persisted settings (day/night mode, hemisphere, sound)
+    const settings = loadSettings();
+    ws.send(JSON.stringify({ type: 'settingsLoaded', ...settings }));
 
     // Send existing agents BEFORE layout (webview buffers them until layoutLoaded)
     const agentIds = [...agents.keys()].sort((a, b) => a - b);
@@ -937,6 +956,16 @@ async function handleClientMessage(ws, msg) {
         if (client !== ws) {
           try { client.send(JSON.stringify({ type: 'layoutLoaded', layout: msg.layout })); } catch {}
         }
+      }
+    }
+  } else if (msg.type === 'saveSettings') {
+    // Merge incoming fields into persisted settings and broadcast to all other clients
+    const current = loadSettings();
+    const merged = { ...current, ...msg.settings };
+    saveSettings(merged);
+    for (const client of wsClients) {
+      if (client !== ws) {
+        try { client.send(JSON.stringify({ type: 'settingsLoaded', ...merged })); } catch {}
       }
     }
   } else if (msg.type === 'closeAgent') {

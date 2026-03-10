@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getDayNightState, TimeMode, Hemisphere } from '../office/engine/dayNightCycle.js'
 import type { DayNightState } from '../office/engine/dayNightCycle.js'
+import { vscode } from '../wsClient.js'
 
 const STORAGE_KEY_MODE = 'pixel-office-dn-mode'
 const STORAGE_KEY_HEMISPHERE = 'pixel-office-dn-hemisphere'
@@ -36,6 +37,9 @@ function loadSetting<T extends string>(key: string): T | null {
   return null
 }
 
+const TIME_MODE_VALUES = new Set(Object.values(TimeMode))
+const HEMISPHERE_VALUES = new Set(Object.values(Hemisphere))
+
 export function useDayNight() {
   const [mode, setModeState] = useState<TimeMode>(() =>
     loadSetting<TimeMode>(STORAGE_KEY_MODE) ?? TimeMode.REAL
@@ -49,11 +53,31 @@ export function useDayNight() {
   const setMode = useCallback((m: TimeMode) => {
     setModeState(m)
     try { localStorage.setItem(STORAGE_KEY_MODE, m) } catch { /* ignore */ }
+    vscode.postMessage({ type: 'saveSettings', settings: { timeMode: m } })
   }, [])
 
   const setHemisphere = useCallback((h: Hemisphere) => {
     setHemisphereState(h)
     try { localStorage.setItem(STORAGE_KEY_HEMISPHERE, h) } catch { /* ignore */ }
+    vscode.postMessage({ type: 'saveSettings', settings: { hemisphere: h } })
+  }, [])
+
+  // Listen for settings broadcast from server (another client changed settings)
+  useEffect(() => {
+    const handler = (e: MessageEvent) => {
+      const msg = e.data
+      if (msg?.type !== 'settingsLoaded') return
+      if (msg.timeMode && TIME_MODE_VALUES.has(msg.timeMode)) {
+        setModeState(msg.timeMode)
+        try { localStorage.setItem(STORAGE_KEY_MODE, msg.timeMode) } catch { /* ignore */ }
+      }
+      if (msg.hemisphere && HEMISPHERE_VALUES.has(msg.hemisphere)) {
+        setHemisphereState(msg.hemisphere)
+        try { localStorage.setItem(STORAGE_KEY_HEMISPHERE, msg.hemisphere) } catch { /* ignore */ }
+      }
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
   }, [])
 
   // Periodically update state from real clock
