@@ -28,6 +28,9 @@ function getOfficeState(): OfficeState {
   if (!officeStateRef.current) {
     officeStateRef.current = new OfficeState()
   }
+  // Debug: expose on window for runtime inspection
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ;(window as any).__officeState = officeStateRef.current
   return officeStateRef.current
 }
 
