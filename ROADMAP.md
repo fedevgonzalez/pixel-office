@@ -79,7 +79,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [x] Pet Creator modal: species, colors, coat patterns, personality, animated preview
 - [x] React to agent activity (perk up when tools run, sleep when office idle >120s)
 - [x] Click interaction (heart/happy bubbles), dogs follow active agents
-- [x] pets feature
+- [x] Unlimited pets (no restrictions)
 - [ ] Bird, fish, hamster species (future)
 - [ ] Pixel art editor for custom pet sprites (future)
 - [ ] Photo → pixel art conversion (future)

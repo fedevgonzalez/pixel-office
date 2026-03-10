@@ -27,7 +27,11 @@ Perfect for a wall-mounted monitor, a second screen, or just a corner of your de
 
 ## Quick Start
 
+**Requirements:** Node.js 18+
+
 ```bash
+git clone https://github.com/fedevgonzalez/pixel-office.git
+cd pixel-office
 npm install && cd webview-ui && npm install && cd ..
 npm run build
 node standalone-server.js
@@ -36,6 +40,20 @@ node standalone-server.js
 Open [http://localhost:3300](http://localhost:3300) — agents appear automatically as you start Claude Code sessions.
 
 For wall displays, use [http://localhost:3300/?kiosk](http://localhost:3300/?kiosk) (auto-framing camera, no UI controls).
+
+### Environment Variables
+
+All optional. Can be set in a `.env` file in the project root or as system env vars.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3300` | HTTP + WebSocket server port |
+| `GITHUB_TOKEN` | _(empty)_ | GitHub personal access token for private gallery repos |
+| `NO_SCAN` | `0` | Set to `1` to disable auto-scanning `~/.claude/projects/` (useful when only receiving remote reporters) |
+
+### Data Directory
+
+Pixel Office stores layout data in `~/.pixel-office/layout.json`. This is created automatically on first run. To use a different location, the path is defined in `standalone-server.js`.
 
 ## Features
 
@@ -149,7 +167,7 @@ The app works without it — you get characters and a basic layout, but not the 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full plan. Next: new features.
+See [ROADMAP.md](ROADMAP.md) for the full plan. Next up: timeline/activity log, aggregate metrics, push notifications.
 
 ## License
 

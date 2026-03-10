@@ -11,6 +11,8 @@ Run the pixel art office visualization in your browser.
 ## Quick Start (Single PC)
 
 ```bash
+git clone https://github.com/fedevgonzalez/pixel-office.git
+cd pixel-office
 npm install && cd webview-ui && npm install && cd ..
 npm run build
 node standalone-server.js
@@ -19,6 +21,26 @@ node standalone-server.js
 Open `http://localhost:3300` in your browser. Agents appear automatically as you start Claude Code sessions.
 
 For wall displays, use `http://localhost:3300/?kiosk` (auto-framing camera, no UI controls).
+
+## Environment Variables
+
+All optional. Can be set as system env vars or in a `.env` file in the project root.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3300` | HTTP + WebSocket server port |
+| `GITHUB_TOKEN` | _(empty)_ | GitHub personal access token — required only if your community gallery repo is private |
+| `NO_SCAN` | `0` | Set to `1` to disable auto-scanning of `~/.claude/projects/`. Useful when the server only receives agents via remote WebSocket reporters |
+
+Example `.env` file:
+```
+PORT=3300
+GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+```
+
+## Data Directory
+
+Layout data is stored at `~/.pixel-office/layout.json`, created automatically on first run. This directory also stores pet data and agent seat assignments. The path is defined in `standalone-server.js`.
 
 ---
 
