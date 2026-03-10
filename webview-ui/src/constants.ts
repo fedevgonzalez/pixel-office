@@ -272,16 +272,16 @@ export const DN_SUMMER_OFFSET_H = 1.5
 export const DN_WINTER_OFFSET_H = -1.5
 
 /** Tint colors per time period (RGBA overlays using globalCompositeOperation 'multiply') */
-export const DN_TINT_NIGHT = 'rgba(8, 6, 28, 0.72)'
-export const DN_TINT_SUNRISE = 'rgba(255, 195, 120, 0.18)'
+export const DN_TINT_NIGHT = 'rgba(15, 12, 35, 0.38)'
+export const DN_TINT_SUNRISE = 'rgba(255, 195, 120, 0.10)'
 export const DN_TINT_DAY = 'rgba(0, 0, 0, 0)'
-export const DN_TINT_SUNSET = 'rgba(240, 100, 40, 0.28)'
-export const DN_TINT_EVENING = 'rgba(22, 12, 48, 0.50)'
+export const DN_TINT_SUNSET = 'rgba(240, 110, 50, 0.15)'
+export const DN_TINT_EVENING = 'rgba(20, 15, 42, 0.25)'
 
 /** Light source glow radius (in tile units, scaled by zoom) */
-export const DN_GLOW_RADIUS_TILES = 5.0
+export const DN_GLOW_RADIUS_TILES = 4.0
 /** Maximum glow alpha at night */
-export const DN_GLOW_MAX_ALPHA = 0.72
+export const DN_GLOW_MAX_ALPHA = 0.35
 /** Warm light color (lamps, etc.) */
 export const DN_GLOW_WARM = 'rgba(255, 185, 80, 1)'
 /** Cool light color (monitors, PCs) */

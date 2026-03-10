@@ -70,7 +70,7 @@ export function getDayNightState(
     return { period: TimePeriod.NIGHT, blend: 1, darkness: 1, hour: 2 }
   }
   if (mode === TimeMode.FIXED_SUNSET) {
-    return { period: TimePeriod.SUNSET, blend: 0.5, darkness: 0.275, hour: 19 }
+    return { period: TimePeriod.SUNSET, blend: 0.5, darkness: 0.175, hour: 19 }
   }
   if (mode === TimeMode.FIXED_SUNRISE) {
     return { period: TimePeriod.SUNRISE, blend: 0.5, darkness: 0.5, hour: 6 }
@@ -99,14 +99,14 @@ export function getDayNightState(
     return { period: TimePeriod.DAY, blend: 1, darkness: 0, hour }
   }
   if (hour < sunsetEnd) {
-    // Sunset transition: glows begin at 0.45 darkness so lamps are noticeable
+    // Sunset transition: gentle darkening, lamps start to glow
     const t = (hour - sunsetStart) / (sunsetEnd - sunsetStart)
-    return { period: TimePeriod.SUNSET, blend: t, darkness: t * 0.55, hour }
+    return { period: TimePeriod.SUNSET, blend: t, darkness: t * 0.35, hour }
   }
   if (hour < eveningEnd) {
-    // Evening transition: 0.55 → 1.0 (fully night by end)
+    // Evening transition: 0.35 → 1.0 (fully night by end)
     const t = (hour - sunsetEnd) / (eveningEnd - sunsetEnd)
-    return { period: TimePeriod.EVENING, blend: t, darkness: 0.55 + t * 0.45, hour }
+    return { period: TimePeriod.EVENING, blend: t, darkness: 0.35 + t * 0.65, hour }
   }
   // Night
   return { period: TimePeriod.NIGHT, blend: 1, darkness: 1, hour }
