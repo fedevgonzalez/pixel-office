@@ -30,9 +30,10 @@ const modal: React.CSSProperties = {
   background: 'var(--pixel-bg)',
   border: '2px solid var(--pixel-border)',
   borderRadius: 0,
-  padding: '4px',
   boxShadow: 'var(--pixel-shadow)',
-  minWidth: 280,
+  // Constrain width so nothing overflows at small viewports
+  width: 'min(360px, calc(100vw - 32px))',
+  boxSizing: 'border-box' as const,
 }
 
 const header: React.CSSProperties = {
@@ -41,10 +42,9 @@ const header: React.CSSProperties = {
   justifyContent: 'space-between',
   padding: '6px 12px',
   borderBottom: '1px solid var(--pixel-border)',
-  marginBottom: '4px',
 }
 
-// Row used for both action buttons and toggle rows
+// Row used for toggle items
 const row: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
@@ -58,17 +58,26 @@ const row: React.CSSProperties = {
   borderRadius: 0,
   cursor: 'pointer',
   textAlign: 'left',
+  boxSizing: 'border-box' as const,
 }
 
-// Non-interactive row (for select controls)
+// Non-interactive row for select/toggle controls — wraps on narrow viewports
 const configRow: React.CSSProperties = {
-  ...row,
-  cursor: 'default',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: '8px',
+  width: '100%',
+  padding: '8px 12px',
+  fontSize: '22px',
+  color: 'var(--pixel-text)',
+  boxSizing: 'border-box' as const,
 }
 
 // Section label — sits above a group of items
 const sectionLabel: React.CSSProperties = {
-  padding: '6px 12px 4px',
+  padding: '8px 12px 4px',
   fontSize: '14px',
   color: 'var(--pixel-text-hint)',
   letterSpacing: '0.06em',
@@ -100,13 +109,7 @@ const checkbox = (checked: boolean): React.CSSProperties => ({
   color: 'rgba(255, 245, 235, 0.95)',
 })
 
-// Styled select wrapper — overrides the browser chrome with pixel tokens
-const selectWrapper: React.CSSProperties = {
-  position: 'relative',
-  display: 'inline-flex',
-  alignItems: 'center',
-}
-
+// Styled select — overrides browser chrome with pixel tokens
 const selectInput: React.CSSProperties = {
   padding: '4px 24px 4px 8px',
   fontSize: '18px',
@@ -117,15 +120,17 @@ const selectInput: React.CSSProperties = {
   cursor: 'pointer',
   appearance: 'none',
   WebkitAppearance: 'none',
-  // Custom arrow via padding + background — avoids browser-default arrow
   backgroundImage:
     'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'10\' height=\'6\' viewBox=\'0 0 10 6\'%3E%3Cpath d=\'M0 0l5 6 5-6z\' fill=\'%237a6a8a\'/%3E%3C/svg%3E")',
   backgroundRepeat: 'no-repeat',
   backgroundPosition: 'right 6px center',
-  minWidth: 120,
+  // Flexible width — fills available space within the row
+  flex: '1 1 auto',
+  minWidth: 0,
+  maxWidth: '100%',
 }
 
-// Hemisphere cycle button — same visual weight as a select but pixel-native
+// Hemisphere cycle button
 const hemisphereCycleBtn = (active: boolean): React.CSSProperties => ({
   padding: '4px 10px',
   fontSize: '18px',
@@ -134,13 +139,13 @@ const hemisphereCycleBtn = (active: boolean): React.CSSProperties => ({
   border: `2px solid ${active ? 'var(--pixel-accent)' : 'var(--pixel-border)'}`,
   borderRadius: 0,
   cursor: 'pointer',
-  minWidth: 80,
+  flex: '1 1 0',
   textAlign: 'center' as const,
 })
 
 // Current state status text (period + time)
 const statusText: React.CSSProperties = {
-  padding: '2px 12px 8px',
+  padding: '2px 12px 10px',
   fontSize: '16px',
   color: 'var(--pixel-text-dim)',
   display: 'flex',
@@ -150,14 +155,14 @@ const statusText: React.CSSProperties = {
 
 // About section
 const aboutSection: React.CSSProperties = {
-  marginTop: '12px',
+  marginTop: '8px',
   paddingTop: '10px',
   borderTop: '1px solid var(--pixel-border)',
   textAlign: 'center',
   display: 'flex',
   flexDirection: 'column',
   gap: 4,
-  paddingBottom: 6,
+  padding: '10px 12px',
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -221,32 +226,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
           </button>
         </div>
 
-        {/* ── Section: Workspace ─────────────────────────── */}
-        <div style={sectionLabel} aria-hidden="true">Workspace</div>
-        <button
-          onClick={() => { vscode.postMessage({ type: 'openSessionsFolder' }); onClose() }}
-          className="pixel-menu-item"
-          style={row}
-        >
-          Open Sessions Folder
-        </button>
-        <button
-          onClick={() => { vscode.postMessage({ type: 'exportLayout' }); onClose() }}
-          className="pixel-menu-item"
-          style={row}
-        >
-          Export Layout
-        </button>
-        <button
-          onClick={() => { vscode.postMessage({ type: 'importLayout' }); onClose() }}
-          className="pixel-menu-item"
-          style={row}
-        >
-          Import Layout
-        </button>
-
         {/* ── Section: Preferences ──────────────────────── */}
-        <div style={divider} />
         <div style={sectionLabel} aria-hidden="true">Preferences</div>
         <button
           role="checkbox"
@@ -288,31 +268,29 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
             <div style={configRow}>
               <label
                 htmlFor="settings-time-mode"
-                style={{ fontSize: '22px', color: 'var(--pixel-text)', cursor: 'default' }}
+                style={{ fontSize: '22px', color: 'var(--pixel-text)', cursor: 'default', flexShrink: 0 }}
               >
                 Time Mode
               </label>
-              <div style={selectWrapper}>
-                <select
-                  id="settings-time-mode"
-                  value={dayNight.mode}
-                  onChange={(e) => dayNight.setMode(e.target.value as TimeMode)}
-                  className="pixel-settings-select"
-                  style={selectInput}
-                >
-                  <option value={TimeMode.REAL}>Real Clock</option>
-                  <option value={TimeMode.FIXED_DAY}>Always Day</option>
-                  <option value={TimeMode.FIXED_NIGHT}>Always Night</option>
-                  <option value={TimeMode.FIXED_SUNSET}>Always Sunset</option>
-                  <option value={TimeMode.FIXED_SUNRISE}>Always Sunrise</option>
-                </select>
-              </div>
+              <select
+                id="settings-time-mode"
+                value={dayNight.mode}
+                onChange={(e) => dayNight.setMode(e.target.value as TimeMode)}
+                className="pixel-settings-select"
+                style={selectInput}
+              >
+                <option value={TimeMode.REAL}>Real Clock</option>
+                <option value={TimeMode.FIXED_DAY}>Always Day</option>
+                <option value={TimeMode.FIXED_NIGHT}>Always Night</option>
+                <option value={TimeMode.FIXED_SUNSET}>Always Sunset</option>
+                <option value={TimeMode.FIXED_SUNRISE}>Always Sunrise</option>
+              </select>
             </div>
 
-            {/* Hemisphere — cycle toggle: two pixel buttons side by side */}
+            {/* Hemisphere — two pixel buttons side by side */}
             <div style={configRow}>
-              <span style={{ fontSize: '22px', color: 'var(--pixel-text)' }}>Hemisphere</span>
-              <div style={{ display: 'flex', gap: 4 }} role="group" aria-label="Hemisphere">
+              <span style={{ fontSize: '22px', color: 'var(--pixel-text)', flexShrink: 0 }}>Hemisphere</span>
+              <div style={{ display: 'flex', gap: 4, flex: '1 1 auto', maxWidth: 200 }} role="group" aria-label="Hemisphere">
                 <button
                   onClick={() => dayNight.setHemisphere(Hemisphere.NORTH)}
                   aria-pressed={dayNight.hemisphere === Hemisphere.NORTH}
