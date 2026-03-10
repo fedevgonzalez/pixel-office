@@ -5,6 +5,8 @@ import { PetManagerModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
 import type { PlacedPet, PetColors, OfficeLayout } from '../office/types.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
+import { useServerConfig } from '../context/ServerConfigContext.js'
+import { PET_MAX_FREE } from '../constants.js'
 
 interface BottomToolbarProps {
   isEditMode: boolean
@@ -59,6 +61,8 @@ export function BottomToolbar({
   onEditPet,
   getLayout,
 }: BottomToolbarProps) {
+  const { featureFlag } = useServerConfig()
+  const atPetLimit = !featureFlag && pets.length >= PET_MAX_FREE
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
   const [isPetCreatorOpen, setIsPetCreatorOpen] = useState(false)
@@ -193,7 +197,7 @@ export function BottomToolbar({
         }
         title="Add a pet to your office"
       >
-        Pets
+        Pets{atPetLimit ? ` ${pets.length}/${PET_MAX_FREE}` : ''}
       </button>
       {isPetCreatorOpen && onAddPet && onDeletePet && onEditPet && (
         <PetManagerModal

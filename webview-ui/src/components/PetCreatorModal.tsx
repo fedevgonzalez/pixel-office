@@ -18,6 +18,8 @@ import {
   PET_TUXEDO_DEFAULT_COLOR,
 } from '../constants.js'
 import { getPetSprites, colorPetSprite } from '../office/sprites/petSprites.js'
+import { useServerConfig } from '../context/ServerConfigContext.js'
+import { ProUnlockHint } from './ProUnlockHint.js'
 
 interface PetManagerModalProps {
   isOpen: boolean
@@ -515,6 +517,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const [name, setName] = useState('')
   const [petColors, setPetColors] = useState<PetColors>(emptyPetColors)
   const [personality, setPersonality] = useState<PetPersonality>(PetPersonalityConst.CHILL)
+  const { featureFlag } = useServerConfig()
 
   useEffect(() => {
     if (!isOpen) return
@@ -546,7 +549,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
 
   if (!isOpen) return null
 
-  const canAddMore = pets.length < PET_MAX_FREE
+  const canAddMore = featureFlag || pets.length < PET_MAX_FREE
 
   const hasPetColors = petColors.body || petColors.eyes || petColors.nose || (petColors.pattern && petColors.pattern !== 'solid')
 
@@ -860,20 +863,11 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   + Add Pet
                 </button>
               ) : (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '10px 12px',
-                  fontSize: '15px',
-                  color: 'rgba(255, 245, 235, 0.55)',
-                  border: '2px solid rgba(255, 245, 235, 0.07)',
-                  background: 'rgba(255,245,235,0.02)',
-                  lineHeight: 1.5,
-                }}>
-                  <div>Pet limit reached ({pets.length}/{PET_MAX_FREE})</div>
-                  <div style={{ fontSize: '13px', color: 'rgba(255, 245, 235, 0.45)', marginTop: 4 }}>
-                    Remove a pet to make room
-                  </div>
-                </div>
+                <ProUnlockHint
+                  currentCount={pets.length}
+                  maxCount={PET_MAX_FREE}
+                  message="Unlimited pets with Pro"
+                />
               )}
             </div>
           </>

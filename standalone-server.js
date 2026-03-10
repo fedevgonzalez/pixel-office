@@ -30,6 +30,7 @@ const PNG_ALPHA_THRESHOLD = 128;
 const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/pixel-office-layouts/main/';
 const GALLERY_REPO_API_BASE = 'https://api.github.com/repos/fedevgonzalez/pixel-office-layouts/contents/';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const FEATURE_FLAG = process.env.FEATURE_FLAG === '1' || process.env.FEATURE_FLAG === 'true';
 const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000;
 let galleryCache = null; // { data, fetchedAt }
 
@@ -1029,6 +1030,14 @@ const server = http.createServer((req, res) => {
         res.end(JSON.stringify({ error: String(e) }));
       }
     })();
+    return;
+  }
+
+  // API: server configuration for the frontend
+  if (urlPath === '/api/config') {
+    const body = JSON.stringify({ featureFlag: FEATURE_FLAG });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(body);
     return;
   }
 

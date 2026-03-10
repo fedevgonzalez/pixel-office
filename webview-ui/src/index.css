@@ -54,6 +54,12 @@
   --pixel-danger-bg: #a33;
   --pixel-error: rgba(255, 100, 100, 0.8);
 
+  /* : warm gold, distinct from accent amber */
+  --pixel-pro: #c8922a;
+  --pixel-pro-bg: rgba(200, 146, 42, 0.12);
+  --pixel-pro-border: rgba(200, 146, 42, 0.35);
+  --pixel-pro-text: #d4a84c;
+
   /* Vignette: warm-tinted */
   --pixel-vignette: radial-gradient(ellipse at center, transparent 50%, rgba(10, 4, 0, 0.6) 100%);
 
