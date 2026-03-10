@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
-import { vscode } from '../vscodeApi.js'
+import { vscode } from '../wsClient.js'
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js'
 import { TimeMode, Hemisphere } from '../office/engine/dayNightCycle.js'
 import type { DayNightState } from '../office/engine/dayNightCycle.js'

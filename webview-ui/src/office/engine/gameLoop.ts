@@ -1,5 +1,5 @@
 import { MAX_DELTA_TIME_SEC } from '../../constants.js'
-import { isKioskMode } from '../../vscodeApi.js'
+import { isKioskMode } from '../../wsClient.js'
 
 export interface GameLoopCallbacks {
   update: (dt: number) => void

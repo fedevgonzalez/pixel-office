@@ -4,7 +4,7 @@ import { GalleryModal } from './GalleryModal.js'
 import { PetManagerModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
 import type { PlacedPet, PetColors, OfficeLayout, WorldBackgroundTheme } from '../office/types.js'
-import { vscode, isStandaloneMode } from '../vscodeApi.js'
+import { vscode, isStandaloneMode } from '../wsClient.js'
 import type { TimeMode, Hemisphere, DayNightState } from '../office/engine/dayNightCycle.js'
 
 interface BottomToolbarProps {

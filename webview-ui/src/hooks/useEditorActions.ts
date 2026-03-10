@@ -8,7 +8,7 @@ import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurnit
 import type { ExpandDirection } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
 import { defaultZoom } from '../office/toolUtils.js'
-import { vscode } from '../vscodeApi.js'
+import { vscode } from '../wsClient.js'
 import { LAYOUT_SAVE_DEBOUNCE_MS, ZOOM_MIN, ZOOM_MAX } from '../constants.js'
 
 export interface EditorActions {

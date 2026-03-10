@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
-import { vscode } from '../vscodeApi.js'
+import { vscode } from '../wsClient.js'
 import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
 import { ShareModal } from './ShareModal.js'
 import type { OfficeLayout } from '../office/types.js'

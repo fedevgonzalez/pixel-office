@@ -29,7 +29,7 @@ All magic numbers centralized — never inline:
 - `webview-ui/src/office/engine/officeState.ts` — Game world state
 - `webview-ui/src/office/engine/renderer.ts` — Canvas rendering
 - `webview-ui/src/office/components/OfficeCanvas.tsx` — Canvas + mouse input
-- `webview-ui/src/vscodeApi.ts` — WebSocket client (standalone mode)
+- `webview-ui/src/wsClient.ts` — WebSocket client (standalone mode)
 - Layout: `~/.pixel-office/layout.json`
 
 ## URL Modes

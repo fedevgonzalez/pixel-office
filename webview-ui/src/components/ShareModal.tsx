@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
-import { vscode, isStandaloneMode } from '../vscodeApi.js'
+import { vscode, isStandaloneMode } from '../wsClient.js'
 import type { OfficeLayout } from '../office/types.js'
 
 interface ShareModalProps {

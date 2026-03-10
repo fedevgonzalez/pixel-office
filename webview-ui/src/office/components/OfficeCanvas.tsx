@@ -17,7 +17,7 @@ import {
 } from '../../constants.js'
 import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js'
 import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js'
-import { vscode, isKioskMode, isScreenshotMode } from '../../vscodeApi.js'
+import { vscode, isKioskMode, isScreenshotMode } from '../../wsClient.js'
 import { unlockAudio } from '../../notificationSound.js'
 import type { DayNightState } from '../engine/dayNightCycle.js'
 

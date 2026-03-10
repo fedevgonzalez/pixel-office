@@ -4,7 +4,7 @@ import type { OfficeState } from '../engine/officeState.js'
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js'
 import { TILE_SIZE, CharacterState } from '../types.js'
 import { TOOL_OVERLAY_VERTICAL_OFFSET, CHARACTER_SITTING_OFFSET_PX, TOOL_OVERLAY_LABEL_Y_OFFSET } from '../../constants.js'
-import { isKioskMode } from '../../vscodeApi.js'
+import { isKioskMode } from '../../wsClient.js'
 
 interface ToolOverlayProps {
   officeState: OfficeState

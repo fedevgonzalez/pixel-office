@@ -83,3 +83,5 @@ export const isStandaloneMode = _isStandalone
 export const isKioskMode = new URLSearchParams(window.location.search).has('kiosk')
 // Screenshot mode: ?screenshot — hides all UI, auto-fits camera to office bounds
 export const isScreenshotMode = new URLSearchParams(window.location.search).has('screenshot')
+// No-agents mode: ?no-agents — skip adding agents (for clean layout screenshots)
+export const isNoAgentsMode = new URLSearchParams(window.location.search).has('no-agents')

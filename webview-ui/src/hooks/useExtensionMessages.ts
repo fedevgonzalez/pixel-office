@@ -7,7 +7,7 @@ import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js'
 import { setFloorSprites } from '../office/floorTiles.js'
 import { setWallSprites } from '../office/wallTiles.js'
 import { setCharacterTemplates } from '../office/sprites/spriteData.js'
-import { vscode } from '../vscodeApi.js'
+import { vscode, isNoAgentsMode } from '../wsClient.js'
 import { playDoneSound, setSoundEnabled } from '../notificationSound.js'
 
 export interface SubagentCharacter {
@@ -103,8 +103,10 @@ export function useExtensionMessages(
           onLayoutLoaded?.(os.getLayout())
         }
         // Add buffered agents now that layout (and seats) are correct
-        for (const p of pendingAgents) {
-          os.addAgent(p.id, p.palette, p.hueShift, p.seatId, true, p.folderName)
+        if (!isNoAgentsMode) {
+          for (const p of pendingAgents) {
+            os.addAgent(p.id, p.palette, p.hueShift, p.seatId, true, p.folderName)
+          }
         }
         pendingAgents = []
         layoutReadyRef.current = true
@@ -113,6 +115,7 @@ export function useExtensionMessages(
           saveAgentSeats(os)
         }
       } else if (msg.type === 'agentCreated') {
+        if (isNoAgentsMode) return
         const id = msg.id as number
         const folderName = msg.folderName as string | undefined
         setAgents((prev) => (prev.includes(id) ? prev : [...prev, id]))
