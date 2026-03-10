@@ -113,7 +113,7 @@ export function KioskStatusPanel({
         width: KIOSK_STATUS_PANEL_WIDTH,
         background: 'var(--pixel-kiosk-panel-bg)',
         backdropFilter: 'var(--pixel-kiosk-blur)',
-        borderLeft: '2px solid rgba(74, 74, 106, 0.5)',
+        borderLeft: '2px solid rgba(90, 74, 106, 0.5)',
         display: 'flex',
         flexDirection: 'column',
         gap: 4,

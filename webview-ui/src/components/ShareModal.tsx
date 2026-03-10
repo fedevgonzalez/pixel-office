@@ -346,10 +346,10 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
           {needsManualPaste && (
             <div style={{
               padding: '8px 10px',
-              background: 'rgba(232, 168, 76, 0.1)',
-              border: '2px solid rgba(232, 168, 76, 0.3)',
+              background: 'var(--pixel-active-bg)',
+              border: '2px solid var(--pixel-accent-dim)',
               fontSize: '20px',
-              color: 'rgba(232, 168, 76, 1)',
+              color: 'var(--pixel-accent)',
             }}>
               Layout too large for URL. Paste it manually into the GitHub Issue.
               <button

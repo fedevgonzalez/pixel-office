@@ -93,6 +93,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode 
           <span id="settings-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Settings</span>
           <button
             onClick={onClose}
+            aria-label="Close settings"
             className="pixel-close-btn"
             style={{
               borderRadius: 0,

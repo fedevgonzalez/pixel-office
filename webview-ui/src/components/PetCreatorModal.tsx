@@ -47,7 +47,7 @@ const sectionLabelStyle: React.CSSProperties = {
   fontSize: '14px',
   letterSpacing: '0.08em',
   textTransform: 'uppercase' as const,
-  color: 'rgba(255, 245, 235, 0.35)',
+  color: 'var(--pixel-text-hint)',
   marginBottom: 6,
   fontWeight: 'bold',
 }
@@ -60,7 +60,6 @@ const inputStyle: React.CSSProperties = {
   color: 'rgba(255, 245, 235, 0.9)',
   border: '2px solid var(--pixel-border)',
   borderRadius: 0,
-  outline: 'none',
   boxSizing: 'border-box',
 }
 
@@ -681,7 +680,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
           </div>
           <button
             onClick={onClose}
-            aria-label="Close"
+            aria-label="Close pet manager"
             style={{
               background: 'transparent',
               border: 'none',

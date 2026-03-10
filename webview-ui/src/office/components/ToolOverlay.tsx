@@ -296,13 +296,8 @@ export function ToolOverlay({
                   }}
                   title="Close agent"
                   aria-label="Close agent"
+                  className="pixel-close-btn"
                   style={closeButtonStyle}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.color = 'var(--pixel-close-hover)'
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.color = 'var(--pixel-close-text)'
-                  }}
                 >
                   ×
                 </button>

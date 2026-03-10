@@ -68,10 +68,10 @@ export function DebugView({
       <div
         key={id}
         style={{
-          border: `2px solid ${isSelected ? '#e8a84c' : '#5a4a6a'}`,
+          border: `2px solid ${isSelected ? 'var(--pixel-accent)' : 'var(--pixel-border)'}`,
           borderRadius: 0,
           padding: '6px 8px',
-          background: isSelected ? 'var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.04))' : undefined,
+          background: isSelected ? 'var(--pixel-active-bg)' : undefined,
         }}
       >
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 0 }}>
@@ -81,8 +81,8 @@ export function DebugView({
               borderRadius: 0,
               padding: '6px 10px',
               fontSize: '26px',
-              background: isSelected ? 'rgba(232, 168, 76, 0.25)' : undefined,
-              color: isSelected ? 'rgba(255, 245, 235, 0.9)' : undefined,
+              background: isSelected ? 'var(--pixel-active-bg)' : undefined,
+              color: isSelected ? 'var(--pixel-text)' : undefined,
               fontWeight: isSelected ? 'bold' : undefined,
             }}
           >
@@ -90,15 +90,16 @@ export function DebugView({
           </button>
           <button
             onClick={() => vscode.postMessage({ type: 'closeAgent', id })}
+            aria-label={`Close agent ${id}`}
             style={{
               borderRadius: 0,
               padding: '6px 8px',
               fontSize: '26px',
               opacity: 0.7,
-              background: isSelected ? 'rgba(232, 168, 76, 0.25)' : undefined,
-              color: isSelected ? 'rgba(255, 245, 235, 0.9)' : undefined,
+              cursor: 'pointer',
+              background: isSelected ? 'var(--pixel-active-bg)' : undefined,
+              color: isSelected ? 'var(--pixel-text)' : undefined,
             }}
-            title="Close agent"
           >
             ×
           </button>

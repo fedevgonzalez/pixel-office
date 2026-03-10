@@ -208,8 +208,14 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         {/* Content */}
         <div style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}>
           {loading && (
-            <div style={{ textAlign: 'center', padding: '40px 0', fontSize: '22px', color: 'var(--pixel-text-dim)' }}>
-              <span className="pixel-agents-pulse">Loading gallery...</span>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, padding: '4px 0' }}>
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div key={i} className="pixel-agents-pulse" style={{
+                  height: 160,
+                  background: 'rgba(255, 245, 235, 0.04)',
+                  border: '2px solid rgba(255, 245, 235, 0.06)',
+                }} />
+              ))}
             </div>
           )}
 
@@ -240,9 +246,16 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                   <div style={{ fontSize: '22px', color: 'var(--pixel-text)', marginBottom: 6 }}>
                     No community layouts yet
                   </div>
-                  <div style={{ fontSize: '16px', color: 'var(--pixel-text-dim)', lineHeight: 1.5 }}>
+                  <div style={{ fontSize: '16px', color: 'var(--pixel-text-dim)', lineHeight: 1.5, marginBottom: 12 }}>
                     Be the first to share your office design!
                   </div>
+                  <button
+                    onClick={() => setIsShareOpen(true)}
+                    className="pixel-btn pixel-share-btn"
+                    style={{ padding: '8px 16px', fontSize: '20px', border: '2px solid var(--pixel-agent-border)' }}
+                  >
+                    Share Your Layout
+                  </button>
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${GALLERY_CARD_MIN_WIDTH}px, 1fr))`, gap: GALLERY_CARD_GAP }}>
@@ -382,7 +395,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
       {/* Action */}
       {isConfirming ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 8px' }}>
-          <span style={{ fontSize: '18px', color: 'rgba(232, 168, 76, 0.9)', flex: 1 }}>Replace furniture and floor? Pets stay.</span>
+          <span style={{ fontSize: '18px', color: 'var(--pixel-accent)', flex: 1 }}>Replace furniture and floor? Pets stay.</span>
           <button
             onClick={onImport}
             aria-label="Replace layout and import"

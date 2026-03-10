@@ -86,7 +86,7 @@ export function ZoomControls({ zoom, onZoomChange }: ZoomControlsProps) {
             color: 'var(--pixel-text)',
             userSelect: 'none',
             opacity: fadeOut ? 0 : 1,
-            transition: `opacity ${ZOOM_LEVEL_FADE_DURATION_SEC}s ease-out`,
+            transition: `opacity ${ZOOM_LEVEL_FADE_DURATION_SEC}s ease-out`, /* intentional: smooth fade for zoom level indicator */
             pointerEvents: 'none',
           }}
         >

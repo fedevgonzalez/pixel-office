@@ -136,7 +136,7 @@ export function BottomToolbar({
                   display: 'block',
                   width: '100%',
                   textAlign: 'left',
-                  padding: '6px 10px',
+                  padding: '8px 10px',
                   fontSize: '22px',
                   color: 'var(--pixel-text)',
                   background: 'transparent',
@@ -154,7 +154,7 @@ export function BottomToolbar({
       </div>
       {/* Separator between agent button and other toolbar buttons */}
       {!isStandaloneMode && (
-        <div style={{
+        <div role="separator" aria-orientation="vertical" style={{
           width: 1,
           height: 20,
           background: 'var(--pixel-border)',

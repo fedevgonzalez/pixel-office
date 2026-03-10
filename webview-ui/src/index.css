@@ -25,6 +25,9 @@
   /* Shadow: warm-tinted black */
   --pixel-shadow: 2px 2px 0px #0a0812;
 
+  /* Font */
+  --pixel-font: 'FS Pixel Sans', sans-serif;
+
   /* Text: warm cream whites */
   --pixel-text: rgba(255, 245, 235, 0.9);
   --pixel-text-dim: rgba(255, 245, 235, 0.7);
@@ -49,9 +52,9 @@
   --pixel-close-hover: #d44;
 
   /* Hints & confirmations */
-  --pixel-hint-bg: #c87a4a;
-  --pixel-reset-text: #ecc;
-  --pixel-danger-bg: #a33;
+  --pixel-hint-bg: #c87a4a;          /* terracotta — editor hint banners */
+  --pixel-reset-text: #ecc;          /* soft pink-cream — reset confirmation text */
+  --pixel-danger-bg: #a33;           /* dark red — destructive action backgrounds */
   --pixel-error: rgba(255, 100, 100, 0.8);
 
   /* Vignette: warm-tinted */
@@ -68,10 +71,14 @@
   --pixel-kiosk-panel-bg: rgba(20, 14, 24, 0.8);
   --pixel-kiosk-blur: blur(4px);
 
-  /* ToolOverlay z-index layers */
+  /* Z-index layers */
+  --pixel-modal-backdrop-z: 49;
+  --pixel-modal-z: 50;
+  --pixel-modal-nested-backdrop-z: 51;
+  --pixel-modal-nested-z: 52;
+  --pixel-controls-z: 50;
   --pixel-overlay-z: 100;
   --pixel-overlay-selected-z: 110;
-  --pixel-controls-z: 50;
 }
 
 html, body, #root {

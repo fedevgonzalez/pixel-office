@@ -72,6 +72,7 @@ function EditActionBar({ editor, editorState: es }: { editor: ReturnType<typeof 
       <button
         style={undoDisabled ? actionBarBtnDisabled : actionBarBtnStyle}
         onClick={undoDisabled ? undefined : editor.handleUndo}
+        disabled={undoDisabled}
         title="Undo (Ctrl+Z)"
       >
         Undo
@@ -79,6 +80,7 @@ function EditActionBar({ editor, editorState: es }: { editor: ReturnType<typeof 
       <button
         style={redoDisabled ? actionBarBtnDisabled : actionBarBtnStyle}
         onClick={redoDisabled ? undefined : editor.handleRedo}
+        disabled={redoDisabled}
         title="Redo (Ctrl+Y)"
       >
         Redo
@@ -227,7 +229,7 @@ function App() {
 
   if (!layoutReady) {
     return (
-      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--vscode-foreground, var(--pixel-text))' }}>
+      <div role="status" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--vscode-foreground, var(--pixel-text))' }}>
         <span
           className="pixel-agents-pulse"
           style={{
