@@ -1,3 +1,4 @@
+# Adjust User, ExecStart path, and other paths for your system
 [Unit]
 Description=Pixel Office Wall Display Monitor
 After=network-online.target pixel-office-server.service
@@ -6,7 +7,7 @@ Wants=network-online.target pixel-office-server.service
 [Service]
 Type=simple
 User=root
-ExecStart=/home/fedev/homeserver/scripts/pixel-office-display.sh
+ExecStart=/path/to/scripts/pixel-office-display.sh
 Restart=always
 RestartSec=10
 StandardOutput=journal

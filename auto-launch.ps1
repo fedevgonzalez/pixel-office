@@ -7,7 +7,7 @@ $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $reporterScript = Join-Path $scriptDir "pixel-office-reporter.js"
 $checkInterval = 5  # seconds
 $mutexName = "Global\PixelOfficeAutoLaunch"
-$serverUrl = if ($env:PIXEL_OFFICE_SERVER) { $env:PIXEL_OFFICE_SERVER } else { "ws://pixel.lab:3300/ws/report" }
+$serverUrl = if ($env:PIXEL_OFFICE_SERVER) { $env:PIXEL_OFFICE_SERVER } else { "ws://localhost:3300/ws/report" }
 
 # --- First-run setup ---
 $startupDir = [System.IO.Path]::Combine($env:APPDATA, 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup')

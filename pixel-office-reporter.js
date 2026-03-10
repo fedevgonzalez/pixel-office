@@ -3,10 +3,10 @@
 // sessions and reports them to a central Pixel Office server via WebSocket.
 //
 // Usage: node pixel-office-reporter.js [server-url]
-// Example: node pixel-office-reporter.js ws://192.168.68.100:3300/ws/report
+// Example: node pixel-office-reporter.js ws://localhost:3300/ws/report
 //
 // Env vars:
-//   PIXEL_OFFICE_SERVER — WebSocket URL (default: ws://192.168.68.100:3300/ws/report)
+//   PIXEL_OFFICE_SERVER — WebSocket URL (default: ws://localhost:3300/ws/report)
 //   PIXEL_OFFICE_MACHINE_ID — Machine identifier (default: hostname)
 
 const fs = require('fs');

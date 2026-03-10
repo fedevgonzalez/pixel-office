@@ -1,3 +1,4 @@
+# Adjust User, WorkingDirectory, and ExecStart paths for your system
 [Unit]
 Description=Pixel Office Server (Node.js)
 After=network-online.target
@@ -5,9 +6,9 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=fedev
-WorkingDirectory=/home/fedev/pixel-office
-ExecStart=/usr/bin/node /home/fedev/pixel-office/standalone-server.js
+User=<user>
+WorkingDirectory=/home/<user>/pixel-office
+ExecStart=/usr/bin/node /home/<user>/pixel-office/standalone-server.js
 Restart=always
 RestartSec=5
 StandardOutput=journal

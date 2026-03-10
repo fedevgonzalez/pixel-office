@@ -38,7 +38,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - Bridges the gap: kiosk shows status, phone gets the alert
 
 ### Multi-Machine Support
-- [x] Centralized panel: homeserver sees its own agents + dev PC agents
+- [x] Centralized panel: central server sees its own agents + dev PC agents
 - [x] Label agents by machine of origin
 - [x] WebSocket reporter architecture (pixel-office-reporter.js)
 - [x] Auto-deploy via git pre-push hook
@@ -169,7 +169,7 @@ See `docs/asset-sources.md` for open source sprite libraries.
 - [x] False /exit detection fix (context compaction summaries, live stream)
 - [x] MCP tool name display (strip `mcp__server__` prefix)
 - [x] 8-hour session age filter (idle sessions stay visible all day)
-- [x] Homeserver kiosk auto-display (systemd + X11 + Chrome)
+- [x] Server kiosk auto-display (systemd + X11 + Chrome)
 - [x] Passwordless sudo for service restarts
 - [x] Smart pre-push hook (only restarts server when code changes)
 - [x] Community gallery (browse + import layouts from GitHub repo)

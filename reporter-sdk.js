@@ -4,7 +4,7 @@
 //
 // Usage:
 //   const { createPixelReporter } = require('./reporter-sdk');
-//   const reporter = createPixelReporter({ serverUrl: 'ws://192.168.68.100:3300/ws/report', agentName: 'finance-agent' });
+//   const reporter = createPixelReporter({ serverUrl: 'ws://localhost:3300/ws/report', agentName: 'finance-agent' });
 //   reporter.connect();
 //
 //   // When a scheduled task starts:
