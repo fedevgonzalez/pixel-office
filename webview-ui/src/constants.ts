@@ -15,8 +15,8 @@ export const WANDER_PAUSE_MIN_SEC = 2.0
 export const WANDER_PAUSE_MAX_SEC = 20.0
 export const WANDER_MOVES_BEFORE_REST_MIN = 3
 export const WANDER_MOVES_BEFORE_REST_MAX = 6
-export const SEAT_REST_MIN_SEC = 120.0
-export const SEAT_REST_MAX_SEC = 240.0
+export const SEAT_REST_MIN_SEC = 60.0
+export const SEAT_REST_MAX_SEC = 120.0
 
 // ── Matrix Effect ────────────────────────────────────────────
 export const MATRIX_EFFECT_DURATION_SEC = 0.3
@@ -254,10 +254,10 @@ export const PET_TUXEDO_DEFAULT_COLOR = '#e8e0d8'
 
 // ── Break Room ──────────────────────────────────────────────
 /** Chance (0-1) an idle agent visits a break room item instead of random wandering */
-export const BREAK_ROOM_VISIT_CHANCE = 0.25
+export const BREAK_ROOM_VISIT_CHANCE = 0.5
 /** How long an agent idles at a break room item (coffee machine, couch) */
-export const BREAK_ROOM_REST_MIN_SEC = 5.0
-export const BREAK_ROOM_REST_MAX_SEC = 15.0
+export const BREAK_ROOM_REST_MIN_SEC = 10.0
+export const BREAK_ROOM_REST_MAX_SEC = 30.0
 
 // ── Day/Night Cycle ─────────────────────────────────────────
 /** Time period boundaries (24h clock) */
