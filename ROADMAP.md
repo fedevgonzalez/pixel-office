@@ -1,24 +1,23 @@
-# Pixel Office — Product Roadmap
+# Pixel Office — Roadmap
 
 ## Vision
 
-Real-time visual dashboard for Claude Code agents. Standalone web server with kiosk mode for wall-mounted displays, monitoring all agents across projects. Evolving into a full "virtual office" experience with personality, ambiance, and community.
+Real-time visual dashboard for Claude Code agents. Standalone web server with kiosk mode for wall-mounted displays, monitoring all agents across projects. The goal: make it feel like a living virtual office, not just a status panel.
 
 ---
 
-## Tier 0 — Identity & Hard Fork
+## Branding & Identity
 
-### Branding
 - [x] New product name: **Pixel Office**
 - [ ] New logo and icon
 - [ ] Color palette and visual identity
-- [x] Landing page / README with product positioning
+- [x] README with clear description
 - [x] Independent repository for divergent development
 - [x] Credit original: "Based on Pixel Agents by Pablo De Lucca (MIT)"
 
 ---
 
-## Tier 1 — Core Value (Next Up)
+## Next Up
 
 ### Timeline / Activity Log
 - Scrollable panel with history of what each agent did
@@ -50,7 +49,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 
 ---
 
-## Tier 2 — Product Differentiation
+## Fun Features
 
 ### Interactive Control Panel
 - Approve permissions directly from the web UI
@@ -72,9 +71,9 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 
 ---
 
-## Tier 3 — Experience & Ambiance
+## Ambiance & Polish
 
-### Office Pets / Mascots ✅ Done
+### Office Pets / Mascots (done)
 - [x] Cats and dogs with personality-based behavior (lazy, playful, chill, energetic)
 - [x] Pet Creator modal: species, colors, coat patterns, personality, animated preview
 - [x] React to agent activity (perk up when tools run, sleep when office idle >120s)
@@ -84,14 +83,14 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [ ] Pixel art editor for custom pet sprites (future)
 - [ ] Photo → pixel art conversion (future)
 
-### Door Spawn Animation ✅ Done
+### Door Spawn Animation (done)
 - [x] Door furniture item (16x32, wall-placeable, backgroundTiles: 2)
 - [x] Walk-in: character appears at door → ENTERING state → walks to seat
 - [x] Walk-out: character → LEAVING state → walks to nearest door → matrix despawn
 - [x] Fallback: matrix effect when no door exists
 - [ ] Door open/close animation timing (future enhancement)
 
-### Break Room ✅ Done
+### Break Room (done)
 - [x] Coffee machine (isInteractionPoint) and break couch (isBreakRoom) furniture
 - [x] Idle agents: 25% chance to visit break room, rest 5-15s
 - [x] `getBreakRoomTiles()` finds walkable tiles adjacent to break room items
@@ -117,9 +116,9 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 
 ---
 
-## Tier 4 — Community & SaaS
+## Community
 
-### Layout Gallery ✅ Phase A Done
+### Layout Gallery (Phase A done)
 - [x] `pixel-office-layouts` GitHub repo with seeded layouts
 - [x] In-app "Community" button with browse/preview/import UI
 - [x] One-click import from community gallery
@@ -130,17 +129,6 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [ ] Ratings / download count (Phase B)
 - [ ] "Featured layouts" curated selection
 
-### Teams / Multi-User
-- Each dev's agents visible on a shared dashboard
-- "Who's using Claude right now and on what"
-- Basic auth for the web server
-- Role-based access (viewer / editor / admin)
-
-### Public API
-- Documented REST API for external integrations
-- Grafana datasource, Home Assistant sensor
-- GitHub Action that reports agent activity on PRs
-
 ### Replay Mode
 - Load old JSONL files and replay sessions as if live
 - Useful for demos, debugging, onboarding
@@ -148,7 +136,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 
 ---
 
-## Current State (Done)
+## Done
 
 - [x] Standalone web server (HTTP + WebSocket)
 - [x] Auto-discovery of agents across all projects

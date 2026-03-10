@@ -167,7 +167,7 @@ The app works without it — you get characters and a basic layout, but not the 
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full plan. Next up: timeline/activity log, aggregate metrics, push notifications.
+See [ROADMAP.md](ROADMAP.md) for what's planned. Next up: timeline/activity log, aggregate metrics, push notifications.
 
 ## License
 
