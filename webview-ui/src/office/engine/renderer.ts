@@ -1,4 +1,4 @@
-import { TileType, TILE_SIZE, CharacterState, ZoneType } from '../types.js'
+import { TileType, TILE_SIZE, CharacterState } from '../types.js'
 import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture, ZoneType as ZoneTypeVal } from '../types.js'
 import { PetState } from '../types.js'
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js'
@@ -53,10 +53,8 @@ import {
   RESTING_AGENT_LABEL_TEXT_ALPHA,
   RESTING_AGENT_LABEL_BG_ALPHA,
   RESTING_AGENT_LABEL_BORDER_ALPHA,
-  ZONE_CHILL_FILL,
-  ZONE_CHILL_BORDER,
-  ZONE_FOCUS_FILL,
-  ZONE_FOCUS_BORDER,
+  ZONE_FILL,
+  ZONE_BORDER,
 } from '../../constants.js'
 
 // ── Render functions ────────────────────────────────────────────
@@ -454,11 +452,10 @@ export function renderZoneOverlay(
       const x = offsetX + c * s
       const y = offsetY + r * s
       // Fill
-      ctx.fillStyle = zone === ZoneType.CHILL ? ZONE_CHILL_FILL : ZONE_FOCUS_FILL
+      ctx.fillStyle = ZONE_FILL
       ctx.fillRect(x, y, s, s)
       // Border on edges where adjacent tile has different/no zone
-      const borderColor = zone === ZoneType.CHILL ? ZONE_CHILL_BORDER : ZONE_FOCUS_BORDER
-      ctx.strokeStyle = borderColor
+      ctx.strokeStyle = ZONE_BORDER
       ctx.lineWidth = Math.max(1, zoom)
       const left = c === 0 || zones[r * cols + (c - 1)] !== zone
       const right = c === cols - 1 || zones[r * cols + (c + 1)] !== zone

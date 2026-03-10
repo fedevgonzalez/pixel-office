@@ -270,7 +270,6 @@ export interface WorldBackground {
 }
 
 export const ZoneType = {
-  CHILL: 'chill',
   FOCUS: 'focus',
 } as const
 export type ZoneType = (typeof ZoneType)[keyof typeof ZoneType]

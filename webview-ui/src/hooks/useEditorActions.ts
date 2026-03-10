@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef } from 'react'
 import type { OfficeState } from '../office/engine/officeState.js'
 import type { EditorState } from '../office/editor/editorState.js'
-import { EditTool } from '../office/types.js'
+import { EditTool, ZoneType } from '../office/types.js'
 import { TileType } from '../office/types.js'
-import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture, ZoneType as ZoneTypeVal } from '../office/types.js'
+import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture } from '../office/types.js'
 import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout } from '../office/editor/editorActions.js'
 import type { ExpandDirection } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
@@ -35,7 +35,6 @@ export interface EditorActions {
   handleReset: () => void
   handleSave: () => void
   handleZoomChange: (zoom: number) => void
-  handleZoneTypeChange: (type: ZoneTypeVal) => void
   handleEditorTileAction: (col: number, row: number) => void
   handleEditorEraseAction: (col: number, row: number) => void
   handleEditorSelectionChange: () => void
@@ -486,9 +485,9 @@ export function useEditorActions(
       // First tile of drag determines direction: if zone already set → clearing, else → painting.
       // This prevents inadvertent toggles when dragging back over a just-painted tile.
       if (editorState.zoneDragAdding === null) {
-        editorState.zoneDragAdding = currentZone !== editorState.selectedZoneType
+        editorState.zoneDragAdding = currentZone !== ZoneType.FOCUS
       }
-      const newZoneValue = editorState.zoneDragAdding ? editorState.selectedZoneType : null
+      const newZoneValue = editorState.zoneDragAdding ? ZoneType.FOCUS : null
 
       // No change needed (e.g. clearing a tile that was already clear)
       if (currentZone === newZoneValue) {
@@ -540,11 +539,6 @@ export function useEditorActions(
     }
   }, [getOfficeState, applyEdit])
 
-  const handleZoneTypeChange = useCallback((type: ZoneTypeVal) => {
-    editorState.selectedZoneType = type
-    setEditorTick((n) => n + 1)
-  }, [editorState])
-
   return {
     isEditMode,
     editorTick,
@@ -561,7 +555,6 @@ export function useEditorActions(
     handleWallColorChange,
     handleSelectedFurnitureColorChange,
     handleFurnitureTypeChange,
-    handleZoneTypeChange,
     handleDeleteSelected,
     handleRotateSelected,
     handleToggleState,

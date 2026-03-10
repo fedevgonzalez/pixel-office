@@ -1,5 +1,5 @@
-import { EditTool, TileType, ZoneType } from '../types.js'
-import type { TileType as TileTypeVal, OfficeLayout, FloorColor, ZoneType as ZoneTypeVal } from '../types.js'
+import { EditTool, TileType } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, FloorColor } from '../types.js'
 import { UNDO_STACK_MAX_SIZE, DEFAULT_FLOOR_COLOR, DEFAULT_WALL_COLOR } from '../../constants.js'
 
 export class EditorState {
@@ -7,9 +7,6 @@ export class EditorState {
   activeTool: EditTool = EditTool.SELECT
   selectedTileType: TileTypeVal = TileType.FLOOR_1
   selectedFurnitureType: string = 'desk' // FurnitureType.DESK or asset ID
-
-  // Zone painting
-  selectedZoneType: ZoneTypeVal = ZoneType.CHILL
 
   // Floor color settings (applied to new tiles when painting)
   floorColor: FloorColor = { ...DEFAULT_FLOOR_COLOR }
