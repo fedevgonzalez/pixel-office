@@ -6,7 +6,7 @@ import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
 import { EditTool } from './office/types.js'
-import type { PlacedPet, PetColors } from './office/types.js'
+import type { PlacedPet, PetColors, WorldBackgroundTheme } from './office/types.js'
 import { isRotatable } from './office/layout/furnitureCatalog.js'
 import { vscode } from './vscodeApi.js'
 import { useExtensionMessages } from './hooks/useExtensionMessages.js'
@@ -204,6 +204,14 @@ function App() {
     }
   }, [])
 
+  const handleBackgroundThemeChange = useCallback((theme: WorldBackgroundTheme) => {
+    const os = getOfficeState()
+    const layout = os.getLayout()
+    const newLayout = { ...layout, background: { ...(layout.background || {}), theme } }
+    os.rebuildFromLayout(newLayout)
+    vscode.postMessage({ type: 'saveLayout', layout: newLayout })
+  }, [])
+
   const handleClick = useCallback((agentId: number) => {
     // If clicked agent is a sub-agent, focus the parent's terminal instead
     const os = getOfficeState()
@@ -307,6 +315,8 @@ function App() {
           onEditPet={handleEditPet}
           getLayout={() => getOfficeState().getLayout()}
           dayNight={dayNight}
+          backgroundTheme={getOfficeState().getLayout().background?.theme}
+          onBackgroundThemeChange={handleBackgroundThemeChange}
         />
       )}
 

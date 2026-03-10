@@ -308,6 +308,10 @@ export const RESTING_AGENT_LABEL_BORDER_ALPHA = 0.25
 /** Font size (px) for kiosk sidebar "N on break" footer */
 export const RESTING_COUNT_LABEL_FONT_SIZE = 22
 
+// ── World Background ────────────────────────────────────────
+/** Extra padding tiles in kiosk full-office view when a background theme is active */
+export const KIOSK_BG_PAD_TILES = 3
+
 // ── Game Logic ───────────────────────────────────────────────
 export const MAX_DELTA_TIME_SEC = 0.1
 export const WAITING_BUBBLE_DURATION_SEC = 2.0

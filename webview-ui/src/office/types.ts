@@ -243,6 +243,31 @@ export interface Pet {
   perkTimer: number
 }
 
+export const WorldBackgroundTheme = {
+  VOID: 'void',
+  SUBURBAN: 'suburban',
+  URBAN: 'urban',
+  PARK: 'park',
+  ROOFTOP: 'rooftop',
+} as const
+export type WorldBackgroundTheme = (typeof WorldBackgroundTheme)[keyof typeof WorldBackgroundTheme]
+
+export interface PlacedDecoration {
+  /** Decoration type key (e.g. 'suburban:tree_oak', 'suburban:car_red') */
+  type: string
+  /** Col relative to office top-left (can be negative for left/above) */
+  col: number
+  /** Row relative to office top-left (can be negative) */
+  row: number
+}
+
+export interface WorldBackground {
+  /** Theme identifier. 'void' = no background (default). */
+  theme: WorldBackgroundTheme
+  /** User-placed outdoor decorations (layered on top of procedural ones) */
+  decorations?: PlacedDecoration[]
+}
+
 export interface OfficeLayout {
   version: 1
   cols: number
@@ -253,6 +278,8 @@ export interface OfficeLayout {
   tileColors?: Array<FloorColor | null>
   /** Pets placed in the office */
   pets?: PlacedPet[]
+  /** World background theme and outdoor decorations */
+  background?: WorldBackground
 }
 
 export interface Character {

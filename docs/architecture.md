@@ -54,6 +54,10 @@ webview-ui/src/               — React + TypeScript (Vite)
       matrixEffect.ts         — Matrix-style spawn/despawn digital rain effect
       dayNightCycle.ts        — Time engine: wall clock → 5 periods with seasonal offset
       dayNightRenderer.ts     — Canvas tint overlay + radial light glows on furniture
+    backgrounds/
+      backgroundSprites.ts    — Hand-drawn 16x16 outdoor tile sprites (grass, sidewalk, road, trees)
+      backgroundThemes.ts     — Theme config registry (zone widths, decoration placement rules)
+      renderWorldBackground.ts — Renders terrain + decorations behind the office grid
     components/
       OfficeCanvas.tsx        — Canvas, resize, DPR, mouse hit-testing, edit interactions, drag-to-move
       ToolOverlay.tsx          — Activity status label above hovered/selected character + close button
@@ -175,6 +179,18 @@ Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Er
 **React hook** (`useDayNight.ts`): Manages state + mode + hemisphere. Updates every 30s (`UPDATE_INTERVAL_MS`). Auto-detects hemisphere from timezone on first visit (no permission prompt); user override persisted separately. Returns `{ state, mode, setMode, hemisphere, setHemisphere }`.
 
 **Integration**: `renderFrame()` calls `renderDayNightOverlay()` after scene+bubbles, before editor overlays. `dayNightRef` pattern in `OfficeCanvas.tsx` avoids game loop restart on state changes.
+
+## World Background
+
+**Theme system** (`backgrounds/`): Renders outdoor terrain around the office building — grass, sidewalks, roads, trees. Each theme defines zone widths (sidewalk, lawn, road), ground tile sprites, and procedural decoration placement rules.
+
+**Rendering**: `renderWorldBackground()` runs before `renderTileGrid()` in the frame pipeline. It fills the canvas with a sky/ground color (lerped between day/night fills using `darkness`), then draws zone-specific tiles for all visible tiles outside the office bounds. Decorations (trees, lampposts, flowers) are placed procedurally based on spacing rules per zone.
+
+**Themes**: `void` (default — no background), `suburban` (grass lawn, sidewalk, road with yellow center line, oak trees, lampposts). More planned: `urban`, `park`, `rooftop`.
+
+**Data**: `OfficeLayout.background?: { theme: WorldBackgroundTheme, decorations?: PlacedDecoration[] }`. Optional field — layouts without it render as before (void). Theme selected in Settings modal, saved to layout JSON.
+
+**Performance**: Only visible tiles rendered (viewport-clipped loop, ±30 tiles from office edges). Uses same `getCachedSprite` cache as furniture/floor tiles. At kiosk zoom (~4x), typically <500 tile draws per frame.
 
 ## Condensed Lessons
 

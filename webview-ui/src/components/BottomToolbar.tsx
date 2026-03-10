@@ -3,7 +3,7 @@ import { SettingsModal } from './SettingsModal.js'
 import { GalleryModal } from './GalleryModal.js'
 import { PetManagerModal } from './PetCreatorModal.js'
 import type { WorkspaceFolder } from '../hooks/useExtensionMessages.js'
-import type { PlacedPet, PetColors, OfficeLayout } from '../office/types.js'
+import type { PlacedPet, PetColors, OfficeLayout, WorldBackgroundTheme } from '../office/types.js'
 import { vscode, isStandaloneMode } from '../vscodeApi.js'
 import type { TimeMode, Hemisphere, DayNightState } from '../office/engine/dayNightCycle.js'
 
@@ -26,6 +26,8 @@ interface BottomToolbarProps {
     hemisphere: Hemisphere
     setHemisphere: (h: Hemisphere) => void
   }
+  backgroundTheme?: WorldBackgroundTheme
+  onBackgroundThemeChange?: (theme: WorldBackgroundTheme) => void
 }
 
 const panelStyle: React.CSSProperties = {
@@ -67,6 +69,8 @@ export function BottomToolbar({
   onEditPet,
   getLayout,
   dayNight,
+  backgroundTheme,
+  onBackgroundThemeChange,
 }: BottomToolbarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
@@ -234,6 +238,8 @@ export function BottomToolbar({
           isDebugMode={isDebugMode}
           onToggleDebugMode={onToggleDebugMode}
           dayNight={dayNight}
+          backgroundTheme={backgroundTheme}
+          onBackgroundThemeChange={onBackgroundThemeChange}
         />
       </div>
     </div>

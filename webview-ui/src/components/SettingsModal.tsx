@@ -4,6 +4,7 @@ import { vscode } from '../vscodeApi.js'
 import { isSoundEnabled, setSoundEnabled } from '../notificationSound.js'
 import { TimeMode, Hemisphere } from '../office/engine/dayNightCycle.js'
 import type { DayNightState } from '../office/engine/dayNightCycle.js'
+import type { WorldBackgroundTheme } from '../office/types.js'
 
 interface SettingsModalProps {
   isOpen: boolean
@@ -17,6 +18,8 @@ interface SettingsModalProps {
     hemisphere: Hemisphere
     setHemisphere: (h: Hemisphere) => void
   }
+  backgroundTheme?: WorldBackgroundTheme
+  onBackgroundThemeChange?: (theme: WorldBackgroundTheme) => void
 }
 
 // ── Style constants ──────────────────────────────────────────────────────────
@@ -167,7 +170,7 @@ const aboutSection: React.CSSProperties = {
 
 // ── Component ────────────────────────────────────────────────────────────────
 
-export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode, dayNight }: SettingsModalProps) {
+export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode, dayNight, backgroundTheme, onBackgroundThemeChange }: SettingsModalProps) {
   const dialogRef = useModalFocus(isOpen)
   const [soundLocal, setSoundLocal] = useState(isSoundEnabled)
 
@@ -319,6 +322,35 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
                 </span>
               </div>
             )}
+          </>
+        )}
+
+        {/* ── Section: World Background ──────────────────── */}
+        {onBackgroundThemeChange && (
+          <>
+            <div style={divider} />
+            <div style={sectionLabel} aria-hidden="true">World Background</div>
+            <div style={configRow}>
+              <label
+                htmlFor="settings-bg-theme"
+                style={{ fontSize: '22px', color: 'var(--pixel-text)', cursor: 'default', flexShrink: 0 }}
+              >
+                Theme
+              </label>
+              <select
+                id="settings-bg-theme"
+                value={backgroundTheme ?? 'void'}
+                onChange={(e) => onBackgroundThemeChange(e.target.value as WorldBackgroundTheme)}
+                className="pixel-settings-select"
+                style={selectInput}
+              >
+                <option value="void">None</option>
+                <option value="suburban">Suburban</option>
+                <option value="urban">Urban (coming soon)</option>
+                <option value="park">Park (coming soon)</option>
+                <option value="rooftop">Rooftop (coming soon)</option>
+              </select>
+            </div>
           </>
         )}
 

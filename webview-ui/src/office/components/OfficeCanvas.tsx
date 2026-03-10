@@ -382,6 +382,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           isScreenshotMode,
           isScreenshotMode ? undefined : dayNightRef.current,
           isScreenshotMode ? undefined : officeState.getLayout().furniture,
+          officeState.getLayout().background?.theme,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 

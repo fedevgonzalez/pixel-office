@@ -10,6 +10,8 @@ import { renderMatrixEffect } from './matrixEffect.js'
 import { isKioskMode } from '../../vscodeApi.js'
 import type { DayNightState } from './dayNightCycle.js'
 import { renderDayNightOverlay } from './dayNightRenderer.js'
+import type { WorldBackgroundTheme } from '../types.js'
+import { renderWorldBackground } from '../backgrounds/renderWorldBackground.js'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles.js'
 import {
@@ -705,6 +707,7 @@ export function renderFrame(
   hideBubbles?: boolean,
   dayNight?: DayNightState,
   placedFurniture?: PlacedFurniture[],
+  backgroundTheme?: WorldBackgroundTheme,
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -723,6 +726,11 @@ export function renderFrame(
   const mapH = rows * TILE_SIZE * zoom
   const offsetX = Math.floor((canvasWidth - mapW) / 2) + Math.round(panX)
   const offsetY = Math.floor((canvasHeight - mapH) / 2) + Math.round(panY)
+
+  // World background (terrain, zones, decorations) — drawn behind the office
+  if (backgroundTheme && backgroundTheme !== 'void') {
+    renderWorldBackground(ctx, canvasWidth, canvasHeight, backgroundTheme, cols, rows, offsetX, offsetY, zoom, dayNight)
+  }
 
   // Draw tiles (floor + wall base color)
   renderTileGrid(ctx, tileMap, offsetX, offsetY, zoom, tileColors, layoutCols)

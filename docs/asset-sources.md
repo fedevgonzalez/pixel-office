@@ -45,13 +45,32 @@ Curated list of commercially-safe pixel art assets for Pixel Office development.
 | **DENZI's Time, Weather & Biome GUI** | DENZI | Check page | Rain/snow animation, sun/moon positioning, cloud layers |
 | **Weather Particle Sprites** | EMI EMI GAMES | Check page | Rain, cloud, snow, leaf particles |
 
+## Outdoor / World Background (CC0)
+
+| Pack | Author | Contents | Scale | URL |
+|------|--------|----------|-------|-----|
+| **Roguelike Modern City** | Kenney | 1,036 tiles: roads, parking, buildings, urban details | 16x16 | kenney.nl/assets/roguelike-modern-city |
+| **RPG Urban Pack** | Kenney | 480+ tiles: vehicles, roads, buildings, 6 characters | 16x16 | kenney.nl/assets/rpg-urban-pack |
+| **16x16 Industrial Tileset** | 0x72 | Industrial tiles, animated characters, objects | 16x16 | 0x72.itch.io/16x16-industrial-tileset |
+| **CC0 Top Down Tileset** | RGS_Dev | Basic terrain tiles in 5 color variations | 16x16 | rgsdev.itch.io/free-cc0-top-down-tileset-template-pixel-art |
+
+## Outdoor / World Background (CC-BY)
+
+| Pack | Author | Contents | Scale | URL |
+|------|--------|----------|-------|-----|
+| **DawnLike v1.81** | DragonDePlatino | Comprehensive roguelike tileset — terrain, flora, buildings | 16x16 | opengameart.org/content/dawnlike-16x16-universal-rogue-like-tileset-v181 |
+| **16x16 Puny World** | — | Grass, trees, rivers (animated), sea, buildings, paths | 16x16 | opengameart.org/content/16x16-puny-world-tileset |
+| **LPC Modern Streets** | Faufilage | Sidewalks, roads, traffic lights, signs, cones, drains | 32x32 | opengameart.org/content/lpc-modern-streets |
+| **Tiny Tile Town** | iknowkingrabbit | City-building roads, buildings, urban elements (DawnBringer 16) | 16x16 | iknowkingrabbit.itch.io/tiny-tile-town |
+
 ## Recommended Strategy
 
 1. **Base style**: Ninja Adventure (CC0) as primary — consistent style across characters, animals, tiles
 2. **Office furniture**: LimeZu Modern Office ($2.50) for authentic office look, attribute in README
 3. **Pets**: Tiny Creatures (CC0) + DeepDiveGameStudio animals + custom sprites
 4. **Characters**: Existing 6 palettes are good; extend with Basic 16x16 Character Sprites (CC0)
-5. **Fill gaps**: Custom pixel art for office-specific items
+5. **World backgrounds**: Kenney Roguelike Modern City (CC0) + RPG Pack (CC0) for outdoor tiles
+6. **Fill gaps**: Custom pixel art for office-specific items
 
 ## Licenses to AVOID
 
