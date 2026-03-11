@@ -14,3 +14,4 @@ _docs/
 !docs/screenshots/*.png
 !docs/screenshots/*.gif
 null
+/dist
