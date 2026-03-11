@@ -1233,7 +1233,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // ── Vote API ──────────────────────────────────────────────
+  // ── Like API (heart = +1 reaction, no downvotes) ─────────
   if (urlPath === '/api/votes/mine' && req.method === 'GET') {
     const session = getSession(req);
     if (!session) {
@@ -1241,7 +1241,6 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'Not authenticated' }));
       return;
     }
-    // Fetch all layout issue reactions for this user
     const params = new URL(req.url, `http://${req.headers.host}`).searchParams;
     const issueNumbers = (params.get('issues') || '').split(',').filter(Boolean).map(Number);
     const votes = {};
@@ -1251,9 +1250,9 @@ const server = http.createServer(async (req, res) => {
           `/repos/${GALLERY_REPO_OWNER}/${GALLERY_REPO_NAME}/issues/${num}/reactions?per_page=100`,
           session.token);
         if (resp.status === 200 && Array.isArray(resp.data)) {
-          const mine = resp.data.find(r => r.user && r.user.login === session.login);
+          const mine = resp.data.find(r => r.user && r.user.login === session.login && r.content === '+1');
           if (mine) {
-            votes[num] = { direction: mine.content === '+1' ? 'up' : mine.content === '-1' ? 'down' : null, reactionId: mine.id };
+            votes[num] = { reactionId: mine.id };
           }
         }
       }));
@@ -1277,16 +1276,15 @@ const server = http.createServer(async (req, res) => {
     req.on('data', (c) => body += c);
     req.on('end', async () => {
       try {
-        const { issueNumber, direction } = JSON.parse(body);
-        if (!issueNumber || !['up', 'down'].includes(direction)) {
+        const { issueNumber } = JSON.parse(body);
+        if (!issueNumber) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'issueNumber and direction (up|down) required' }));
+          res.end(JSON.stringify({ error: 'issueNumber required' }));
           return;
         }
-        const content = direction === 'up' ? '+1' : '-1';
         const resp = await githubApiRequest('POST',
           `/repos/${GALLERY_REPO_OWNER}/${GALLERY_REPO_NAME}/issues/${issueNumber}/reactions`,
-          session.token, { content });
+          session.token, { content: '+1' });
         res.writeHead(resp.status === 200 || resp.status === 201 ? 200 : resp.status, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, reactionId: resp.data.id }));
       } catch (e) {

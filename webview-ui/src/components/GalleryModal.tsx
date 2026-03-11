@@ -39,8 +39,7 @@ interface AuthUser {
   avatarUrl?: string
 }
 
-interface UserVote {
-  direction: 'up' | 'down'
+interface UserLike {
   reactionId: number
 }
 
@@ -97,9 +96,9 @@ function useAuth() {
   return { user, checking, login, logout }
 }
 
-// ── Vote helpers ──────────────────────────────────────────────
+// ── Like helpers ──────────────────────────────────────────────
 
-async function fetchMyVotes(issueNumbers: number[]): Promise<Record<number, UserVote>> {
+async function fetchMyLikes(issueNumbers: number[]): Promise<Record<number, UserLike>> {
   if (issueNumbers.length === 0) return {}
   try {
     const resp = await fetch(`/api/votes/mine?issues=${issueNumbers.join(',')}`, { credentials: 'same-origin' })
@@ -111,13 +110,13 @@ async function fetchMyVotes(issueNumbers: number[]): Promise<Record<number, User
   }
 }
 
-async function submitVote(issueNumber: number, direction: 'up' | 'down'): Promise<{ ok: boolean; reactionId?: number }> {
+async function submitLike(issueNumber: number): Promise<{ ok: boolean; reactionId?: number }> {
   try {
     const resp = await fetch('/api/vote', {
       method: 'POST',
       credentials: 'same-origin',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ issueNumber, direction }),
+      body: JSON.stringify({ issueNumber }),
     })
     return resp.json()
   } catch {
@@ -125,7 +124,7 @@ async function submitVote(issueNumber: number, direction: 'up' | 'down'): Promis
   }
 }
 
-async function removeVote(issueNumber: number, reactionId: number): Promise<{ ok: boolean }> {
+async function removeLike(issueNumber: number, reactionId: number): Promise<{ ok: boolean }> {
   try {
     const resp = await fetch('/api/vote', {
       method: 'DELETE',
@@ -151,7 +150,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [sortMode, setSortMode] = useState<SortMode>('popular')
-  const [userVotes, setUserVotes] = useState<Record<number, UserVote>>({})
+  const [userLikes, setUserLikes] = useState<Record<number, UserLike>>({})
 
   const { user, login, logout } = useAuth()
 
@@ -216,12 +215,12 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     ws.postMessage({ type: 'fetchGalleryManifest' })
   }, [isOpen])
 
-  // Fetch user votes when manifest loads and user is authenticated
+  // Fetch user likes when manifest loads and user is authenticated
   useEffect(() => {
     if (!manifest || !user.authenticated) return
     const issueNumbers = manifest.layouts.map(l => l.issueNumber).filter((n): n is number => n != null)
     if (issueNumbers.length === 0) return
-    fetchMyVotes(issueNumbers).then(setUserVotes)
+    fetchMyLikes(issueNumbers).then(setUserLikes)
   }, [manifest, user.authenticated])
 
   // Escape to close
@@ -245,56 +244,48 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     ws.postMessage({ type: 'fetchGalleryLayout', path: layout.layout })
   }, [])
 
-  const handleVote = useCallback(async (layout: GalleryLayout, direction: 'up' | 'down') => {
+  const handleLike = useCallback(async (layout: GalleryLayout) => {
     if (!layout.issueNumber) return
-    const existing = userVotes[layout.issueNumber]
+    const existing = userLikes[layout.issueNumber]
 
     if (existing) {
-      // Remove existing vote first
-      const removed = await removeVote(layout.issueNumber, existing.reactionId)
+      // Unlike: remove the reaction
+      const removed = await removeLike(layout.issueNumber, existing.reactionId)
       if (!removed.ok) return
-      // Update manifest vote count
       setManifest(prev => {
         if (!prev) return prev
         return {
           ...prev,
           layouts: prev.layouts.map(l =>
-            l.id === layout.id
-              ? { ...l, votes: (l.votes ?? 0) + (existing.direction === 'up' ? -1 : 1) }
-              : l
+            l.id === layout.id ? { ...l, votes: Math.max(0, (l.votes ?? 0) - 1) } : l
           ),
         }
       })
-      // If clicking the same direction, just toggle off
-      if (existing.direction === direction) {
-        setUserVotes(prev => {
-          const next = { ...prev }
-          delete next[layout.issueNumber!]
-          return next
-        })
-        return
-      }
+      setUserLikes(prev => {
+        const next = { ...prev }
+        delete next[layout.issueNumber!]
+        return next
+      })
+      return
     }
 
-    // Add new vote
-    const result = await submitVote(layout.issueNumber, direction)
+    // Like: add +1 reaction
+    const result = await submitLike(layout.issueNumber)
     if (!result.ok) return
-    setUserVotes(prev => ({
+    setUserLikes(prev => ({
       ...prev,
-      [layout.issueNumber!]: { direction, reactionId: result.reactionId! },
+      [layout.issueNumber!]: { reactionId: result.reactionId! },
     }))
     setManifest(prev => {
       if (!prev) return prev
       return {
         ...prev,
         layouts: prev.layouts.map(l =>
-          l.id === layout.id
-            ? { ...l, votes: (l.votes ?? 0) + (direction === 'up' ? 1 : -1) }
-            : l
+          l.id === layout.id ? { ...l, votes: (l.votes ?? 0) + 1 } : l
         ),
       }
     })
-  }, [userVotes])
+  }, [userLikes])
 
   // Sorted layouts
   const sortedLayouts = useMemo(() => {
@@ -485,9 +476,9 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                       onConfirm={() => setConfirmId(layout.id)}
                       onCancel={() => setConfirmId(null)}
                       onImport={() => handleImport(layout)}
-                      userVote={layout.issueNumber != null ? userVotes[layout.issueNumber] ?? null : null}
+                      liked={layout.issueNumber != null && userLikes[layout.issueNumber] != null}
                       isAuthed={user.authenticated}
-                      onVote={(dir) => handleVote(layout, dir)}
+                      onLike={() => handleLike(layout)}
                       onSignIn={login}
                     />
                   ))}
@@ -547,36 +538,26 @@ interface GalleryCardProps {
   onConfirm: () => void
   onCancel: () => void
   onImport: () => void
-  userVote: UserVote | null
+  liked: boolean
   isAuthed: boolean
-  onVote: (direction: 'up' | 'down') => void
+  onLike: () => void
   onSignIn: () => void
 }
 
-function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfirm, onCancel, onImport, userVote, isAuthed, onVote, onSignIn }: GalleryCardProps) {
-  const votes = layout.votes ?? 0
+function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfirm, onCancel, onImport, liked, isAuthed, onLike, onSignIn }: GalleryCardProps) {
+  const likes = layout.votes ?? 0
   const hasIssue = layout.issueNumber != null
 
-  // Vote handler: if no issue yet, treat same as not-authed (prompt sign-in / coming soon)
-  const handleVoteClick = (direction: 'up' | 'down') => {
+  const handleHeartClick = () => {
     if (!hasIssue || !isAuthed) {
       onSignIn()
       return
     }
-    onVote(direction)
+    onLike()
   }
 
-  const voteTitle = !hasIssue
-    ? 'Voting coming soon for this layout'
-    : !isAuthed
-      ? 'Sign in to vote'
-      : undefined
-
-  const voteColor = votes > 0
-    ? 'var(--pixel-accent)'
-    : votes < 0
-      ? 'var(--pixel-status-permission)'
-      : 'var(--pixel-text-hint)'
+  // Pixel art star: filled when liked, outline when not
+  const starChar = liked ? '\u2605' : '\u2606'
 
   return (
     <div
@@ -645,7 +626,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
         )}
       </div>
 
-      {/* Action row: votes + import */}
+      {/* Action row: like + import */}
       {isConfirming ? (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '0 8px 4px' }}>
           <span style={{ fontSize: '16px', color: 'var(--pixel-accent)', flex: 1, lineHeight: 1.4 }}>Replace furniture and floor? Pets stay.</span>
@@ -684,87 +665,37 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', padding: '0 8px 4px' }}>
-          {/* Vote strip — vertical scoreboard, always visible */}
-          <div
-            title={voteTitle}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '0 8px 4px' }}>
+          {/* Heart like button */}
+          <button
+            onClick={handleHeartClick}
+            aria-label={liked ? `Unstar ${layout.name}` : `Star ${layout.name}`}
+            aria-pressed={liked}
+            title={!hasIssue ? 'Rating coming soon' : !isAuthed ? 'Sign in to rate' : liked ? 'Remove star' : 'Star this layout'}
+            className="pixel-btn"
             style={{
+              padding: '4px 8px',
+              fontSize: '20px',
+              minWidth: 44,
+              minHeight: 44,
               display: 'flex',
-              flexDirection: 'column',
               alignItems: 'center',
-              border: '2px solid var(--pixel-border)',
+              gap: 6,
+              background: liked ? 'var(--pixel-active-bg)' : 'var(--pixel-btn-bg)',
+              color: liked ? 'var(--pixel-accent)' : 'var(--pixel-text-hint)',
+              border: liked ? '2px solid var(--pixel-accent-dim)' : '2px solid var(--pixel-border)',
+              borderRadius: 0,
+              cursor: 'pointer',
               flexShrink: 0,
-              width: 44,
             }}
           >
-            <button
-              onClick={() => handleVoteClick('up')}
-              aria-label={`Upvote ${layout.name}`}
-              aria-pressed={userVote?.direction === 'up'}
-              className="pixel-btn"
-              style={{
-                width: '100%',
-                flex: 1,
-                minHeight: 28,
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: userVote?.direction === 'up' ? 'var(--pixel-active-bg)' : 'transparent',
-                color: userVote?.direction === 'up' ? 'var(--pixel-accent)' : 'var(--pixel-text-hint)',
-                border: 'none',
-                borderBottom: '1px solid var(--pixel-border)',
-                borderRadius: 0,
-                cursor: !hasIssue || !isAuthed ? 'default' : 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              {'\u25B2'}
-            </button>
-            {/* Score */}
-            <div
-              aria-live="polite"
-              style={{
-                fontSize: '16px',
-                fontVariantNumeric: 'tabular-nums',
-                color: voteColor,
-                padding: '3px 0',
-                lineHeight: 1,
-                textAlign: 'center',
-                width: '100%',
-                background: 'rgba(0,0,0,0.2)',
-                userSelect: 'none',
-              }}
-            >
-              {votes > 0 ? `+${votes}` : votes}
-            </div>
-            <button
-              onClick={() => handleVoteClick('down')}
-              aria-label={`Downvote ${layout.name}`}
-              aria-pressed={userVote?.direction === 'down'}
-              className="pixel-btn"
-              style={{
-                width: '100%',
-                flex: 1,
-                minHeight: 28,
-                padding: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: userVote?.direction === 'down' ? 'var(--pixel-status-permission-bg)' : 'transparent',
-                color: userVote?.direction === 'down' ? 'var(--pixel-status-permission)' : 'var(--pixel-text-hint)',
-                border: 'none',
-                borderTop: '1px solid var(--pixel-border)',
-                borderRadius: 0,
-                cursor: !hasIssue || !isAuthed ? 'default' : 'pointer',
-                fontSize: '14px',
-              }}
-            >
-              {'\u25BC'}
-            </button>
-          </div>
+            <span style={{ fontSize: '18px', lineHeight: 1 }}>{starChar}</span>
+            {likes > 0 && (
+              <span aria-live="polite" style={{ fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>{likes}</span>
+            )}
+          </button>
 
-          {/* Import button — fills remaining width */}
+          {/* Import button */}
           <button
             onClick={onConfirm}
             disabled={isImporting}
