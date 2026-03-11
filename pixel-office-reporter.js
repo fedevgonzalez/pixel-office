@@ -28,7 +28,7 @@ const PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
-const IDLE_TIMEOUT_MS = 5 * 60 * 1000; // 5 min — sessions with no file changes are considered dead
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min — match server's IDLE_LEAVE_MS (server handles resting state)
 
 let ws = null;
 let connected = false;
