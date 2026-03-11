@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
 import { ws } from '../wsClient.js'
 import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
@@ -17,6 +17,8 @@ interface GalleryLayout {
   screenshot: string
   layout: string
   createdAt: string
+  issueNumber?: number
+  votes?: number
 }
 
 interface GalleryManifest {
@@ -31,6 +33,19 @@ interface GalleryModalProps {
   getLayout: () => OfficeLayout
 }
 
+interface AuthUser {
+  authenticated: boolean
+  login?: string
+  avatarUrl?: string
+}
+
+interface UserVote {
+  direction: 'up' | 'down'
+  reactionId: number
+}
+
+type SortMode = 'popular' | 'newest' | 'az'
+
 const actionBtnBase: React.CSSProperties = {
   padding: '6px 16px',
   fontSize: '20px',
@@ -42,6 +57,90 @@ const actionBtnBase: React.CSSProperties = {
   textAlign: 'left',
 }
 
+// ── Auth helpers ──────────────────────────────────────────────
+
+function useAuth() {
+  const [user, setUser] = useState<AuthUser>({ authenticated: false })
+  const [checking, setChecking] = useState(true)
+
+  const checkAuth = useCallback(async () => {
+    try {
+      const resp = await fetch('/auth/user', { credentials: 'same-origin' })
+      const data = await resp.json()
+      setUser(data)
+    } catch {
+      setUser({ authenticated: false })
+    } finally {
+      setChecking(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    checkAuth()
+    // Listen for popup auth completion
+    const handler = (e: MessageEvent) => {
+      if (e.data?.type === 'authComplete') checkAuth()
+    }
+    window.addEventListener('message', handler)
+    return () => window.removeEventListener('message', handler)
+  }, [checkAuth])
+
+  const login = useCallback(() => {
+    window.open('/auth/login', 'github-auth', 'width=600,height=700,popup=yes')
+  }, [])
+
+  const logout = useCallback(async () => {
+    await fetch('/auth/logout', { credentials: 'same-origin' })
+    setUser({ authenticated: false })
+  }, [])
+
+  return { user, checking, login, logout }
+}
+
+// ── Vote helpers ──────────────────────────────────────────────
+
+async function fetchMyVotes(issueNumbers: number[]): Promise<Record<number, UserVote>> {
+  if (issueNumbers.length === 0) return {}
+  try {
+    const resp = await fetch(`/api/votes/mine?issues=${issueNumbers.join(',')}`, { credentials: 'same-origin' })
+    if (!resp.ok) return {}
+    const data = await resp.json()
+    return data.votes || {}
+  } catch {
+    return {}
+  }
+}
+
+async function submitVote(issueNumber: number, direction: 'up' | 'down'): Promise<{ ok: boolean; reactionId?: number }> {
+  try {
+    const resp = await fetch('/api/vote', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ issueNumber, direction }),
+    })
+    return resp.json()
+  } catch {
+    return { ok: false }
+  }
+}
+
+async function removeVote(issueNumber: number, reactionId: number): Promise<{ ok: boolean }> {
+  try {
+    const resp = await fetch('/api/vote', {
+      method: 'DELETE',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ issueNumber, reactionId }),
+    })
+    return resp.json()
+  } catch {
+    return { ok: false }
+  }
+}
+
+// ── Main component ──────────────────────────────────────────
+
 export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) {
   const dialogRef = useModalFocus(isOpen)
   const [manifest, setManifest] = useState<GalleryManifest | null>(null)
@@ -51,6 +150,10 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   const [importing, setImporting] = useState<string | null>(null)
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [isShareOpen, setIsShareOpen] = useState(false)
+  const [sortMode, setSortMode] = useState<SortMode>('popular')
+  const [userVotes, setUserVotes] = useState<Record<number, UserVote>>({})
+
+  const { user, login, logout } = useAuth()
 
   // Listen for gallery messages from extension/server
   useEffect(() => {
@@ -113,6 +216,14 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     ws.postMessage({ type: 'fetchGalleryManifest' })
   }, [isOpen])
 
+  // Fetch user votes when manifest loads and user is authenticated
+  useEffect(() => {
+    if (!manifest || !user.authenticated) return
+    const issueNumbers = manifest.layouts.map(l => l.issueNumber).filter((n): n is number => n != null)
+    if (issueNumbers.length === 0) return
+    fetchMyVotes(issueNumbers).then(setUserVotes)
+  }, [manifest, user.authenticated])
+
   // Escape to close
   useEffect(() => {
     if (!isOpen) return
@@ -133,6 +244,71 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     setImporting(layout.id)
     ws.postMessage({ type: 'fetchGalleryLayout', path: layout.layout })
   }, [])
+
+  const handleVote = useCallback(async (layout: GalleryLayout, direction: 'up' | 'down') => {
+    if (!layout.issueNumber) return
+    const existing = userVotes[layout.issueNumber]
+
+    if (existing) {
+      // Remove existing vote first
+      const removed = await removeVote(layout.issueNumber, existing.reactionId)
+      if (!removed.ok) return
+      // Update manifest vote count
+      setManifest(prev => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          layouts: prev.layouts.map(l =>
+            l.id === layout.id
+              ? { ...l, votes: (l.votes ?? 0) + (existing.direction === 'up' ? -1 : 1) }
+              : l
+          ),
+        }
+      })
+      // If clicking the same direction, just toggle off
+      if (existing.direction === direction) {
+        setUserVotes(prev => {
+          const next = { ...prev }
+          delete next[layout.issueNumber!]
+          return next
+        })
+        return
+      }
+    }
+
+    // Add new vote
+    const result = await submitVote(layout.issueNumber, direction)
+    if (!result.ok) return
+    setUserVotes(prev => ({
+      ...prev,
+      [layout.issueNumber!]: { direction, reactionId: result.reactionId! },
+    }))
+    setManifest(prev => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        layouts: prev.layouts.map(l =>
+          l.id === layout.id
+            ? { ...l, votes: (l.votes ?? 0) + (direction === 'up' ? 1 : -1) }
+            : l
+        ),
+      }
+    })
+  }, [userVotes])
+
+  // Sorted layouts
+  const sortedLayouts = useMemo(() => {
+    if (!manifest) return []
+    const layouts = [...manifest.layouts]
+    switch (sortMode) {
+      case 'popular':
+        return layouts.sort((a, b) => (b.votes ?? 0) - (a.votes ?? 0))
+      case 'newest':
+        return layouts.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''))
+      case 'az':
+        return layouts.sort((a, b) => a.name.localeCompare(b.name))
+    }
+  }, [manifest, sortMode])
 
   if (!isOpen) return null
 
@@ -188,15 +364,62 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           }}
         >
           <span id="gallery-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Community Layouts</span>
-          <button
-            onClick={onClose}
-            aria-label="Close gallery"
-            className="pixel-close-btn"
-            style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
-          >
-            &#215;
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {user.authenticated ? (
+              <button
+                onClick={logout}
+                className="pixel-btn"
+                style={{ padding: '4px 8px', fontSize: '16px', background: 'transparent', color: 'var(--pixel-text-dim)', border: '2px solid transparent', borderRadius: 0, cursor: 'pointer' }}
+                title={`Signed in as ${user.login}`}
+              >
+                {user.login}
+              </button>
+            ) : (
+              GITHUB_APP_CLIENT_ID_EXISTS && (
+                <button
+                  onClick={login}
+                  className="pixel-btn"
+                  style={{ padding: '4px 8px', fontSize: '16px', background: 'var(--pixel-active-bg)', color: 'var(--pixel-accent)', border: '2px solid var(--pixel-accent-dim)', borderRadius: 0, cursor: 'pointer' }}
+                >
+                  Sign in to vote
+                </button>
+              )
+            )}
+            <button
+              onClick={onClose}
+              aria-label="Close gallery"
+              className="pixel-close-btn"
+              style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
+            >
+              &#215;
+            </button>
+          </div>
         </div>
+
+        {/* Sort bar */}
+        {manifest && manifest.layouts.length > 0 && (
+          <div style={{ padding: '8px 16px 0', flexShrink: 0, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <span style={{ fontSize: '16px', color: 'var(--pixel-text-hint)' }}>Sort:</span>
+            {(['popular', 'newest', 'az'] as const).map((mode) => (
+              <button
+                key={mode}
+                onClick={() => setSortMode(mode)}
+                style={{
+                  padding: '4px 0',
+                  fontSize: '16px',
+                  background: 'transparent',
+                  color: sortMode === mode ? 'var(--pixel-accent)' : 'var(--pixel-text-dim)',
+                  border: 'none',
+                  borderBottom: sortMode === mode ? '2px solid var(--pixel-accent)' : '2px solid transparent',
+                  borderRadius: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                {mode === 'popular' ? 'Popular' : mode === 'newest' ? 'Newest' : 'A\u2013Z'}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Content */}
         <div style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}>
@@ -231,7 +454,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
 
           {manifest && !loading && !error && (
             <>
-              {manifest.layouts.length === 0 ? (
+              {sortedLayouts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 16px' }}>
                   <div style={{ fontSize: '28px', marginBottom: 10, opacity: 0.3, userSelect: 'none', color: 'var(--pixel-text-dim)', letterSpacing: '0.15em' }}>
                     [ empty ]
@@ -252,7 +475,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                 </div>
               ) : (
                 <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${GALLERY_CARD_MIN_WIDTH}px, 1fr))`, gap: GALLERY_CARD_GAP }}>
-                  {manifest.layouts.map((layout) => (
+                  {sortedLayouts.map((layout) => (
                     <GalleryCard
                       key={layout.id}
                       layout={layout}
@@ -262,6 +485,10 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                       onConfirm={() => setConfirmId(layout.id)}
                       onCancel={() => setConfirmId(null)}
                       onImport={() => handleImport(layout)}
+                      userVote={layout.issueNumber != null ? userVotes[layout.issueNumber] ?? null : null}
+                      isAuthed={user.authenticated}
+                      onVote={(dir) => handleVote(layout, dir)}
+                      onSignIn={login}
                     />
                   ))}
                 </div>
@@ -306,6 +533,12 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   )
 }
 
+// Check if voting is configured (server exposes this via a meta tag or we detect from /auth/user)
+// For simplicity, we always show vote UI — if server has no GitHub App configured, /auth/login returns 500 and that's fine
+const GITHUB_APP_CLIENT_ID_EXISTS = true
+
+// ── Card component ──────────────────────────────────────────
+
 interface GalleryCardProps {
   layout: GalleryLayout
   screenshotUrl: string | null
@@ -314,9 +547,16 @@ interface GalleryCardProps {
   onConfirm: () => void
   onCancel: () => void
   onImport: () => void
+  userVote: UserVote | null
+  isAuthed: boolean
+  onVote: (direction: 'up' | 'down') => void
+  onSignIn: () => void
 }
 
-function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfirm, onCancel, onImport }: GalleryCardProps) {
+function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfirm, onCancel, onImport, userVote, isAuthed, onVote, onSignIn }: GalleryCardProps) {
+  const votes = layout.votes ?? 0
+  const hasIssue = layout.issueNumber != null
+
   return (
     <div
       className="gallery-card"
@@ -327,7 +567,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
         padding: GALLERY_CARD_PADDING,
         display: 'flex',
         flexDirection: 'column',
-        gap: 4,
+        gap: 8,
       }}
     >
       {/* Screenshot area */}
@@ -384,16 +624,18 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
         )}
       </div>
 
-      {/* Action */}
+      {/* Action row: votes + import */}
       {isConfirming ? (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '4px 8px' }}>
-          <span style={{ fontSize: '18px', color: 'var(--pixel-accent)', flex: 1 }}>Replace furniture and floor? Pets stay.</span>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '0 8px 4px' }}>
+          <span style={{ fontSize: '16px', color: 'var(--pixel-accent)', flex: 1, lineHeight: 1.4 }}>Replace furniture and floor? Pets stay.</span>
           <button
             onClick={onImport}
             aria-label="Replace layout and import"
+            className="pixel-btn pixel-btn-primary"
             style={{
               padding: '4px 10px',
               fontSize: '20px',
+              minHeight: 44,
               background: 'var(--pixel-agent-bg)',
               color: 'var(--pixel-agent-text)',
               border: '2px solid var(--pixel-agent-border)',
@@ -405,12 +647,14 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
           </button>
           <button
             onClick={onCancel}
+            className="pixel-btn"
             style={{
               padding: '4px 10px',
               fontSize: '20px',
+              minHeight: 44,
               background: 'var(--pixel-btn-bg)',
               color: 'var(--pixel-text-dim)',
-              border: '2px solid transparent',
+              border: '2px solid var(--pixel-border)',
               borderRadius: 0,
               cursor: 'pointer',
             }}
@@ -419,24 +663,78 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
           </button>
         </div>
       ) : (
-        <button
-          onClick={onConfirm}
-          disabled={isImporting}
-          className="pixel-btn"
-          style={{
-            padding: '6px 10px',
-            fontSize: '20px',
-            background: 'var(--pixel-btn-bg)',
-            color: 'var(--pixel-green)',
-            border: '2px solid var(--pixel-agent-border)',
-            borderRadius: 0,
-            cursor: isImporting ? 'default' : 'pointer',
-            opacity: isImporting ? 'var(--pixel-btn-disabled-opacity)' : 1,
-            width: '100%',
-          }}
-        >
-          <span aria-live="polite">{isImporting ? 'Importing...' : 'Use This Layout'}</span>
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '0 8px 4px' }}>
+          {/* Vote buttons */}
+          {hasIssue && (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginRight: 'auto' }}>
+              <button
+                onClick={() => isAuthed ? onVote('up') : onSignIn()}
+                title={isAuthed ? 'Upvote' : 'Sign in to vote'}
+                aria-label={`Upvote ${layout.name}`}
+                className="pixel-btn"
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '18px',
+                  minWidth: 44,
+                  minHeight: 44,
+                  background: userVote?.direction === 'up' ? 'var(--pixel-active-bg)' : 'var(--pixel-btn-bg)',
+                  color: userVote?.direction === 'up' ? 'var(--pixel-accent)' : votes < 0 ? 'var(--pixel-status-permission)' : 'var(--pixel-text-dim)',
+                  border: userVote?.direction === 'up' ? '2px solid var(--pixel-accent)' : '2px solid var(--pixel-border)',
+                  borderRadius: 0,
+                  cursor: 'pointer',
+                  fontVariantNumeric: 'tabular-nums',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>{'\u25B2'}</span>
+                <span aria-live="polite">{votes}</span>
+              </button>
+              <button
+                onClick={() => isAuthed ? onVote('down') : onSignIn()}
+                title={isAuthed ? 'Downvote' : 'Sign in to vote'}
+                aria-label={`Downvote ${layout.name}`}
+                className="pixel-btn"
+                style={{
+                  padding: '4px 8px',
+                  fontSize: '18px',
+                  minWidth: 44,
+                  minHeight: 44,
+                  background: userVote?.direction === 'down' ? 'var(--pixel-status-permission-bg)' : 'var(--pixel-btn-bg)',
+                  color: userVote?.direction === 'down' ? 'var(--pixel-status-permission)' : 'var(--pixel-text-dim)',
+                  border: userVote?.direction === 'down' ? '2px solid var(--pixel-status-permission)' : '2px solid var(--pixel-border)',
+                  borderRadius: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                <span style={{ fontSize: '16px' }}>{'\u25BC'}</span>
+              </button>
+            </div>
+          )}
+          {/* Import button */}
+          <button
+            onClick={onConfirm}
+            disabled={isImporting}
+            className="pixel-btn pixel-btn-primary"
+            style={{
+              padding: '6px 10px',
+              fontSize: '20px',
+              minHeight: 44,
+              background: 'var(--pixel-agent-bg)',
+              color: 'var(--pixel-green)',
+              border: '2px solid var(--pixel-agent-border)',
+              borderRadius: 0,
+              cursor: isImporting ? 'default' : 'pointer',
+              opacity: isImporting ? 'var(--pixel-btn-disabled-opacity)' : 1,
+              flex: hasIssue ? undefined : 1,
+              marginLeft: hasIssue ? undefined : 0,
+              width: hasIssue ? undefined : '100%',
+            }}
+          >
+            <span aria-live="polite">{isImporting ? 'Importing...' : 'Use This Layout'}</span>
+          </button>
+        </div>
       )}
     </div>
   )

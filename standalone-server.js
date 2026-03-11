@@ -33,9 +33,63 @@ const TASK_DESC_MAX = 40;
 const PNG_ALPHA_THRESHOLD = 128;
 const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/pixel-office-layouts/main/';
 const GALLERY_REPO_API_BASE = 'https://api.github.com/repos/fedevgonzalez/pixel-office-layouts/contents/';
+const GALLERY_REPO_OWNER = 'fedevgonzalez';
+const GALLERY_REPO_NAME = 'pixel-office-layouts';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+const GITHUB_APP_CLIENT_ID = process.env.GITHUB_APP_CLIENT_ID || '';
+const GITHUB_APP_CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET || '';
 const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000;
 let galleryCache = null; // { data, fetchedAt }
+
+// ── OAuth session store (in-memory) ──────────────────────────
+const crypto = require('crypto');
+const oauthSessions = new Map(); // sessionId → { token, login, avatarUrl }
+
+function parseCookies(header) {
+  const cookies = {};
+  if (!header) return cookies;
+  for (const part of header.split(';')) {
+    const [k, ...v] = part.trim().split('=');
+    if (k) cookies[k.trim()] = v.join('=').trim();
+  }
+  return cookies;
+}
+
+function getSession(req) {
+  const cookies = parseCookies(req.headers.cookie);
+  const sid = cookies['po_session'];
+  return sid ? oauthSessions.get(sid) || null : null;
+}
+
+function githubApiRequest(method, apiPath, token, body) {
+  const url = new URL(`https://api.github.com${apiPath}`);
+  const postData = body ? JSON.stringify(body) : null;
+  const options = {
+    hostname: url.hostname,
+    path: url.pathname + url.search,
+    method,
+    headers: {
+      'User-Agent': 'pixel-office-server',
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/vnd.github+json',
+      ...(postData ? { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(postData) } : {}),
+    },
+  };
+  return new Promise((resolve, reject) => {
+    const req = https.request(options, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf-8');
+        try { resolve({ status: res.statusCode, data: JSON.parse(raw || '{}') }); }
+        catch { resolve({ status: res.statusCode, data: raw }); }
+      });
+    });
+    req.on('error', reject);
+    if (postData) req.write(postData);
+    req.end();
+  });
+}
 
 // Local gallery repo path for development (fallback when GitHub repo is private)
 const GALLERY_LOCAL_DIR = path.join(__dirname, '..', 'pixel-office-layouts');
@@ -1068,6 +1122,221 @@ console.log(`Cached ${fileCache.size} webview files in memory`);
 const server = http.createServer((req, res) => {
   let urlPath = req.url.split('?')[0];
   if (urlPath === '/') urlPath = '/index.html';
+
+  // ── OAuth: GitHub App login flow ──────────────────────────
+  if (urlPath === '/auth/login') {
+    if (!GITHUB_APP_CLIENT_ID) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('GITHUB_APP_CLIENT_ID not configured');
+      return;
+    }
+    const redirectUri = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host}/auth/callback`;
+    const state = crypto.randomBytes(16).toString('hex');
+    // Store state briefly to prevent CSRF (auto-expires after 10 min)
+    oauthSessions.set('state:' + state, { ts: Date.now() });
+    setTimeout(() => oauthSessions.delete('state:' + state), 10 * 60 * 1000);
+    const ghUrl = `https://github.com/login/oauth/authorize?client_id=${GITHUB_APP_CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+    res.writeHead(302, { Location: ghUrl });
+    res.end();
+    return;
+  }
+
+  if (urlPath === '/auth/callback') {
+    const params = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    const code = params.get('code');
+    const state = params.get('state');
+    if (!code || !state || !oauthSessions.has('state:' + state)) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Invalid OAuth callback');
+      return;
+    }
+    oauthSessions.delete('state:' + state);
+    // Exchange code for token
+    const postData = JSON.stringify({
+      client_id: GITHUB_APP_CLIENT_ID,
+      client_secret: GITHUB_APP_CLIENT_SECRET,
+      code,
+    });
+    const tokenReq = https.request({
+      hostname: 'github.com',
+      path: '/login/oauth/access_token',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+      },
+    }, (tokenRes) => {
+      const chunks = [];
+      tokenRes.on('data', (c) => chunks.push(c));
+      tokenRes.on('end', async () => {
+        try {
+          const body = JSON.parse(Buffer.concat(chunks).toString('utf-8'));
+          if (!body.access_token) {
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end('OAuth failed: ' + (body.error_description || body.error || 'unknown'));
+            return;
+          }
+          // Fetch user info
+          const userResp = await githubApiRequest('GET', '/user', body.access_token);
+          const sessionId = crypto.randomBytes(24).toString('hex');
+          oauthSessions.set(sessionId, {
+            token: body.access_token,
+            login: userResp.data.login || 'unknown',
+            avatarUrl: userResp.data.avatar_url || '',
+          });
+          // Set cookie and serve a small HTML that notifies the opener and closes
+          res.writeHead(200, {
+            'Content-Type': 'text/html',
+            'Set-Cookie': `po_session=${sessionId}; Path=/; HttpOnly; SameSite=Lax; Max-Age=604800`,
+          });
+          res.end(`<!DOCTYPE html><html><body><script>
+            if(window.opener){window.opener.postMessage({type:'authComplete'},'*');window.close();}
+            else{location.href='/';}
+          </script><p>Authenticated! You can close this tab.</p></body></html>`);
+        } catch (e) {
+          res.writeHead(500, { 'Content-Type': 'text/plain' });
+          res.end('Token exchange failed: ' + e.message);
+        }
+      });
+    });
+    tokenReq.on('error', (e) => {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Token request failed: ' + e.message);
+    });
+    tokenReq.write(postData);
+    tokenReq.end();
+    return;
+  }
+
+  if (urlPath === '/auth/user') {
+    const session = getSession(req);
+    if (!session) {
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      res.end(JSON.stringify({ authenticated: false }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ authenticated: true, login: session.login, avatarUrl: session.avatarUrl }));
+    return;
+  }
+
+  if (urlPath === '/auth/logout') {
+    const cookies = parseCookies(req.headers.cookie);
+    const sid = cookies['po_session'];
+    if (sid) oauthSessions.delete(sid);
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Set-Cookie': 'po_session=; Path=/; HttpOnly; Max-Age=0',
+    });
+    res.end(JSON.stringify({ ok: true }));
+    return;
+  }
+
+  // ── Vote API ──────────────────────────────────────────────
+  if (urlPath === '/api/votes/mine' && req.method === 'GET') {
+    const session = getSession(req);
+    if (!session) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not authenticated' }));
+      return;
+    }
+    // Fetch all layout issue reactions for this user
+    const params = new URL(req.url, `http://${req.headers.host}`).searchParams;
+    const issueNumbers = (params.get('issues') || '').split(',').filter(Boolean).map(Number);
+    const votes = {};
+    try {
+      await Promise.all(issueNumbers.map(async (num) => {
+        const resp = await githubApiRequest('GET',
+          `/repos/${GALLERY_REPO_OWNER}/${GALLERY_REPO_NAME}/issues/${num}/reactions?per_page=100`,
+          session.token);
+        if (resp.status === 200 && Array.isArray(resp.data)) {
+          const mine = resp.data.find(r => r.user && r.user.login === session.login);
+          if (mine) {
+            votes[num] = { direction: mine.content === '+1' ? 'up' : mine.content === '-1' ? 'down' : null, reactionId: mine.id };
+          }
+        }
+      }));
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ votes }));
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: e.message }));
+    }
+    return;
+  }
+
+  if (urlPath === '/api/vote' && req.method === 'POST') {
+    const session = getSession(req);
+    if (!session) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not authenticated' }));
+      return;
+    }
+    let body = '';
+    req.on('data', (c) => body += c);
+    req.on('end', async () => {
+      try {
+        const { issueNumber, direction } = JSON.parse(body);
+        if (!issueNumber || !['up', 'down'].includes(direction)) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'issueNumber and direction (up|down) required' }));
+          return;
+        }
+        const content = direction === 'up' ? '+1' : '-1';
+        const resp = await githubApiRequest('POST',
+          `/repos/${GALLERY_REPO_OWNER}/${GALLERY_REPO_NAME}/issues/${issueNumber}/reactions`,
+          session.token, { content });
+        res.writeHead(resp.status === 200 || resp.status === 201 ? 200 : resp.status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, reactionId: resp.data.id }));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  if (urlPath === '/api/vote' && req.method === 'DELETE') {
+    const session = getSession(req);
+    if (!session) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Not authenticated' }));
+      return;
+    }
+    let body = '';
+    req.on('data', (c) => body += c);
+    req.on('end', async () => {
+      try {
+        const { issueNumber, reactionId } = JSON.parse(body);
+        if (!issueNumber || !reactionId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'issueNumber and reactionId required' }));
+          return;
+        }
+        const resp = await githubApiRequest('DELETE',
+          `/repos/${GALLERY_REPO_OWNER}/${GALLERY_REPO_NAME}/issues/${issueNumber}/reactions/${reactionId}`,
+          session.token);
+        res.writeHead(resp.status === 204 ? 200 : resp.status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true }));
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: e.message }));
+      }
+    });
+    return;
+  }
+
+  // Handle CORS preflight for vote endpoints
+  if (req.method === 'OPTIONS' && (urlPath === '/api/vote' || urlPath === '/api/votes/mine')) {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    res.end();
+    return;
+  }
 
   // API: force all connected clients to reload
   if (urlPath === '/api/reload') {

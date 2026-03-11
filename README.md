@@ -50,6 +50,8 @@ All optional. Can be set in a `.env` file in the project root or as system env v
 | `PORT` | `3300` | HTTP + WebSocket server port |
 | `GITHUB_TOKEN` | _(empty)_ | GitHub personal access token for private gallery repos |
 | `NO_SCAN` | `0` | Set to `1` to disable auto-scanning `~/.claude/projects/` (useful when only receiving remote reporters) |
+| `GITHUB_APP_CLIENT_ID` | _(empty)_ | GitHub App client ID for gallery voting (optional) |
+| `GITHUB_APP_CLIENT_SECRET` | _(empty)_ | GitHub App client secret for gallery voting (optional) |
 
 ### Data Directory
 
