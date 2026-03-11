@@ -1285,8 +1285,9 @@ const server = http.createServer(async (req, res) => {
         const resp = await githubApiRequest('POST',
           `/repos/${GALLERY_REPO_OWNER}/${GALLERY_REPO_NAME}/issues/${issueNumber}/reactions`,
           session.token, { content: '+1' });
-        res.writeHead(resp.status === 200 || resp.status === 201 ? 200 : resp.status, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ ok: true, reactionId: resp.data.id }));
+        const ok = resp.status === 200 || resp.status === 201;
+        res.writeHead(ok ? 200 : resp.status, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(ok ? { ok: true, reactionId: resp.data.id } : { ok: false, error: resp.data.message || 'GitHub API error' }));
       } catch (e) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: e.message }));

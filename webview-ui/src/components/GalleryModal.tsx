@@ -118,6 +118,7 @@ async function submitLike(issueNumber: number): Promise<{ ok: boolean; reactionI
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ issueNumber }),
     })
+    if (!resp.ok) return { ok: false }
     return resp.json()
   } catch {
     return { ok: false }
@@ -132,6 +133,7 @@ async function removeLike(issueNumber: number, reactionId: number): Promise<{ ok
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ issueNumber, reactionId }),
     })
+    if (!resp.ok) return { ok: false }
     return resp.json()
   } catch {
     return { ok: false }
