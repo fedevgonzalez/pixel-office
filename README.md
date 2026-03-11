@@ -151,13 +151,10 @@ See [docs/standalone.md](docs/standalone.md) for full setup, SDK integration, We
 
 The office tileset is **[Office Interior Tileset (16x16)](https://donarg.itch.io/officetileset)** by **Donarg** ($2 on itch.io). Characters are based on **[Metro City](https://jik-a-4.itch.io/metrocity-free-topdown-character-pack)** by **JIK-A-4**.
 
-The tileset is not included in this repo. To import it:
+The tileset is not included in this repo. The app runs without it — agents still appear and animate — but the layout editor won't have any furniture items. To unlock the full furniture catalog:
 
-```bash
-npm run import-tileset
-```
-
-The app works without it — you get characters and a basic layout, but not the full furniture catalog.
+1. Purchase the tileset from the link above
+2. Run `npm run import-tileset` and follow the prompts
 
 ## Tech Stack
 

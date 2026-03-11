@@ -16,7 +16,7 @@
     "watch": "cd webview-ui && npm run dev",
     "check-types": "cd webview-ui && npx tsc --noEmit",
     "lint": "cd webview-ui && npm run lint",
-    "import-tileset": "tsx scripts/import-tileset-cli.ts"
+    "import-tileset": "tsx scripts/0-import-tileset.ts"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.74.0",
