@@ -1119,7 +1119,7 @@ function loadWebviewFiles(dir, prefix) {
 loadWebviewFiles(path.join(distDir, 'webview'), '');
 console.log(`Cached ${fileCache.size} webview files in memory`);
 
-const server = http.createServer((req, res) => {
+const server = http.createServer(async (req, res) => {
   let urlPath = req.url.split('?')[0];
   if (urlPath === '/') urlPath = '/index.html';
 
