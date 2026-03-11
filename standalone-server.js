@@ -24,6 +24,7 @@ const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const TOOL_DONE_DELAY_MS = 300;
 const TEXT_IDLE_DELAY_MS = 5000;
 const PERMISSION_TIMER_DELAY_MS = 7000;
+const PERMISSION_SLOW_TIMER_DELAY_MS = 60_000; // longer grace period for tools that legitimately run long
 const IDLE_REST_MS = 2 * 60 * 1000;   // 2 min idle → resting (walk to break room)
 const IDLE_LEAVE_MS = 30 * 60 * 1000; // 30 min idle → leave office
 const IDLE_CHECK_INTERVAL_MS = 30000;  // check every 30s
@@ -111,8 +112,10 @@ const PERMISSION_EXEMPT_TOOLS = new Set([
   'Task', 'AskUserQuestion', 'ToolSearch',
   'TaskCreate', 'TaskGet', 'TaskList', 'TaskOutput', 'TaskUpdate', 'TaskStop',
   // These tools can run for a long time without needing approval
-  'Bash', 'Agent', 'WebFetch', 'WebSearch',
+  'Agent', 'WebFetch', 'WebSearch',
 ]);
+// Tools that legitimately run long — use a slower permission timer instead of the default 7s
+const PERMISSION_SLOW_TOOLS = new Set(['Bash']);
 function isPermissionExempt(name) {
   return PERMISSION_EXEMPT_TOOLS.has(name) || name.startsWith('mcp__');
 }
@@ -288,14 +291,20 @@ function startPermissionTimer(agentId) {
   const agent = agents.get(agentId);
   if (agent && agent.permissionMode === 'bypassPermissions') return;
   cancelTimer(permissionTimers, agentId);
+
+  // Pick the appropriate delay — use the slow timer if any active tool is a slow tool (e.g. Bash)
+  let hasSlow = false;
+  for (const toolId of agent.activeToolIds) {
+    if (PERMISSION_SLOW_TOOLS.has(agent.activeToolNames.get(toolId) || '')) { hasSlow = true; break; }
+  }
+  const delay = hasSlow ? PERMISSION_SLOW_TIMER_DELAY_MS : PERMISSION_TIMER_DELAY_MS;
+
   const t = setTimeout(() => {
     permissionTimers.delete(agentId);
     const agent = agents.get(agentId);
     if (!agent) return;
     let hasNonExempt = false;
     for (const toolId of agent.activeToolIds) {
-      // Skip tools that were already active at replay time — they were already approved
-      if (agent.replayedToolIds && agent.replayedToolIds.has(toolId)) continue;
       if (!isPermissionExempt(agent.activeToolNames.get(toolId) || '')) {
         hasNonExempt = true; break;
       }
@@ -315,7 +324,7 @@ function startPermissionTimer(agentId) {
         broadcast({ type: 'subagentToolPermission', id: agentId, parentToolId: ptid });
       }
     }
-  }, PERMISSION_TIMER_DELAY_MS);
+  }, delay);
   permissionTimers.set(agentId, t);
 }
 
@@ -702,6 +711,12 @@ function broadcastReplayState(agentId) {
     broadcast({ type: 'agentStatus', id: agentId, status: 'waiting' });
   } else if (agent.activeToolIds.size > 0) {
     broadcast({ type: 'agentStatus', id: agentId, status: 'active' });
+  }
+
+  // Start permission timer for replayed tools — if a tool was stuck on permission
+  // when the server started, this will detect it after the appropriate delay
+  if (agent.activeToolIds.size > 0) {
+    startPermissionTimer(agentId);
   }
 }
 
@@ -1104,6 +1119,7 @@ const server = http.createServer((req, res) => {
         id,
         folderName: agent.folderName || '',
         isWaiting: agent.isWaiting,
+        permissionPending: !!agent.permissionSent,
         activeTools: agent.activeToolIds.size,
         sdk: !!agent.isSDK,
       });
