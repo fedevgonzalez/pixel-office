@@ -114,15 +114,15 @@ function useAuth() {
 
 // ── Like helpers ──────────────────────────────────────────────
 
-async function fetchMyLikes(issueNumbers: number[]): Promise<Record<number, UserLike>> {
-  if (issueNumbers.length === 0) return {}
+async function fetchMyLikes(issueNumbers: number[]): Promise<{ votes: Record<number, UserLike>; counts: Record<number, number> }> {
+  if (issueNumbers.length === 0) return { votes: {}, counts: {} }
   try {
     const resp = await fetch(`/api/votes/mine?issues=${issueNumbers.join(',')}`, { credentials: 'same-origin' })
-    if (!resp.ok) return {}
+    if (!resp.ok) return { votes: {}, counts: {} }
     const data = await resp.json()
-    return data.votes || {}
+    return { votes: data.votes || {}, counts: data.counts || {} }
   } catch {
-    return {}
+    return { votes: {}, counts: {} }
   }
 }
 
@@ -231,16 +231,35 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     if (!isOpen) return
     setLoading(true)
     setError(null)
+    setLiveCountsFetched(false)
     ws.postMessage({ type: 'fetchGalleryManifest' })
   }, [isOpen])
 
-  // Fetch user likes when manifest loads and user is authenticated
+  // Fetch user likes and live vote counts when manifest loads and user is authenticated
+  const [liveCountsFetched, setLiveCountsFetched] = useState(false)
   useEffect(() => {
-    if (!manifest || !user.authenticated) return
+    if (!manifest || !user.authenticated || liveCountsFetched) return
     const issueNumbers = manifest.layouts.map(l => l.issueNumber).filter((n): n is number => n != null)
     if (issueNumbers.length === 0) return
-    fetchMyLikes(issueNumbers).then(setUserLikes)
-  }, [manifest, user.authenticated])
+    setLiveCountsFetched(true)
+    fetchMyLikes(issueNumbers).then(({ votes, counts }) => {
+      setUserLikes(votes)
+      // Apply live vote counts from GitHub (overrides stale gallery.json values)
+      if (Object.keys(counts).length > 0) {
+        setManifest(prev => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            layouts: prev.layouts.map(l =>
+              l.issueNumber != null && counts[l.issueNumber] != null
+                ? { ...l, votes: counts[l.issueNumber] }
+                : l
+            ),
+          }
+        })
+      }
+    })
+  }, [manifest, user.authenticated, liveCountsFetched])
 
   // Escape to close
   useEffect(() => {

@@ -1248,12 +1248,14 @@ const server = http.createServer(async (req, res) => {
     const params = new URL(req.url, `http://${req.headers.host}`).searchParams;
     const issueNumbers = (params.get('issues') || '').split(',').filter(Boolean).map(Number);
     const votes = {};
+    const counts = {};
     try {
       await Promise.all(issueNumbers.map(async (num) => {
         const resp = await githubApiRequest('GET',
           `/repos/${GALLERY_REPO_OWNER}/${GALLERY_REPO_NAME}/issues/${num}/reactions?per_page=100`,
           session.token);
         if (resp.status === 200 && Array.isArray(resp.data)) {
+          counts[num] = resp.data.filter(r => r.content === '+1').length;
           const mine = resp.data.find(r => r.user && r.user.login === session.login && r.content === '+1');
           if (mine) {
             votes[num] = { reactionId: mine.id };
@@ -1261,7 +1263,7 @@ const server = http.createServer(async (req, res) => {
         }
       }));
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({ votes }));
+      res.end(JSON.stringify({ votes, counts }));
     } catch (e) {
       res.writeHead(500, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: e.message }));
