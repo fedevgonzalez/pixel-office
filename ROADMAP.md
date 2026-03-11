@@ -129,7 +129,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [x] Screenshot mode (`?screenshot`) for CI preview generation
 - [x] GitHub token auth for private gallery repo (`.env` GITHUB_TOKEN)
 - [ ] In-app upload with auto-generated preview (Phase B)
-- [ ] Ratings / download count (Phase B)
+- [x] Star ratings via GitHub Reactions (Phase B → done)
 - [ ] "Featured layouts" curated selection
 
 ### Replay Mode
@@ -188,3 +188,4 @@ See `docs/asset-sources.md` for open source sprite libraries.
 - [x] Day/night cycle (5 periods, seasonal offsets, light glows, hemisphere auto-detect)
 - [x] Warm branding palette (amber/gold accent, cozy dark purple bg)
 - [x] Modal UI unification (Settings, Pets, Community, Share)
+- [x] Star ratings / voting via GitHub App OAuth + Reactions API

@@ -31,11 +31,15 @@ All optional. Can be set as system env vars or in a `.env` file in the project r
 | `PORT` | `3300` | HTTP + WebSocket server port |
 | `GITHUB_TOKEN` | _(empty)_ | GitHub personal access token — required only if your community gallery repo is private |
 | `NO_SCAN` | `0` | Set to `1` to disable auto-scanning of `~/.claude/projects/`. Useful when the server only receives agents via remote WebSocket reporters |
+| `GITHUB_APP_CLIENT_ID` | _(empty)_ | GitHub App client ID for community gallery voting (optional) |
+| `GITHUB_APP_CLIENT_SECRET` | _(empty)_ | GitHub App client secret for community gallery voting (optional) |
 
 Example `.env` file:
 ```
 PORT=3300
 GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+GITHUB_APP_CLIENT_ID=Iv1.xxxxxxxxxx
+GITHUB_APP_CLIENT_SECRET=xxxxxxxxxxxxxxxx
 ```
 
 ## Data Directory
@@ -330,6 +334,37 @@ The display script:
   "count": 2
 }
 ```
+
+---
+
+## Community Gallery & Voting
+
+The community gallery lets users browse, import, and star layouts shared by other users. Gallery data is fetched from the `pixel-office-layouts` GitHub repo (`gallery.json`).
+
+Voting is optional — the gallery works without it (star buttons are hidden). To enable voting, set `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET` in your `.env` file. These correspond to a GitHub App (`pixel-office-voting`) with Issues Read & Write permission.
+
+### How Voting Works
+
+Each community layout has a corresponding GitHub Issue in the `pixel-office-layouts` repo. Stars use the GitHub Reactions API (`+1` reaction on the issue). Users authenticate via GitHub App OAuth (popup login flow). Vote counts in `gallery.json` are updated every 6 hours by a GitHub Actions workflow (`update-votes.yml`).
+
+### Auth Endpoints
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/auth/login` | GET | Initiates GitHub App OAuth flow (opens popup) |
+| `/auth/callback` | GET | OAuth callback — exchanges code for user token, sets session cookie |
+| `/auth/user` | GET | Returns current authenticated user info (or 401) |
+| `/auth/logout` | POST | Clears session cookie and removes server-side session |
+
+Sessions use an in-memory store with `httpOnly` cookies (`po_session`).
+
+### Voting API
+
+| Endpoint | Method | Description |
+|---|---|---|
+| `/api/votes/mine` | GET | Returns list of layout IDs the current user has starred |
+| `/api/vote` | POST | Star a layout (adds `+1` reaction to its GitHub Issue) |
+| `/api/vote` | DELETE | Unstar a layout (removes `+1` reaction from its GitHub Issue) |
 
 ---
 

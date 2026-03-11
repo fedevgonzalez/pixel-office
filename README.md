@@ -71,7 +71,7 @@ Pixel Office stores layout data in `~/.pixel-office/layout.json`. This is create
 | Door system | Agents enter/exit through doors with matrix spawn animation |
 | Break room | Idle agents grab coffee and lounge on the couch |
 | Layout editor | Design your office with floors, walls, and 50+ furniture items |
-| Community gallery | Browse and import layouts shared by other users |
+| Community gallery | Browse, star, and import layouts shared by other users |
 | Kiosk mode | Auto-framing camera, status sidebar — perfect for wall displays |
 | Multi-PC | WebSocket reporters aggregate agents from multiple machines |
 | SDK agents | Report custom agents (Claude SDK, cron jobs, any process) |

@@ -11,6 +11,8 @@
 - Gallery proxy with GitHub token auth for private repos
 - Share flow via GitHub Issues for community layout submissions
 - Screenshot mode (`?screenshot`) for CI preview generation
+- Star voting on community layouts (GitHub App OAuth + Reactions API)
+- Day/night cycle with seasonal offsets and light glow effects
 - Door system: agents enter/exit through placed doors
 - Break room: idle agents visit coffee machine and couch
 - Sound notifications when agents finish and need attention
