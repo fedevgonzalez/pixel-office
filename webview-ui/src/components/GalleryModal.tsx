@@ -548,7 +548,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
   const likes = layout.votes ?? 0
   const hasIssue = layout.issueNumber != null
 
-  const handleHeartClick = () => {
+  const handleStarClick = () => {
     if (!hasIssue || !isAuthed) {
       onSignIn()
       return
@@ -666,9 +666,9 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
         </div>
       ) : (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '0 8px 4px' }}>
-          {/* Heart like button */}
+          {/* Star like button */}
           <button
-            onClick={handleHeartClick}
+            onClick={handleStarClick}
             aria-label={liked ? `Unstar ${layout.name}` : `Star ${layout.name}`}
             aria-pressed={liked}
             title={!hasIssue ? 'Rating coming soon' : !isAuthed ? 'Sign in to rate' : liked ? 'Remove star' : 'Star this layout'}
@@ -689,7 +689,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: '18px', lineHeight: 1 }}>{starChar}</span>
+            <span style={{ fontSize: '18px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }}>{starChar}</span>
             {likes > 0 && (
               <span aria-live="polite" style={{ fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>{likes}</span>
             )}
