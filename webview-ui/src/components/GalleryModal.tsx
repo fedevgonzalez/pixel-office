@@ -557,6 +557,27 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
   const votes = layout.votes ?? 0
   const hasIssue = layout.issueNumber != null
 
+  // Vote handler: if no issue yet, treat same as not-authed (prompt sign-in / coming soon)
+  const handleVoteClick = (direction: 'up' | 'down') => {
+    if (!hasIssue || !isAuthed) {
+      onSignIn()
+      return
+    }
+    onVote(direction)
+  }
+
+  const voteTitle = !hasIssue
+    ? 'Voting coming soon for this layout'
+    : !isAuthed
+      ? 'Sign in to vote'
+      : undefined
+
+  const voteColor = votes > 0
+    ? 'var(--pixel-accent)'
+    : votes < 0
+      ? 'var(--pixel-status-permission)'
+      : 'var(--pixel-text-hint)'
+
   return (
     <div
       className="gallery-card"
@@ -663,61 +684,93 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '0 8px 4px' }}>
-          {/* Vote buttons */}
-          {hasIssue && (
-            <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginRight: 'auto' }}>
-              <button
-                onClick={() => isAuthed ? onVote('up') : onSignIn()}
-                title={isAuthed ? 'Upvote' : 'Sign in to vote'}
-                aria-label={`Upvote ${layout.name}`}
-                className="pixel-btn"
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '18px',
-                  minWidth: 44,
-                  minHeight: 44,
-                  background: userVote?.direction === 'up' ? 'var(--pixel-active-bg)' : 'var(--pixel-btn-bg)',
-                  color: userVote?.direction === 'up' ? 'var(--pixel-accent)' : votes < 0 ? 'var(--pixel-status-permission)' : 'var(--pixel-text-dim)',
-                  border: userVote?.direction === 'up' ? '2px solid var(--pixel-accent)' : '2px solid var(--pixel-border)',
-                  borderRadius: 0,
-                  cursor: 'pointer',
-                  fontVariantNumeric: 'tabular-nums',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>{'\u25B2'}</span>
-                <span aria-live="polite">{votes}</span>
-              </button>
-              <button
-                onClick={() => isAuthed ? onVote('down') : onSignIn()}
-                title={isAuthed ? 'Downvote' : 'Sign in to vote'}
-                aria-label={`Downvote ${layout.name}`}
-                className="pixel-btn"
-                style={{
-                  padding: '4px 8px',
-                  fontSize: '18px',
-                  minWidth: 44,
-                  minHeight: 44,
-                  background: userVote?.direction === 'down' ? 'var(--pixel-status-permission-bg)' : 'var(--pixel-btn-bg)',
-                  color: userVote?.direction === 'down' ? 'var(--pixel-status-permission)' : 'var(--pixel-text-dim)',
-                  border: userVote?.direction === 'down' ? '2px solid var(--pixel-status-permission)' : '2px solid var(--pixel-border)',
-                  borderRadius: 0,
-                  cursor: 'pointer',
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>{'\u25BC'}</span>
-              </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch', padding: '0 8px 4px' }}>
+          {/* Vote strip — vertical scoreboard, always visible */}
+          <div
+            title={voteTitle}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              border: '2px solid var(--pixel-border)',
+              flexShrink: 0,
+              width: 44,
+            }}
+          >
+            <button
+              onClick={() => handleVoteClick('up')}
+              aria-label={`Upvote ${layout.name}`}
+              aria-pressed={userVote?.direction === 'up'}
+              className="pixel-btn"
+              style={{
+                width: '100%',
+                flex: 1,
+                minHeight: 28,
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: userVote?.direction === 'up' ? 'var(--pixel-active-bg)' : 'transparent',
+                color: userVote?.direction === 'up' ? 'var(--pixel-accent)' : 'var(--pixel-text-hint)',
+                border: 'none',
+                borderBottom: '1px solid var(--pixel-border)',
+                borderRadius: 0,
+                cursor: !hasIssue || !isAuthed ? 'default' : 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              {'\u25B2'}
+            </button>
+            {/* Score */}
+            <div
+              aria-live="polite"
+              style={{
+                fontSize: '16px',
+                fontVariantNumeric: 'tabular-nums',
+                color: voteColor,
+                padding: '3px 0',
+                lineHeight: 1,
+                textAlign: 'center',
+                width: '100%',
+                background: 'rgba(0,0,0,0.2)',
+                userSelect: 'none',
+              }}
+            >
+              {votes > 0 ? `+${votes}` : votes}
             </div>
-          )}
-          {/* Import button */}
+            <button
+              onClick={() => handleVoteClick('down')}
+              aria-label={`Downvote ${layout.name}`}
+              aria-pressed={userVote?.direction === 'down'}
+              className="pixel-btn"
+              style={{
+                width: '100%',
+                flex: 1,
+                minHeight: 28,
+                padding: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: userVote?.direction === 'down' ? 'var(--pixel-status-permission-bg)' : 'transparent',
+                color: userVote?.direction === 'down' ? 'var(--pixel-status-permission)' : 'var(--pixel-text-hint)',
+                border: 'none',
+                borderTop: '1px solid var(--pixel-border)',
+                borderRadius: 0,
+                cursor: !hasIssue || !isAuthed ? 'default' : 'pointer',
+                fontSize: '14px',
+              }}
+            >
+              {'\u25BC'}
+            </button>
+          </div>
+
+          {/* Import button — fills remaining width */}
           <button
             onClick={onConfirm}
             disabled={isImporting}
             className="pixel-btn pixel-btn-primary"
             style={{
+              flex: 1,
               padding: '6px 10px',
               fontSize: '20px',
               minHeight: 44,
@@ -727,9 +780,6 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
               borderRadius: 0,
               cursor: isImporting ? 'default' : 'pointer',
               opacity: isImporting ? 'var(--pixel-btn-disabled-opacity)' : 1,
-              flex: hasIssue ? undefined : 1,
-              marginLeft: hasIssue ? undefined : 0,
-              width: hasIssue ? undefined : '100%',
             }}
           >
             <span aria-live="polite">{isImporting ? 'Importing...' : 'Use This Layout'}</span>
