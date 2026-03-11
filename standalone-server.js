@@ -461,6 +461,10 @@ function processLine(agentId, line) {
             return;
           }
         }
+        // Detect /clear command — placeholder for future actions (e.g. tidying animation)
+        if (content.trimStart().startsWith('<command-name>/clear</command-name>')) {
+          agent.clearDetected = true;
+        }
         if (!replaying) {
           cancelTimer(waitingTimers, agentId);
           clearAgentActivity(agent, agentId);
@@ -794,7 +798,7 @@ function handleReporterMessage(ws, msg) {
       id, jsonlFile: `remote:${remoteKey}`, projectDir: '', fileOffset: 0, lineBuffer: '',
       activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
       activeSubagentToolIds: new Map(), activeSubagentToolNames: new Map(),
-      isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false,
+      isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false, clearDetected: false,
       isReplaying: true, folderName, machineId, remote: true, isSDK: !!msg.sdk,
       permissionMode: msg.sdk ? 'bypassPermissions' : undefined,
       lastDataMs: Date.now(), isResting: false,
@@ -876,7 +880,7 @@ function scanAndAdoptAgents() {
         jsonlFile: file, projectDir: projDir, fileOffset: 0, lineBuffer: '',
         activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
         activeSubagentToolIds: new Map(), activeSubagentToolNames: new Map(),
-        isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false,
+        isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false, clearDetected: false,
         isReplaying: true,
       };
       const tempId = -999;
