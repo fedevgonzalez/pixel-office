@@ -61,6 +61,7 @@ const actionBtnBase: React.CSSProperties = {
 function useAuth() {
   const [user, setUser] = useState<AuthUser>({ authenticated: false })
   const [checking, setChecking] = useState(true)
+  const [signingIn, setSigningIn] = useState(false)
 
   const checkAuth = useCallback(async () => {
     try {
@@ -78,14 +79,29 @@ function useAuth() {
     checkAuth()
     // Listen for popup auth completion
     const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'authComplete') checkAuth()
+      if (e.data?.type === 'authComplete') {
+        setSigningIn(false)
+        checkAuth()
+      }
     }
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
   }, [checkAuth])
 
   const login = useCallback(() => {
-    window.open('/auth/login', 'github-auth', 'width=600,height=700,popup=yes')
+    setSigningIn(true)
+    const popup = window.open('/auth/login', 'github-auth', 'width=600,height=700,popup=yes')
+    if (!popup) {
+      setSigningIn(false)
+      return
+    }
+    // Clear signing-in state if popup is closed without completing
+    const pollInterval = setInterval(() => {
+      if (popup.closed) {
+        clearInterval(pollInterval)
+        setSigningIn(false)
+      }
+    }, 500)
   }, [])
 
   const logout = useCallback(async () => {
@@ -93,7 +109,7 @@ function useAuth() {
     setUser({ authenticated: false })
   }, [])
 
-  return { user, checking, login, logout }
+  return { user, checking, login, logout, signingIn }
 }
 
 // ── Like helpers ──────────────────────────────────────────────
@@ -154,7 +170,8 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   const [sortMode, setSortMode] = useState<SortMode>('popular')
   const [userLikes, setUserLikes] = useState<Record<number, UserLike>>({})
 
-  const { user, login, logout } = useAuth()
+  const { user, login, logout, signingIn } = useAuth()
+  const [votingId, setVotingId] = useState<string | null>(null)
 
   // Listen for gallery messages from extension/server
   useEffect(() => {
@@ -248,46 +265,52 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
 
   const handleLike = useCallback(async (layout: GalleryLayout) => {
     if (!layout.issueNumber) return
+    if (votingId === layout.id) return
     const existing = userLikes[layout.issueNumber]
 
-    if (existing) {
-      // Unlike: remove the reaction
-      const removed = await removeLike(layout.issueNumber, existing.reactionId)
-      if (!removed.ok) return
+    setVotingId(layout.id)
+    try {
+      if (existing) {
+        // Unlike: remove the reaction
+        const removed = await removeLike(layout.issueNumber, existing.reactionId)
+        if (!removed.ok) return
+        setManifest(prev => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            layouts: prev.layouts.map(l =>
+              l.id === layout.id ? { ...l, votes: Math.max(0, (l.votes ?? 0) - 1) } : l
+            ),
+          }
+        })
+        setUserLikes(prev => {
+          const next = { ...prev }
+          delete next[layout.issueNumber!]
+          return next
+        })
+        return
+      }
+
+      // Like: add +1 reaction
+      const result = await submitLike(layout.issueNumber)
+      if (!result.ok) return
+      setUserLikes(prev => ({
+        ...prev,
+        [layout.issueNumber!]: { reactionId: result.reactionId! },
+      }))
       setManifest(prev => {
         if (!prev) return prev
         return {
           ...prev,
           layouts: prev.layouts.map(l =>
-            l.id === layout.id ? { ...l, votes: Math.max(0, (l.votes ?? 0) - 1) } : l
+            l.id === layout.id ? { ...l, votes: (l.votes ?? 0) + 1 } : l
           ),
         }
       })
-      setUserLikes(prev => {
-        const next = { ...prev }
-        delete next[layout.issueNumber!]
-        return next
-      })
-      return
+    } finally {
+      setVotingId(null)
     }
-
-    // Like: add +1 reaction
-    const result = await submitLike(layout.issueNumber)
-    if (!result.ok) return
-    setUserLikes(prev => ({
-      ...prev,
-      [layout.issueNumber!]: { reactionId: result.reactionId! },
-    }))
-    setManifest(prev => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        layouts: prev.layouts.map(l =>
-          l.id === layout.id ? { ...l, votes: (l.votes ?? 0) + 1 } : l
-        ),
-      }
-    })
-  }, [userLikes])
+  }, [userLikes, votingId])
 
   // Sorted layouts
   const sortedLayouts = useMemo(() => {
@@ -371,10 +394,14 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
               GITHUB_APP_CLIENT_ID_EXISTS && (
                 <button
                   onClick={login}
+                  disabled={signingIn}
+                  aria-busy={signingIn}
                   className="pixel-btn"
-                  style={{ padding: '4px 8px', fontSize: '16px', background: 'var(--pixel-active-bg)', color: 'var(--pixel-accent)', border: '2px solid var(--pixel-accent-dim)', borderRadius: 0, cursor: 'pointer' }}
+                  style={{ padding: '4px 8px', fontSize: '16px', background: 'var(--pixel-active-bg)', color: signingIn ? 'var(--pixel-text-dim)' : 'var(--pixel-accent)', border: '2px solid var(--pixel-accent-dim)', borderRadius: 0, cursor: signingIn ? 'default' : 'pointer' }}
                 >
-                  Sign in to vote
+                  <span className={signingIn ? 'pixel-agents-pulse' : undefined}>
+                    {signingIn ? 'Waiting for GitHub...' : 'Sign in to vote'}
+                  </span>
                 </button>
               )
             )}
@@ -421,8 +448,8 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="pixel-agents-pulse" style={{
                   height: 160,
-                  background: 'rgba(255, 245, 235, 0.04)',
-                  border: '2px solid rgba(255, 245, 235, 0.06)',
+                  background: 'rgba(255, 245, 235, 0.08)',
+                  border: '2px solid rgba(255, 245, 235, 0.12)',
                 }} />
               ))}
             </div>
@@ -480,6 +507,8 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                       onImport={() => handleImport(layout)}
                       liked={layout.issueNumber != null && userLikes[layout.issueNumber] != null}
                       isAuthed={user.authenticated}
+                      isVoting={votingId === layout.id}
+                      signingIn={signingIn}
                       onLike={() => handleLike(layout)}
                       onSignIn={login}
                     />
@@ -542,11 +571,13 @@ interface GalleryCardProps {
   onImport: () => void
   liked: boolean
   isAuthed: boolean
+  isVoting: boolean
+  signingIn: boolean
   onLike: () => void
   onSignIn: () => void
 }
 
-function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfirm, onCancel, onImport, liked, isAuthed, onLike, onSignIn }: GalleryCardProps) {
+function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfirm, onCancel, onImport, liked, isAuthed, isVoting, signingIn, onLike, onSignIn }: GalleryCardProps) {
   const likes = layout.votes ?? 0
   const hasIssue = layout.issueNumber != null
 
@@ -593,8 +624,10 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
             alt={layout.name || 'Community layout preview'}
             style={{ maxWidth: '100%', maxHeight: '100%', imageRendering: 'pixelated' }}
           />
+        ) : layout.screenshot ? (
+          <div className="pixel-agents-pulse" style={{ width: '100%', height: '100%', background: 'rgba(232, 168, 76, 0.06)' }} />
         ) : (
-          <span style={{ fontSize: '20px', color: 'rgba(255, 245, 235, 0.4)' }}>No preview</span>
+          <span style={{ fontSize: '16px', color: 'rgba(255, 245, 235, 0.25)' }}>No preview</span>
         )}
       </div>
 
@@ -671,9 +704,11 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
           {/* Star like button */}
           <button
             onClick={handleStarClick}
-            aria-label={liked ? `Unstar ${layout.name}` : `Star ${layout.name}`}
+            disabled={isVoting || signingIn}
+            aria-busy={isVoting}
+            aria-label={isVoting ? 'Saving...' : liked ? `Unstar ${layout.name}` : `Star ${layout.name}`}
             aria-pressed={liked}
-            title={!hasIssue ? 'Rating coming soon' : !isAuthed ? 'Sign in to rate' : liked ? 'Remove star' : 'Star this layout'}
+            title={!hasIssue ? 'Rating coming soon' : !isAuthed ? 'Sign in to rate' : isVoting ? 'Saving...' : liked ? 'Remove star' : 'Star this layout'}
             className="pixel-btn"
             style={{
               padding: '4px 8px',
@@ -687,11 +722,12 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
               color: liked ? 'var(--pixel-accent)' : 'var(--pixel-text-hint)',
               border: liked ? '2px solid var(--pixel-accent-dim)' : '2px solid var(--pixel-border)',
               borderRadius: 0,
-              cursor: 'pointer',
+              cursor: isVoting ? 'default' : 'pointer',
+              opacity: isVoting ? 0.5 : 1,
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: '18px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }}>{starChar}</span>
+            <span className={isVoting ? 'pixel-agents-pulse' : undefined} style={{ fontSize: '18px', lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '18px', height: '18px' }}>{starChar}</span>
             {likes > 0 && (
               <span aria-live="polite" style={{ fontSize: '16px', fontVariantNumeric: 'tabular-nums' }}>{likes}</span>
             )}
@@ -712,10 +748,9 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
               border: '2px solid var(--pixel-agent-border)',
               borderRadius: 0,
               cursor: isImporting ? 'default' : 'pointer',
-              opacity: isImporting ? 'var(--pixel-btn-disabled-opacity)' : 1,
             }}
           >
-            <span aria-live="polite">{isImporting ? 'Importing...' : 'Use This Layout'}</span>
+            <span className={isImporting ? 'pixel-agents-pulse' : undefined} aria-live="polite">{isImporting ? 'Importing...' : 'Use This Layout'}</span>
           </button>
         </div>
       )}
