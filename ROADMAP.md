@@ -56,6 +56,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - Send prompts to agents from the browser
 - Remote kill agent
 - Transform from passive monitor to control center
+- **Note:** These features would require an authentication layer. The server currently has no auth — see [SECURITY.md](SECURITY.md).
 
 ### Multiple Views
 - Pixel Office (current view)
