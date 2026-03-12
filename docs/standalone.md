@@ -6,7 +6,7 @@ Run the pixel art office visualization in your browser.
 
 - Node.js 18+ (Node 22+ recommended for native WebSocket)
 - The webview must be built first (`npm run build` from the project root)
-- Claude Code CLI sessions running on the same machine (or connected via reporter)
+- Claude Code CLI sessions and/or Cursor agent sessions running on the same machine (or connected via reporter)
 
 ## Quick Start (Single PC)
 
@@ -18,7 +18,7 @@ npm run build
 node standalone-server.js
 ```
 
-Open `http://localhost:3300` in your browser. Agents appear automatically as you start Claude Code sessions.
+Open `http://localhost:3300` in your browser. Agents appear automatically as you start Claude Code or Cursor agent sessions.
 
 For wall displays, use `http://localhost:3300/?kiosk` (auto-framing camera, no UI controls).
 
@@ -30,7 +30,7 @@ All optional. Can be set as system env vars or in a `.env` file in the project r
 |----------|---------|-------------|
 | `PORT` | `3300` | HTTP + WebSocket server port |
 | `GITHUB_TOKEN` | _(empty)_ | GitHub personal access token — required only if your community gallery repo is private |
-| `NO_SCAN` | `0` | Set to `1` to disable auto-scanning of `~/.claude/projects/`. Useful when the server only receives agents via remote WebSocket reporters |
+| `NO_SCAN` | `0` | Set to `1` to disable auto-scanning of `~/.claude/projects/` and `~/.cursor/projects/`. Useful when the server only receives agents via remote WebSocket reporters |
 | `GITHUB_APP_CLIENT_ID` | _(empty)_ | GitHub App client ID for community gallery voting (optional) |
 | `GITHUB_APP_CLIENT_SECRET` | _(empty)_ | GitHub App client secret for community gallery voting (optional) |
 
@@ -78,9 +78,9 @@ node standalone-server.js
 
 The server listens on `0.0.0.0:3300` and accepts both browser clients and reporter connections.
 
-### Reporter (Claude Code CLI)
+### Reporter (Claude Code CLI + Cursor)
 
-Each machine running Claude Code needs a reporter — a lightweight process that watches local JSONL files and streams updates to the central server.
+Each machine running Claude Code or Cursor needs a reporter — a lightweight process that watches local session files and streams updates to the central server. The reporter auto-detects both Claude Code JSONL sessions (`~/.claude/projects/`) and Cursor agent transcripts (`~/.cursor/projects/*/agent-transcripts/`).
 
 ```bash
 # Node 22+ (native WebSocket, zero dependencies)
@@ -92,9 +92,10 @@ node pixel-office-reporter.js ws://<server-ip>:3300/ws/report
 ```
 
 The reporter:
-1. Scans `~/.claude/projects/` for active JSONL session files
-2. Replays recent history so the server knows current state
-3. Streams new JSONL lines in real-time via WebSocket
+1. Scans `~/.claude/projects/` for active Claude Code JSONL session files
+2. Scans `~/.cursor/projects/*/agent-transcripts/` for active Cursor transcript files
+3. Replays recent history so the server knows current state
+4. Streams updates in real-time via WebSocket (Cursor transcripts are normalized to the Claude protocol)
 4. Auto-reconnects if the connection drops
 
 Only 1 file needed — no other dependencies.
@@ -427,7 +428,7 @@ The standalone server:
 
 ## Troubleshooting
 
-**No agents appear**: Make sure Claude Code sessions are running. Check `~/.claude/projects/` for JSONL files. The server console logs every scan — look for "New session" or error messages.
+**No agents appear**: Make sure Claude Code or Cursor sessions are running. Check `~/.claude/projects/` for JSONL files or `~/.cursor/projects/*/agent-transcripts/` for Cursor transcript files. The server console logs every scan — look for "New session" or error messages.
 
 **Reporter can't connect**: Verify the server IP and port are reachable. Check firewall rules. The reporter logs connection attempts to the console.
 

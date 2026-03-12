@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Pixel Office Reporter — lightweight agent that watches local Claude Code
-// sessions and reports them to a central Pixel Office server via WebSocket.
+// Pixel Office Reporter — watches local AI coding agent sessions (Claude Code,
+// Cursor, etc.) and reports them to a central Pixel Office server via WebSocket.
 //
 // Usage: node pixel-office-reporter.js [server-url]
 // Example: node pixel-office-reporter.js ws://localhost:3300/ws/report
@@ -24,7 +24,8 @@ try { WebSocket = require('ws'); } catch {
 
 const SERVER_URL = process.argv[2] || process.env.PIXEL_OFFICE_SERVER || 'ws://localhost:3300/ws/report';
 const MACHINE_ID = process.env.PIXEL_OFFICE_MACHINE_ID || os.hostname();
-const PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
+const CLAUDE_PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
+const CURSOR_PROJECTS_ROOT = path.join(os.homedir(), '.cursor', 'projects');
 const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
@@ -54,7 +55,8 @@ function resolveFolderName(hashName) {
   const sep = isWin ? '\\' : '/';
   let prefix, rest;
   if (isWin) {
-    const m = hashName.match(/^([a-zA-Z])--(.*)$/);
+    // Claude uses double-dash for drive letter (g--GitHub-...), Cursor uses single-dash (g-GitHub-...)
+    const m = hashName.match(/^([a-zA-Z])--(.*)$/) || hashName.match(/^([a-zA-Z])-(.*)$/);
     if (!m) return hashName;
     prefix = m[1] + ':' + sep;
     rest = m[2];
@@ -147,10 +149,138 @@ function hasExitCommand(filePath) {
   } catch { return false; }
 }
 
-// --- Read new lines from a session file and send them ---
+// --- Cursor transcript parser ---
+// Converts Cursor agent transcript text into Claude-compatible JSONL records.
+// Cursor transcripts are plain text: "user:", "assistant:", "[Tool call] Name", "[Tool result] Name"
+
+function createCursorParser() {
+  return {
+    toolIdCounter: 0,
+    activeToolQueue: [],   // [{id, name}] — FIFO for matching results to calls
+    pendingToolCall: null,  // {name, params} currently being collected
+    inAssistant: false,
+    hadTextOnly: false,
+  };
+}
+
+function normalizeCursorTool(name, params) {
+  const input = { ...params };
+  let toolName = name;
+  if (name === 'Shell' && params.command) {
+    toolName = 'Bash';
+    return { name: toolName, input: { command: params.command } };
+  }
+  if ((name === 'Read' || name === 'Write' || name === 'StrReplace' || name === 'Delete') && params.path) {
+    input.file_path = params.path;
+  }
+  return { name: toolName, input };
+}
+
+function flushPendingCursorTool(parser) {
+  const records = [];
+  if (!parser.pendingToolCall) return records;
+  const tc = parser.pendingToolCall;
+  const id = `ct-${parser.toolIdCounter++}`;
+  const { name, input } = normalizeCursorTool(tc.name, tc.params);
+  parser.activeToolQueue.push({ id, name: tc.name });
+  records.push(JSON.stringify({
+    type: 'assistant',
+    message: { content: [{ type: 'tool_use', id, name, input }] }
+  }));
+  parser.pendingToolCall = null;
+  parser.hadTextOnly = false;
+  return records;
+}
+
+function parseCursorLine(parser, line) {
+  const records = [];
+
+  if (line === 'user:') {
+    records.push(...flushPendingCursorTool(parser));
+    parser.inAssistant = false;
+    parser.hadTextOnly = false;
+    return records;
+  }
+
+  if (line === 'assistant:') {
+    records.push(...flushPendingCursorTool(parser));
+    parser.inAssistant = true;
+    parser.hadTextOnly = false;
+    return records;
+  }
+
+  const toolCallMatch = line.match(/^\[Tool call\] (.+)$/);
+  if (toolCallMatch) {
+    records.push(...flushPendingCursorTool(parser));
+    parser.pendingToolCall = { name: toolCallMatch[1].trim(), params: {} };
+    parser.inAssistant = true;
+    return records;
+  }
+
+  if (parser.pendingToolCall) {
+    const paramMatch = line.match(/^  (\w[\w_]*):\s*(.*)$/);
+    if (paramMatch) {
+      parser.pendingToolCall.params[paramMatch[1]] = paramMatch[2];
+      return records;
+    }
+    records.push(...flushPendingCursorTool(parser));
+  }
+
+  const toolResultMatch = line.match(/^\[Tool result\] (.+)$/);
+  if (toolResultMatch) {
+    records.push(...flushPendingCursorTool(parser));
+    if (parser.activeToolQueue.length > 0) {
+      const tool = parser.activeToolQueue.shift();
+      records.push(JSON.stringify({
+        type: 'user',
+        message: { content: [{ type: 'tool_result', tool_use_id: tool.id }] }
+      }));
+    }
+    return records;
+  }
+
+  if (line.startsWith('[Thinking]')) return records;
+
+  if (parser.inAssistant && line.trim() && !parser.hadTextOnly) {
+    parser.hadTextOnly = true;
+    records.push(JSON.stringify({
+      type: 'assistant',
+      message: { content: [{ type: 'text', text: line.trim() }] }
+    }));
+  }
+
+  return records;
+}
+
+// --- Read new lines from a Cursor transcript file ---
+function readNewCursorLines(filePath) {
+  const session = sessions.get(filePath);
+  if (!session) return;
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size <= session.offset) return;
+    const buf = Buffer.alloc(stat.size - session.offset);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buf, 0, buf.length, session.offset);
+    fs.closeSync(fd);
+    session.offset = stat.size;
+    const text = session.lineBuffer + buf.toString('utf-8');
+    const lines = text.split('\n');
+    session.lineBuffer = lines.pop() || '';
+    for (const line of lines) {
+      const syntheticRecords = parseCursorLine(session.cursorParser, line);
+      for (const rec of syntheticRecords) {
+        send({ type: 'session-line', sessionId: session.sessionId, line: rec });
+      }
+    }
+  } catch {}
+}
+
+// --- Read new lines from a Claude Code session file and send them ---
 function readNewLines(filePath) {
   const session = sessions.get(filePath);
   if (!session) return;
+  if (session.agentType === 'cursor') return readNewCursorLines(filePath);
   try {
     const stat = fs.statSync(filePath);
     if (stat.size <= session.offset) return;
@@ -183,35 +313,47 @@ function readNewLines(filePath) {
 }
 
 // --- Start tracking a session file ---
-function startSession(filePath, projDir) {
-  const sessionId = path.basename(filePath, '.jsonl');
+function startSession(filePath, projDir, agentType) {
+  const ext = agentType === 'cursor' ? path.extname(filePath) : '.jsonl';
+  const rawId = path.basename(filePath, ext);
+  const sessionId = agentType === 'cursor' ? `cursor-${rawId}` : rawId;
   const folderName = resolveFolderName(path.basename(projDir));
 
-  // Replay existing content to get current state
   let offset = 0;
   const replayLines = [];
+  let cursorParser = agentType === 'cursor' ? createCursorParser() : null;
+
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
     offset = Buffer.byteLength(content, 'utf-8');
-    const lines = content.split('\n');
-    for (const line of lines) {
-      if (line.trim()) replayLines.push(line);
+    if (agentType === 'cursor') {
+      const lines = content.split('\n');
+      for (const line of lines) {
+        const records = parseCursorLine(cursorParser, line);
+        replayLines.push(...records);
+      }
+      replayLines.push(...flushPendingCursorTool(cursorParser));
+    } else {
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (line.trim()) replayLines.push(line);
+      }
     }
   } catch {}
 
-  const session = { sessionId, offset, lineBuffer: '', folderName, filePath };
+  const session = {
+    sessionId, offset, lineBuffer: '', folderName, filePath, agentType,
+    cursorParser,
+  };
   sessions.set(filePath, session);
 
-  // Notify server of new session
-  send({ type: 'session-start', sessionId, folderName });
+  send({ type: 'session-start', sessionId, folderName, agentType });
 
-  // Send replay lines so server builds current state
   for (const line of replayLines) {
     send({ type: 'session-line', sessionId, line });
   }
   send({ type: 'session-replay-done', sessionId });
 
-  // Watch for new content
   try {
     session.watcher = fs.watch(filePath, () => readNewLines(filePath));
   } catch {}
@@ -220,7 +362,7 @@ function startSession(filePath, projDir) {
     readNewLines(filePath);
   }, 1000);
 
-  log(`Tracking: ${folderName}/${sessionId}`);
+  log(`Tracking [${agentType}]: ${folderName}/${sessionId}`);
 }
 
 // --- Stop tracking a session ---
@@ -234,13 +376,13 @@ function endSession(filePath) {
   log(`Ended: ${session.folderName}/${session.sessionId}`);
 }
 
-// --- Scan for active JSONL sessions directly ---
-function scanLocalFiles() {
+// --- Scan for active Claude Code JSONL sessions ---
+function scanClaudeFiles() {
   const activeFiles = new Set();
   let projectDirs;
   try {
-    projectDirs = fs.readdirSync(PROJECTS_ROOT)
-      .map(d => path.join(PROJECTS_ROOT, d))
+    projectDirs = fs.readdirSync(CLAUDE_PROJECTS_ROOT)
+      .map(d => path.join(CLAUDE_PROJECTS_ROOT, d))
       .filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
   } catch { return activeFiles; }
 
@@ -256,11 +398,10 @@ function scanLocalFiles() {
         const stat = fs.statSync(file);
         if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
         if (hasExitCommand(file)) continue;
-        // Skip files that were idle-timed-out unless their mtime changed (new activity)
         const skippedMtime = skippedFiles.get(file);
         if (skippedMtime !== undefined) {
           if (stat.mtimeMs <= skippedMtime) continue;
-          skippedFiles.delete(file); // new activity — allow re-detection
+          skippedFiles.delete(file);
           log(`Re-detected activity: ${path.basename(file, '.jsonl')}`);
         }
         activeFiles.add(file);
@@ -270,31 +411,76 @@ function scanLocalFiles() {
   return activeFiles;
 }
 
-// --- Scan: detect active sessions and report them ---
+// --- Scan for active Cursor agent transcript sessions ---
+function scanCursorFiles() {
+  const activeFiles = new Set();
+  let projectDirs;
+  try {
+    projectDirs = fs.readdirSync(CURSOR_PROJECTS_ROOT)
+      .map(d => path.join(CURSOR_PROJECTS_ROOT, d))
+      .filter(d => { try { return fs.statSync(d).isDirectory(); } catch { return false; } });
+  } catch { return activeFiles; }
+
+  const now = Date.now();
+  for (const projDir of projectDirs) {
+    const transcriptDir = path.join(projDir, 'agent-transcripts');
+    let files;
+    try {
+      files = fs.readdirSync(transcriptDir)
+        .filter(f => f.endsWith('.txt') || f.endsWith('.jsonl'))
+        .map(f => path.join(transcriptDir, f));
+    } catch { continue; }
+
+    for (const file of files) {
+      try {
+        const stat = fs.statSync(file);
+        if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
+        const skippedMtime = skippedFiles.get(file);
+        if (skippedMtime !== undefined) {
+          if (stat.mtimeMs <= skippedMtime) continue;
+          skippedFiles.delete(file);
+          log(`Re-detected Cursor activity: ${path.basename(file)}`);
+        }
+        activeFiles.add(file);
+      } catch {}
+    }
+  }
+  return activeFiles;
+}
+
+// --- Scan: detect active sessions from all providers and report them ---
 function scan() {
   if (!connected) return;
 
-  const activeFiles = scanLocalFiles();
+  const claudeFiles = scanClaudeFiles();
+  const cursorFiles = scanCursorFiles();
+
+  // Merge into a single map: filePath → agentType
+  const allActive = new Map();
+  for (const f of claudeFiles) allActive.set(f, 'claude');
+  for (const f of cursorFiles) allActive.set(f, 'cursor');
 
   // Start sessions for files we're not tracking yet
-  for (const file of activeFiles) {
+  for (const [file, agentType] of allActive) {
     if (sessions.has(file)) continue;
-    const projDir = path.dirname(file);
-    startSession(file, projDir);
+    // Cursor transcripts live in <projDir>/agent-transcripts/<file> — go up two levels
+    const projDir = agentType === 'cursor'
+      ? path.dirname(path.dirname(file))
+      : path.dirname(file);
+    startSession(file, projDir, agentType);
   }
 
   // End sessions for files no longer active or idle too long
   for (const [filePath] of [...sessions]) {
-    if (!activeFiles.has(filePath)) {
+    if (!allActive.has(filePath)) {
       endSession(filePath);
       continue;
     }
-    // End sessions whose JSONL hasn't been modified in IDLE_TIMEOUT_MS
     try {
       const stat = fs.statSync(filePath);
       if (Date.now() - stat.mtimeMs > IDLE_TIMEOUT_MS) {
         log(`Idle timeout: ${sessions.get(filePath)?.folderName || filePath}`);
-        skippedFiles.set(filePath, stat.mtimeMs); // prevent re-detection flapping
+        skippedFiles.set(filePath, stat.mtimeMs);
         endSession(filePath);
       }
     } catch {}
@@ -335,7 +521,8 @@ function connect() {
 // --- Main ---
 log(`Pixel Office Reporter`);
 log(`Machine ID: ${MACHINE_ID}`);
-log(`Projects root: ${PROJECTS_ROOT}`);
+log(`Claude projects: ${CLAUDE_PROJECTS_ROOT}`);
+log(`Cursor projects: ${CURSOR_PROJECTS_ROOT}`);
 log(`Server: ${SERVER_URL}`);
 
 connect();

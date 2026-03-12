@@ -794,6 +794,7 @@ function handleReporterMessage(ws, msg) {
     if (remoteAgents.has(remoteKey)) return; // already tracked
     const id = nextAgentId++;
     const folderName = msg.folderName || msg.sessionId || machineId;
+    const agentType = msg.agentType || 'claude';
     const agent = {
       id, jsonlFile: `remote:${remoteKey}`, projectDir: '', fileOffset: 0, lineBuffer: '',
       activeToolIds: new Set(), activeToolStatuses: new Map(), activeToolNames: new Map(),
@@ -801,12 +802,12 @@ function handleReporterMessage(ws, msg) {
       isWaiting: false, permissionSent: false, hadToolsInTurn: false, exitDetected: false, clearDetected: false,
       isReplaying: true, folderName, machineId, remote: true, isSDK: !!msg.sdk,
       permissionMode: msg.sdk ? 'bypassPermissions' : undefined,
-      lastDataMs: Date.now(), isResting: false,
+      lastDataMs: Date.now(), isResting: false, agentType,
     };
     agents.set(id, agent);
     remoteAgents.set(remoteKey, id);
-    console.log(`Remote agent ${id} from ${machineId}: ${folderName}`);
-    broadcast({ type: 'agentCreated', id, folderName });
+    console.log(`Remote agent ${id} [${agentType}] from ${machineId}: ${folderName}`);
+    broadcast({ type: 'agentCreated', id, folderName, agentType });
   } else if (msg.type === 'session-replay-done') {
     const agentId = remoteAgents.get(remoteKey);
     if (agentId == null) { console.log(`session-replay-done: unknown key ${remoteKey}`); return; }
@@ -1396,6 +1397,7 @@ const server = http.createServer(async (req, res) => {
         permissionPending: !!agent.permissionSent,
         activeTools: agent.activeToolIds.size,
         sdk: !!agent.isSDK,
+        agentType: agent.agentType || 'claude',
       });
     }
     const body = JSON.stringify({ agents: agentList, count: agentList.length });
