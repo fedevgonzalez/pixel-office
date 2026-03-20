@@ -263,6 +263,144 @@ createPixelReporter({
 
 ---
 
+## OpenClaw Integration
+
+[OpenClaw](https://docs.openclaw.ai) is a self-hosted AI agent gateway that connects to Telegram, Slack, and other channels. It runs 24/7 on a VPS and uses its own JSONL session format — different from Claude Code CLI.
+
+### The Problem
+
+OpenClaw's JSONL uses `type: "message"` with `message.role` and `toolCall`/`toolResult` block types, while Pixel Office expects Claude Code's format (`type: "assistant"/"user"` with `tool_use`/`tool_result` blocks). A translation layer is needed.
+
+### Architecture
+
+```
+┌─────────────┐  Cloudflare Tunnel   ┌──────────────┐     Kiosk      ┌─────────┐
+│  OpenClaw   │  (or direct WS)      │  Pixel Office│ ◀────────────  │ Display │
+│  VPS        │ ──────────────────▶  │  Server      │                │         │
+│  reporter   │    /ws/report         │  (homeserver)│                └─────────┘
+└─────────────┘                      └──────────────┘
+     │
+     │ reads JSONL from
+     ▼
+ ~/.openclaw/agents/main/sessions/*.jsonl
+```
+
+### Setup
+
+**1. Copy the reporter to OpenClaw's VPS:**
+
+The reporter script needs to be placed inside the OpenClaw container at a path like `/data/.openclaw/workspace/scripts/pixel-reporter.js`. It requires the `ws` npm package.
+
+```bash
+# Inside the OpenClaw container:
+cd /data/.openclaw/workspace/scripts
+npm install ws
+```
+
+**2. Create the reporter script:**
+
+The reporter watches OpenClaw's session JSONL files, translates them to Pixel Office format, and sends them via WebSocket. Key translation:
+
+| OpenClaw Format | Pixel Office Format |
+|---|---|
+| `type: "message"`, `role: "assistant"` | `type: "assistant"` |
+| `type: "message"`, `role: "user"` | `type: "user"` |
+| `block.type: "toolCall"` | `block.type: "tool_use"` |
+| `block.type: "toolResult"` | `block.type: "tool_result"` |
+| `block.toolCallId` | `block.tool_use_id` |
+| `type: "custom"`, `subtype: "turn_end"` | `type: "system"`, `subtype: "turn_duration"` |
+
+```js
+// pixel-reporter.js — OpenClaw → Pixel Office bridge
+// See full implementation at: infra/openclaw-reporter.js
+
+const fs = require("fs");
+const path = require("path");
+const WS = require("ws");
+
+const SERVER_URL = process.env.PIXEL_OFFICE_SERVER || "ws://pixel.lab:3300/ws/report";
+const SESSIONS_DIR = "/data/.openclaw/agents/main/sessions";
+
+// Translation function
+function translateLine(record) {
+  if (record.type === "message" && record.message) {
+    const role = record.message.role;
+    const content = record.message.content;
+    if (!Array.isArray(content)) return null;
+
+    const translated = content.map(block => {
+      if (block.type === "toolCall") {
+        return { type: "tool_use", id: block.id, name: block.name, input: block.input || {} };
+      } else if (block.type === "toolResult") {
+        return { type: "tool_result", tool_use_id: block.toolCallId || block.id, content: "done" };
+      }
+      return block;
+    });
+
+    if (role === "assistant") return JSON.stringify({ type: "assistant", message: { content: translated } });
+    if (role === "user") return JSON.stringify({ type: "user", message: { content: translated } });
+  } else if (record.type === "custom" && record.subtype === "turn_end") {
+    return JSON.stringify({ type: "system", subtype: "turn_duration" });
+  }
+  return null;
+}
+
+// The reporter scans for the newest JSONL file every 2s,
+// reads new lines, translates them, and sends via WebSocket.
+```
+
+**3. Run the reporter:**
+
+```bash
+# Run as a background daemon inside the OpenClaw container:
+docker exec -d openclaw-container node /data/.openclaw/workspace/scripts/pixel-reporter.js
+
+# Or set PIXEL_OFFICE_SERVER env var in the container's .env
+```
+
+**4. Network: Reaching the Pixel Office server**
+
+If your Pixel Office server is on a home network behind NAT/ISP restrictions, use a [Cloudflare Quick Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/create-local-tunnel/):
+
+```bash
+# On the homeserver, create a tunnel to the Pixel Office port:
+docker run -d --name pixel-tunnel --network host cloudflare/cloudflared:latest tunnel --url http://localhost:3300
+
+# The tunnel logs will show a URL like:
+# https://random-words.trycloudflare.com
+
+# Use that URL in the reporter:
+PIXEL_OFFICE_SERVER=wss://random-words.trycloudflare.com/ws/report
+```
+
+> **Note:** Quick tunnel URLs change on restart. For a permanent URL, use a named Cloudflare tunnel with a custom domain.
+
+### Security
+
+When exposing the Pixel Office server externally, restrict access to only the reporter endpoint:
+
+```nginx
+# nginx config — block everything except /ws/report with a secret token
+location / {
+    return 403;
+}
+
+location = /ws/report {
+    if ($arg_token != "YOUR_SECRET_TOKEN") {
+        return 403;
+    }
+    proxy_pass http://localhost:3300;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 86400;
+}
+```
+
+The `/ws/report` endpoint only accepts `session-start`, `session-line`, `session-end`, and `session-replay-done` messages. It cannot read layouts, modify settings, close other agents, or access any API endpoints.
+
+---
+
 ## Kiosk Mode
 
 Append `?kiosk` to the URL for wall display mode:
