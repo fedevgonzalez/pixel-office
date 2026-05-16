@@ -1,4 +1,4 @@
 packages:
   - webview-ui
-onlyBuiltDependencies:
-  - esbuild
+allowBuilds:
+  esbuild: true
