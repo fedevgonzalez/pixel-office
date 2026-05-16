@@ -9,13 +9,14 @@
   },
   "icon": "icon.png",
   "license": "MIT",
+  "packageManager": "pnpm@11.1.1",
   "scripts": {
-    "build:webview": "cd webview-ui && npm run build",
-    "build": "npm run build:webview",
-    "compile": "npm run check-types && npm run lint && npm run build:webview",
-    "watch": "cd webview-ui && npm run dev",
-    "check-types": "cd webview-ui && npx tsc --noEmit",
-    "lint": "cd webview-ui && npm run lint",
+    "build:webview": "cd webview-ui && pnpm build",
+    "build": "pnpm build:webview",
+    "compile": "pnpm check-types && pnpm lint && pnpm build:webview",
+    "watch": "cd webview-ui && pnpm dev",
+    "check-types": "cd webview-ui && pnpm exec tsc --noEmit",
+    "lint": "cd webview-ui && pnpm lint",
     "import-tileset": "tsx scripts/0-import-tileset.ts"
   },
   "devDependencies": {

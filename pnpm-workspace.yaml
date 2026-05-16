@@ -1,0 +1,4 @@
+packages:
+  - webview-ui
+onlyBuiltDependencies:
+  - esbuild

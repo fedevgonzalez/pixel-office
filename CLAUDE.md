@@ -5,7 +5,7 @@ Standalone web server: pixel art office where AI agents (Claude Code terminals) 
 ## Build
 
 ```sh
-npm install && cd webview-ui && npm install && cd .. && npm run build
+pnpm install && cd webview-ui && pnpm install && cd .. && pnpm build
 ```
 
 Run: `node standalone-server.js` → http://localhost:3300

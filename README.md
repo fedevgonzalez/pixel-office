@@ -32,8 +32,8 @@ Perfect for a wall-mounted monitor, a second screen, or just a corner of your de
 ```bash
 git clone https://github.com/fedevgonzalez/pixel-office.git
 cd pixel-office
-npm install && cd webview-ui && npm install && cd ..
-npm run build
+pnpm install && cd webview-ui && pnpm install && cd ..
+pnpm build
 node standalone-server.js
 ```
 
@@ -156,7 +156,7 @@ The office tileset is **[Office Interior Tileset (16x16)](https://donarg.itch.io
 The tileset is not included in this repo. The app runs without it — agents still appear and animate — but the layout editor won't have any furniture items. To unlock the full furniture catalog:
 
 1. Purchase the tileset from the link above
-2. Run `npm run import-tileset` and follow the prompts
+2. Run `pnpm import-tileset` and follow the prompts
 
 ## Tech Stack
 

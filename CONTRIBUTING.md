@@ -9,14 +9,14 @@ Thanks for your interest in contributing! Here's how to get started.
 ```sh
 git clone https://github.com/fedevgonzalez/pixel-office.git
 cd pixel-office
-npm install
-cd webview-ui && npm install && cd ..
+pnpm install
+cd webview-ui && pnpm install && cd ..
 ```
 
 2. Build the webview:
 
 ```sh
-npm run build
+pnpm build
 ```
 
 3. Run the server:
@@ -40,7 +40,7 @@ Open http://localhost:3300 to see the app.
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b my-feature`)
-3. Make your changes and verify the build passes (`npm run build`)
+3. Make your changes and verify the build passes (`pnpm build`)
 4. Commit with a clear message describing the change
 5. Push to your fork and open a Pull Request against `master`
 

@@ -5,7 +5,7 @@ Run the pixel art office visualization in your browser.
 ## Requirements
 
 - Node.js 18+ (Node 22+ recommended for native WebSocket)
-- The webview must be built first (`npm run build` from the project root)
+- The webview must be built first (`pnpm build` from the project root)
 - Claude Code CLI sessions and/or Cursor agent sessions running on the same machine (or connected via reporter)
 
 ## Quick Start (Single PC)
@@ -13,8 +13,8 @@ Run the pixel art office visualization in your browser.
 ```bash
 git clone https://github.com/fedevgonzalez/pixel-office.git
 cd pixel-office
-npm install && cd webview-ui && npm install && cd ..
-npm run build
+pnpm install && cd webview-ui && pnpm install && cd ..
+pnpm build
 node standalone-server.js
 ```
 
@@ -72,7 +72,7 @@ Aggregate agents from multiple machines onto a single display.
 ```bash
 # Copy these files to your server:
 #   standalone-server.js, dist/ folder
-npm install ws pngjs
+pnpm add ws pngjs
 node standalone-server.js
 ```
 
@@ -87,7 +87,7 @@ Each machine running Claude Code or Cursor needs a reporter — a lightweight pr
 node pixel-office-reporter.js ws://<server-ip>:3300/ws/report
 
 # Node 18-21 (needs ws package)
-npm install -g ws
+pnpm add -g ws
 node pixel-office-reporter.js ws://<server-ip>:3300/ws/report
 ```
 
@@ -294,7 +294,7 @@ The reporter script needs to be placed inside the OpenClaw container at a path l
 ```bash
 # Inside the OpenClaw container:
 cd /data/.openclaw/workspace/scripts
-npm install ws
+pnpm add ws
 ```
 
 **2. Create the reporter script:**
