@@ -1,7 +1,7 @@
 import { PetState, Direction, TILE_SIZE, PetPersonality } from '../types.js'
 import type { Pet, PlacedPet, SpriteData, TileType as TileTypeVal, PetPersonality as PetPersonalityType } from '../types.js'
 import { findPath } from '../layout/tileMap.js'
-import { getPetSprites, colorPetSprite } from '../sprites/petSprites.js'
+import { getPetSprites, colorPetSprite, listPetVariants } from '../sprites/petSprites.js'
 import {
   PET_WALK_SPEED_PX_PER_SEC,
   PET_WALK_FRAME_DURATION_SEC,
@@ -112,6 +112,7 @@ export function createPet(placed: PlacedPet): Pet {
     frame: 0,
     frameTimer: 0,
     behaviorTimer: randomRange(PET_IDLE_MIN_SEC, PET_IDLE_MAX_SEC),
+    variant: placed.variant,
     color: placed.color,
     petColors: placed.petColors,
     personality: placed.personality,
@@ -371,9 +372,31 @@ export function walkPetToTile(
   return true
 }
 
+/** djb2-style hash of a string into [0, n) — deterministic per uid. */
+function hashStringTo(str: string, n: number): number {
+  let h = 5381
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h) + str.charCodeAt(i)
+  return Math.abs(h) % Math.max(1, n)
+}
+
+/**
+ * Resolve which variant a pet should render with.
+ * - Explicit `pet.variant` wins.
+ * - Pets with custom `petColors` keep the default sprite (their customization stays meaningful).
+ * - Otherwise pick a variant deterministically from the species' available variants via uid hash.
+ */
+function resolveEffectiveVariant(pet: Pet): string | undefined {
+  if (pet.variant) return pet.variant
+  if (pet.petColors) return undefined
+  const available = listPetVariants(pet.species)
+  if (available.length === 0) return undefined
+  return available[hashStringTo(pet.uid, available.length)]
+}
+
 /** Get the current sprite frame for a pet (with palette swap if petColors set) */
 export function getPetSprite(pet: Pet): SpriteData {
-  const sprites = getPetSprites(pet.species)
+  const effectiveVariant = resolveEffectiveVariant(pet)
+  const sprites = getPetSprites(pet.species, effectiveVariant)
   // Direction mapping: DOWN=0, LEFT=flip of RIGHT=2, RIGHT=2, UP=1
   const dirIndex = pet.dir === Direction.UP ? 1 : pet.dir === Direction.RIGHT || pet.dir === Direction.LEFT ? 2 : 0
 
@@ -395,8 +418,9 @@ export function getPetSprite(pet: Pet): SpriteData {
   let sprite = sprites.frames[dirIndex]?.[frameIdx]
   if (!sprite) sprite = sprites.frames[0][2] // fallback to front idle
 
-  // Apply palette swap + pattern
-  if (pet.petColors) {
+  // Apply palette swap + pattern. Skip when a variant is in use — variants
+  // come pre-colored (zone-based recoloring of variants is v2).
+  if (pet.petColors && !effectiveVariant) {
     sprite = colorPetSprite(sprite, pet.species, pet.petColors)
   }
 

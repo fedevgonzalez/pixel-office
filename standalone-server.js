@@ -178,7 +178,10 @@ function isPermissionExempt(name) {
 const workspacePath = process.argv[2] || null;
 const projectsRoot = path.join(os.homedir(), '.claude', 'projects');
 const distDir = path.join(__dirname, 'dist');
-const assetsDir = path.join(distDir, 'assets');
+// Vite outputs to dist/webview/. Assets (characters, pets, walls, etc.) are
+// copied by Vite from webview-ui/public/ into dist/webview/. The historical
+// dist/assets/ path was a holdover from the pre-Vite extension layout.
+const assetsDir = path.join(distDir, 'webview', 'assets');
 
 if (workspacePath) console.log(`Workspace hint: ${workspacePath}`);
 console.log(`Scanning all projects under: ${projectsRoot}`);
@@ -660,6 +663,38 @@ async function loadCharacterSprites() {
   return chars;
 }
 
+async function loadPetSprites() {
+  const dir = path.join(assetsDir, 'pets');
+  if (!fs.existsSync(dir)) return null;
+  // File naming: <species>_<variant>.png, e.g. dog_dachshund.png, cat_calico.png.
+  // Each file is a 5×3 grid of 16×16 frames (walk1, walk2, idle, sleep1, sleep2)
+  // across 3 directions (down, up, right).
+  const entries = fs.readdirSync(dir).filter((f) => f.endsWith('.png'));
+  if (entries.length === 0) return null;
+  // Result: { [species]: { [variant]: { down: [...5], up: [...5], right: [...5] } } }
+  const result = {};
+  for (const f of entries) {
+    const m = f.match(/^([a-z]+)_([a-z0-9_-]+)\.png$/i);
+    if (!m) continue;
+    const [, species, variant] = m;
+    try {
+      const png = await loadPng(path.join(dir, f));
+      const directions = { down: [], up: [], right: [] };
+      const dirNames = ['down', 'up', 'right'];
+      for (let d = 0; d < 3; d++) {
+        for (let frame = 0; frame < 5; frame++) {
+          directions[dirNames[d]].push(pngToSpriteData(png, frame * 16, d * 16, 16, 16));
+        }
+      }
+      if (!result[species]) result[species] = {};
+      result[species][variant] = directions;
+    } catch (e) {
+      console.error(`  pet sprite ${f} failed:`, e.message);
+    }
+  }
+  return result;
+}
+
 async function loadFloorTiles() {
   const file = path.join(assetsDir, 'floors.png');
   if (!fs.existsSync(file)) return null;
@@ -967,6 +1002,12 @@ async function handleClientMessage(ws, msg) {
       if (chars) ws.send(JSON.stringify({ type: 'characterSpritesLoaded', characters: chars }));
       console.log(`  characterSprites: ${chars ? 'sent' : 'skipped'}`);
     } catch (e) { console.error('  characterSprites error:', e.message); }
+    try {
+      const pets = await loadPetSprites();
+      if (pets) ws.send(JSON.stringify({ type: 'petSpritesLoaded', pets }));
+      const variantCount = pets ? Object.values(pets).reduce((sum, v) => sum + Object.keys(v).length, 0) : 0;
+      console.log(`  petSprites: ${pets ? `sent (${variantCount} variant${variantCount === 1 ? '' : 's'})` : 'skipped'}`);
+    } catch (e) { console.error('  petSprites error:', e.message); }
     try {
       const floors = await loadFloorTiles();
       if (floors) ws.send(JSON.stringify({ type: 'floorTilesLoaded', sprites: floors }));

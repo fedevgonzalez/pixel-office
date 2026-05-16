@@ -198,9 +198,11 @@ export interface PlacedPet {
   col: number
   /** Tile row */
   row: number
+  /** Selected breed/variant — picks a server-loaded PNG sprite when set. */
+  variant?: string
   /** @deprecated Use petColors instead. Old single hue shift. */
   color?: FloorColor
-  /** Per-part color customization (body, eyes, nose) */
+  /** Per-part color customization (body, eyes, nose) — only applies when variant is NOT set. */
   petColors?: PetColors
   /** Personality affects behavior weights */
   personality?: PetPersonality
@@ -228,9 +230,11 @@ export interface Pet {
   frameTimer: number
   /** Current behavior timer (seconds remaining) */
   behaviorTimer: number
+  /** Selected breed/variant. When set, the pet uses a server-loaded PNG sprite. */
+  variant?: string
   /** @deprecated Use petColors instead */
   color?: FloorColor
-  /** Per-part color customization (body, eyes, nose) */
+  /** Per-part color customization (body, eyes, nose) — ignored when `variant` is set. */
   petColors?: PetColors
   /** Personality affects behavior weights */
   personality?: PetPersonality

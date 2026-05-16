@@ -7,6 +7,7 @@ import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js'
 import { setFloorSprites } from '../office/floorTiles.js'
 import { setWallSprites } from '../office/wallTiles.js'
 import { setCharacterTemplates } from '../office/sprites/spriteData.js'
+import { setLoadedPetVariants } from '../office/sprites/petSprites.js'
 import { ws, isNoAgentsMode } from '../wsClient.js'
 import { playDoneSound, setSoundEnabled } from '../notificationSound.js'
 
@@ -332,6 +333,11 @@ export function useExtensionMessages(
         const characters = msg.characters as Array<{ down: string[][][]; up: string[][][]; right: string[][][] }>
         console.log(`[Webview] Received ${characters.length} pre-colored character sprites`)
         setCharacterTemplates(characters)
+      } else if (msg.type === 'petSpritesLoaded') {
+        const pets = msg.pets as Record<string, Record<string, { down: string[][][]; up: string[][][]; right: string[][][] }>>
+        const variantCount = Object.values(pets).reduce((sum, v) => sum + Object.keys(v).length, 0)
+        console.log(`[Webview] Received ${variantCount} pet sprite variant(s) across ${Object.keys(pets).length} species`)
+        setLoadedPetVariants(pets)
       } else if (msg.type === 'floorTilesLoaded') {
         const sprites = msg.sprites as string[][][]
         console.log(`[Webview] Received ${sprites.length} floor tile patterns`)

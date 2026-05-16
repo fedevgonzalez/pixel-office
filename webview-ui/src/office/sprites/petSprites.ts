@@ -243,7 +243,42 @@ export const DOG_SPRITES: PetSpriteSet = {
   ],
 }
 
-export function getPetSprites(species: string): PetSpriteSet {
+// Server-loaded variant sprites, keyed [species][variant]. Populated from the
+// `petSpritesLoaded` WS message. When a pet has a `variant` set and that
+// species+variant exists here, it overrides the hardcoded sprite.
+type LoadedPetData = { down: SpriteData[]; up: SpriteData[]; right: SpriteData[] }
+let loadedPetVariants: Record<string, Record<string, LoadedPetData>> | null = null
+
+export function setLoadedPetVariants(data: Record<string, Record<string, LoadedPetData>>): void {
+  loadedPetVariants = data
+}
+
+/** List variant names available for a species (deterministic order). Returns [] if none loaded. */
+export function listPetVariants(species: string): string[] {
+  if (!loadedPetVariants) return []
+  const variants = loadedPetVariants[species]
+  if (!variants) return []
+  return Object.keys(variants).sort()
+}
+
+/**
+ * Resolve sprite set for a (species, variant) pair.
+ * - If variant is set and loaded → return that variant's PNG sprites.
+ * - Else → fall back to hardcoded CAT_SPRITES / DOG_SPRITES.
+ */
+export function getPetSprites(species: string, variant?: string | null): PetSpriteSet {
+  if (variant && loadedPetVariants) {
+    const v = loadedPetVariants[species]?.[variant]
+    if (v) {
+      return {
+        frames: [
+          [v.down[0], v.down[1], v.down[2], v.down[3], v.down[4]],
+          [v.up[0], v.up[1], v.up[2], v.up[3], v.up[4]],
+          [v.right[0], v.right[1], v.right[2], v.right[3], v.right[4]],
+        ],
+      }
+    }
+  }
   switch (species) {
     case 'dog': return DOG_SPRITES
     case 'cat':

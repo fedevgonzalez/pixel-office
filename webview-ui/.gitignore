@@ -26,5 +26,6 @@ dist-ssr
 # Privately licensed files
 */assets/*
 !*/assets/characters/
+!*/assets/pets/
 !*/assets/default-layout.json
 !*/assets/walls.png
