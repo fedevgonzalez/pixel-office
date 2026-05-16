@@ -13,5 +13,6 @@ _docs/
 *.png
 !docs/screenshots/*.png
 !docs/screenshots/*.gif
+!webview-ui/public/assets/**/*.png
 null
 /dist

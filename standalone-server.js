@@ -633,10 +633,20 @@ function pngToSpriteData(png, x, y, w, h) {
 }
 
 async function loadCharacterSprites() {
+  const dir = path.join(assetsDir, 'characters');
+  if (!fs.existsSync(dir)) return null;
+  // Scan dir for char_*.png and load in numeric order. Used to be hard-coded
+  // to exactly 6 files which blocked adding new variants without code changes.
+  const entries = fs.readdirSync(dir)
+    .map((name) => {
+      const m = name.match(/^char_(\d+)\.png$/);
+      return m ? { idx: Number(m[1]), file: path.join(dir, name) } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.idx - b.idx);
+  if (entries.length === 0) return null;
   const chars = [];
-  for (let i = 0; i < 6; i++) {
-    const file = path.join(assetsDir, 'characters', `char_${i}.png`);
-    if (!fs.existsSync(file)) return null;
+  for (const { file } of entries) {
     const png = await loadPng(file);
     const directions = { down: [], up: [], right: [] };
     const dirNames = ['down', 'up', 'right'];
