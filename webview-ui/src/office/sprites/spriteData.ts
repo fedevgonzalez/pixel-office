@@ -460,7 +460,7 @@ export const BUBBLE_WAITING_SPRITE: SpriteData = (() => {
 // ── Character Sprites ───────────────────────────────────────────
 // 16x24 characters with palette substitution
 
-/** Palette colors for 6 distinct agent characters */
+/** Palette colors for 12 distinct agent characters. First 6 stable for backward compat. */
 export const CHARACTER_PALETTES = [
   { skin: '#FFCC99', shirt: '#4488CC', pants: '#334466', hair: '#553322', shoes: '#222222' },
   { skin: '#FFCC99', shirt: '#CC4444', pants: '#333333', hair: '#FFD700', shoes: '#222222' },
@@ -468,6 +468,13 @@ export const CHARACTER_PALETTES = [
   { skin: '#FFCC99', shirt: '#AA55CC', pants: '#443355', hair: '#AA4422', shoes: '#222222' },
   { skin: '#DEB887', shirt: '#CCAA33', pants: '#444433', hair: '#553322', shoes: '#333333' },
   { skin: '#FFCC99', shirt: '#FF8844', pants: '#443322', hair: '#111111', shoes: '#222222' },
+  // Extra variants — different skin tones, hoodies, mint/teal/burgundy/charcoal shirts
+  { skin: '#A0734E', shirt: '#2EB59C', pants: '#1F3A44', hair: '#1A0F0A', shoes: '#191919' },
+  { skin: '#F2C9A4', shirt: '#7A3E5C', pants: '#28202C', hair: '#5E412C', shoes: '#2A2018' },
+  { skin: '#C99B7A', shirt: '#4B5563', pants: '#1F2937', hair: '#3B2415', shoes: '#0F0F12' },
+  { skin: '#FFCC99', shirt: '#F1C40F', pants: '#503A22', hair: '#8B4513', shoes: '#241A10' },
+  { skin: '#8E6447', shirt: '#A66CFF', pants: '#2C1F3F', hair: '#0E0808', shoes: '#1A1320' },
+  { skin: '#EBC79A', shirt: '#3CB371', pants: '#21302A', hair: '#7A4A2A', shoes: '#1E1B14' },
 ] as const
 
 interface CharPalette {
@@ -1189,7 +1196,16 @@ function hueShiftSprites(sprites: CharacterSprites, hueShift: number): Character
 }
 
 export function getCharacterSprites(paletteIndex: number, hueShift = 0): CharacterSprites {
-  const cacheKey = `${paletteIndex}:${hueShift}`
+  // When PNG sprites are loaded but paletteIndex overflows the base count,
+  // synthesize a deterministic hue shift per overflow ring so palette indices
+  // 6..11 visually diverge from 0..5 instead of duplicating.
+  let effectiveHue = hueShift
+  if (loadedCharacters && hueShift === 0 && paletteIndex >= loadedCharacters.length) {
+    const ring = Math.floor(paletteIndex / loadedCharacters.length)
+    // Golden-angle-ish offsets per ring: 137° ring 1, 274° ring 2, ...
+    effectiveHue = (ring * 137) % 360
+  }
+  const cacheKey = `${paletteIndex}:${effectiveHue}`
   const cached = spriteCache.get(cacheKey)
   if (cached) return cached
 
@@ -1251,9 +1267,9 @@ export function getCharacterSprites(paletteIndex: number, hueShift = 0): Charact
     }
   }
 
-  // Apply hue shift if non-zero
-  if (hueShift !== 0) {
-    sprites = hueShiftSprites(sprites, hueShift)
+  // Apply hue shift if non-zero (uses effectiveHue so synthetic overflow shifts apply too)
+  if (effectiveHue !== 0) {
+    sprites = hueShiftSprites(sprites, effectiveHue)
   }
 
   spriteCache.set(cacheKey, sprites)

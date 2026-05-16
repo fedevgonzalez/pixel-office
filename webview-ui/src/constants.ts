@@ -290,6 +290,18 @@ export const DN_GLOW_COOL = 'rgba(140, 185, 255, 1)'
 /** Transition speed: seconds to fully blend between time periods */
 export const DN_TRANSITION_BLEND_SEC = 1800 // 30 minutes real-time equivalent
 
+// ── Kiosk Stats Overlay ──────────────────────────────────────
+/** How often the stats overlay recomputes counts (ms) */
+export const KIOSK_STATS_UPDATE_MS = 1500
+/** Font size for the large count number */
+export const KIOSK_STATS_FONT_SIZE = 56
+/** Font size for the label ("coding", "waiting", ...) */
+export const KIOSK_STATS_LABEL_FONT_SIZE = 22
+/** Gap between stat cells */
+export const KIOSK_STATS_GAP_PX = 18
+/** Distance from the top-left corner of the viewport */
+export const KIOSK_STATS_OFFSET_PX = 18
+
 // ── Kiosk Clock Widget ───────────────────────────────────────
 /** How often the kiosk clock re-reads wall time (ms) */
 export const KIOSK_CLOCK_UPDATE_MS = 60_000
@@ -322,7 +334,7 @@ export const WAITING_BUBBLE_DURATION_SEC = 2.0
 export const DISMISS_BUBBLE_FAST_FADE_SEC = 0.3
 export const INACTIVE_SEAT_TIMER_MIN_SEC = 3.0
 export const INACTIVE_SEAT_TIMER_RANGE_SEC = 2.0
-export const PALETTE_COUNT = 6
+export const PALETTE_COUNT = 12
 export const HUE_SHIFT_MIN_DEG = 45
 export const HUE_SHIFT_RANGE_DEG = 271
 export const AUTO_ON_FACING_DEPTH = 3

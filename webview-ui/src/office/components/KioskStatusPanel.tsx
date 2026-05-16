@@ -142,6 +142,7 @@ export function KioskStatusPanel({
         return (
           <div
             key={e.id}
+            className={e.hasPermission ? 'pixel-permission-pulse' : undefined}
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -152,7 +153,11 @@ export function KioskStatusPanel({
                 : e.isRunning
                   ? 'rgba(232, 168, 76, 0.08)'
                   : 'transparent',
-              borderLeft: e.isSub ? '2px solid rgba(255,255,255,0.15)' : 'none',
+              borderLeft: e.hasPermission
+                ? '4px solid var(--pixel-status-permission)'
+                : e.isSub
+                  ? '2px solid rgba(255,255,255,0.15)'
+                  : 'none',
               opacity: isIdle ? 0.45 : 1,
             }}
           >

@@ -3,6 +3,7 @@ import { OfficeState } from './office/engine/officeState.js'
 import { OfficeCanvas } from './office/components/OfficeCanvas.js'
 import { ToolOverlay } from './office/components/ToolOverlay.js'
 import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
+import { KioskStatsOverlay } from './office/components/KioskStatsOverlay.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
 import { EditTool } from './office/types.js'
@@ -269,6 +270,14 @@ function App() {
           50% { opacity: 0.3; }
         }
         .pixel-agents-pulse { animation: pixel-agents-pulse ${PULSE_ANIMATION_DURATION_SEC}s ease-in-out infinite; }
+        @keyframes pixel-permission-pulse {
+          0%, 100% { background-color: rgba(232, 80, 58, 0.08); box-shadow: inset 0 0 0 0 rgba(232, 80, 58, 0); }
+          50%      { background-color: rgba(232, 80, 58, 0.28); box-shadow: inset 0 0 22px 0 rgba(232, 80, 58, 0.35); }
+        }
+        .pixel-permission-pulse { animation: pixel-permission-pulse 1.1s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) {
+          .pixel-permission-pulse { animation: none; }
+        }
       `}</style>
 
       <OfficeCanvas
@@ -419,6 +428,47 @@ function App() {
           subagentTools={subagentTools}
           subagentCharacters={subagentCharacters}
         />
+      )}
+
+      {isKioskMode && !isScreenshotMode && (
+        <KioskStatsOverlay
+          officeState={officeState}
+          agents={agents}
+          agentTools={agentTools}
+          subagentTools={subagentTools}
+          subagentCharacters={subagentCharacters}
+        />
+      )}
+
+      {isKioskMode && !isScreenshotMode && agents.length === 0 && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+            zIndex: 45,
+          }}
+        >
+          <div
+            className="pixel-agents-pulse"
+            style={{
+              fontSize: '56px',
+              color: 'rgba(255, 245, 235, 0.85)',
+              marginBottom: 14,
+              textShadow: '0 2px 0 rgba(0,0,0,0.6)',
+              letterSpacing: '2px',
+            }}
+          >
+            Waiting for agents...
+          </div>
+          <div style={{ fontSize: '24px', color: 'rgba(255, 245, 235, 0.5)', textShadow: '0 1px 0 rgba(0,0,0,0.6)' }}>
+            The office is quiet. Start a Claude Code session to see characters arrive.
+          </div>
+        </div>
       )}
 
       {isKioskMode && !isScreenshotMode && (
