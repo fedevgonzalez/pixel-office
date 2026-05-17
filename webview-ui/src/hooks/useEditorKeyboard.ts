@@ -16,6 +16,17 @@ export function useEditorKeyboard(
   useEffect(() => {
     if (!isEditMode) return
     const handler = (e: KeyboardEvent) => {
+      // Don't hijack keys while the user is typing into a form field — including
+      // shortcuts like Backspace/Delete (which would erase furniture) or `r`/`t`
+      // (which would rotate/toggle). Escape is also ignored here so inputs can
+      // handle their own native escape behavior (clear value, close picker, etc.).
+      const target = e.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable) {
+          return
+        }
+      }
       if (e.key === 'Escape') {
         // Multi-stage Esc: deselect item → close tool → deselect placed → close editor
         if (editorState.activeTool === EditTool.FURNITURE_PICK) {

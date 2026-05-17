@@ -16,14 +16,19 @@ export function useModalFocus(isOpen: boolean) {
         const dialog = dialogRef.current
         if (!dialog) return
         const focusable = dialog.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
         )
         if (focusable) focusable.focus()
         else dialog.focus()
       })
     } else if (previousFocusRef.current) {
-      previousFocusRef.current.focus()
+      // Guard against restoring focus to a node that was unmounted while the modal
+      // was open — focusing a detached element silently drops focus to <body>.
+      const prev = previousFocusRef.current
       previousFocusRef.current = null
+      if (document.contains(prev) && typeof prev.focus === 'function') {
+        prev.focus()
+      }
     }
   }, [isOpen])
 
@@ -40,32 +45,43 @@ export function useModalFocus(isOpen: boolean) {
     }
   }, [isOpen])
 
-  // Focus trap: keep Tab cycling within the dialog
+  // Focus trap: keep Tab cycling within the dialog. Listener lives on `document`
+  // so that even if focus has drifted outside the dialog (e.g. user clicked the
+  // backdrop), the next Tab pulls it back in.
   useEffect(() => {
     if (!isOpen) return
-    const dialog = dialogRef.current
-    if (!dialog) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Tab') return
-      const focusables = dialog.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      const dialog = dialogRef.current
+      if (!dialog) return
+      const all = dialog.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]), [contenteditable="true"]'
+      )
+      const focusables = Array.from(all).filter(
+        (el) => !el.hasAttribute('disabled') && el.offsetParent !== null,
       )
       if (focusables.length === 0) return
       const first = focusables[0]
       const last = focusables[focusables.length - 1]
+      const active = document.activeElement as HTMLElement | null
 
-      if (e.shiftKey && document.activeElement === first) {
+      if (!active || !dialog.contains(active)) {
+        e.preventDefault()
+        first.focus()
+        return
+      }
+      if (e.shiftKey && active === first) {
         e.preventDefault()
         last.focus()
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (!e.shiftKey && active === last) {
         e.preventDefault()
         first.focus()
       }
     }
 
-    dialog.addEventListener('keydown', handleKeyDown)
-    return () => dialog.removeEventListener('keydown', handleKeyDown)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
   }, [isOpen])
 
   return dialogRef

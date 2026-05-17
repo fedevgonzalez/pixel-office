@@ -886,6 +886,32 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
     if (e.button === 1) e.preventDefault()
   }, [])
 
+  // Keyboard navigation: arrow keys pan, +/- zoom. Active when canvas is focused
+  // (kiosk/screenshot modes skip — they own the camera).
+  const handleCanvasKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLCanvasElement>) => {
+      if (isKioskMode || isScreenshotMode) return
+      const PAN_STEP = 64
+      const dpr = window.devicePixelRatio || 1
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        e.preventDefault()
+        officeState.cameraFollowId = null
+        const dx = e.key === 'ArrowLeft' ? PAN_STEP : e.key === 'ArrowRight' ? -PAN_STEP : 0
+        const dy = e.key === 'ArrowUp' ? PAN_STEP : e.key === 'ArrowDown' ? -PAN_STEP : 0
+        panRef.current = clampPan(panRef.current.x + dx * dpr, panRef.current.y + dy * dpr)
+      } else if (e.key === '+' || e.key === '=') {
+        e.preventDefault()
+        const next = Math.min(ZOOM_MAX, zoom + 1)
+        if (next !== zoom) onZoomChange(next)
+      } else if (e.key === '-' || e.key === '_') {
+        e.preventDefault()
+        const next = Math.max(ZOOM_MIN, zoom - 1)
+        if (next !== zoom) onZoomChange(next)
+      }
+    },
+    [zoom, onZoomChange, officeState, panRef, clampPan],
+  )
+
   return (
     <div
       ref={containerRef}
@@ -901,6 +927,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         ref={canvasRef}
         role="img"
         aria-label="Pixel art office visualization"
+        tabIndex={isKioskMode || isScreenshotMode ? -1 : 0}
+        aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight + -"
         onMouseMove={handleMouseMove}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}
@@ -908,8 +936,9 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         onAuxClick={handleAuxClick}
         onMouseLeave={handleMouseLeave}
         onWheel={handleWheel}
+        onKeyDown={handleCanvasKeyDown}
         onContextMenu={handleContextMenu}
-        style={{ display: 'block' }}
+        style={{ display: 'block', outline: 'none' }}
       />
     </div>
   )

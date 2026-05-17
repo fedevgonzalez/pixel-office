@@ -38,6 +38,26 @@ function prettyVariantName(slug: string): string {
   return slug.split('_').map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
 }
 
+/** Arrow-key navigation + roving focus across `role="radio"` children. */
+function radioGroupKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
+  const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
+  if (!keys.includes(e.key)) return
+  const radios = Array.from(
+    e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]'),
+  ).filter((r) => !r.disabled)
+  if (radios.length === 0) return
+  const active = document.activeElement as HTMLButtonElement | null
+  const i = active ? radios.indexOf(active) : -1
+  let next = i
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') next = i <= 0 ? radios.length - 1 : i - 1
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') next = i >= radios.length - 1 ? 0 : i + 1
+  else if (e.key === 'Home') next = 0
+  else if (e.key === 'End') next = radios.length - 1
+  e.preventDefault()
+  radios[next].focus()
+  radios[next].click()
+}
+
 const speciesOptions: { value: PetSpecies; label: string; emoji: string }[] = [
   { value: 'cat', label: 'Cat', emoji: '🐱' },
   { value: 'dog', label: 'Dog', emoji: '🐶' },
@@ -220,6 +240,7 @@ function SwatchPicker({
       <div
         role="radiogroup"
         aria-label={label}
+        onKeyDown={radioGroupKeyDown}
         style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}
       >
         {presets.map((preset, i) => {
@@ -231,6 +252,7 @@ function SwatchPicker({
               role="radio"
               aria-checked={selected}
               aria-label={preset.label}
+              tabIndex={selected ? 0 : -1}
               onClick={() => onChange(preset.hex)}
               title={preset.label}
               style={{
@@ -290,6 +312,7 @@ function PersonalityPicker({
     <div
       role="radiogroup"
       aria-label="Personality"
+      onKeyDown={radioGroupKeyDown}
       style={{
         display: 'grid',
         gridTemplateColumns: '1fr 1fr',
@@ -303,6 +326,7 @@ function PersonalityPicker({
             key={opt.value}
             role="radio"
             aria-checked={isSelected}
+            tabIndex={isSelected ? 0 : -1}
             onClick={() => onPersonalityChange(opt.value)}
             style={{
               display: 'flex',
@@ -351,6 +375,7 @@ function PatternPicker({
       <div
         role="radiogroup"
         aria-label="Coat Pattern"
+        onKeyDown={radioGroupKeyDown}
         style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}
       >
         {PET_PATTERN_OPTIONS.map((opt) => {
@@ -360,6 +385,7 @@ function PatternPicker({
               key={opt.value}
               role="radio"
               aria-checked={isSelected}
+              tabIndex={isSelected ? 0 : -1}
               onClick={() => {
                 const newPattern = opt.value === 'solid' ? undefined : opt.value as PetPattern
                 const defaultColor = opt.value === 'tuxedo' ? PET_TUXEDO_DEFAULT_COLOR : PET_PATTERN_COLOR_PRESETS[0].hex
@@ -452,6 +478,7 @@ function PetForm({
             <div
               role="radiogroup"
               aria-label="Species"
+              onKeyDown={radioGroupKeyDown}
               style={{ display: 'flex', gap: 4 }}
             >
               {speciesOptions.map((opt) => (
@@ -459,6 +486,7 @@ function PetForm({
                   key={opt.value}
                   role="radio"
                   aria-checked={species === opt.value}
+                  tabIndex={species === opt.value ? 0 : -1}
                   onClick={() => setSpecies(opt.value)}
                   title={opt.label}
                   style={{
