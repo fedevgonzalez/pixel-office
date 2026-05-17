@@ -845,13 +845,15 @@ export class OfficeState {
   }
 
   /** Edit a pet's name, color, petColors, and/or personality */
-  editPet(uid: string, updates: { name?: string; color?: FloorColor; petColors?: PetColors; personality?: string }): OfficeLayout | null {
+  editPet(uid: string, updates: { name?: string; color?: FloorColor; petColors?: PetColors; personality?: string; variant?: string | null }): OfficeLayout | null {
     const pet = this.pets.get(uid)
     if (!pet) return null
     if (updates.name !== undefined) pet.name = updates.name
     if (updates.color !== undefined) pet.color = updates.color
     if (updates.petColors !== undefined) pet.petColors = updates.petColors
     if (updates.personality !== undefined) pet.personality = updates.personality as Pet['personality']
+    // null sentinel = clear (back to default sprite); undefined = leave alone.
+    if (updates.variant !== undefined) pet.variant = updates.variant ?? undefined
     // Update layout too
     const layoutPet = (this.layout.pets || []).find((p) => p.uid === uid)
     if (layoutPet) {
@@ -859,6 +861,7 @@ export class OfficeState {
       if (updates.color !== undefined) layoutPet.color = updates.color
       if (updates.petColors !== undefined) layoutPet.petColors = updates.petColors
       if (updates.personality !== undefined) layoutPet.personality = updates.personality as Pet['personality']
+      if (updates.variant !== undefined) layoutPet.variant = updates.variant ?? undefined
     }
     return this.layout
   }

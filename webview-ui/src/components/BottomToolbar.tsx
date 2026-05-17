@@ -13,7 +13,7 @@ interface BottomToolbarProps {
   pets: PlacedPet[]
   onAddPet?: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet?: (uid: string) => void
-  onEditPet?: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => void
+  onEditPet?: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null }) => void
   getLayout: () => OfficeLayout
   dayNight?: {
     state: DayNightState

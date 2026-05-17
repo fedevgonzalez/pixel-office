@@ -16,7 +16,7 @@ import {
   PET_PATTERN_COLOR_PRESETS,
   PET_TUXEDO_DEFAULT_COLOR,
 } from '../constants.js'
-import { getPetSprites, colorPetSprite } from '../office/sprites/petSprites.js'
+import { getPetSprites, colorPetSprite, listPetVariants } from '../office/sprites/petSprites.js'
 
 interface PetManagerModalProps {
   isOpen: boolean
@@ -24,7 +24,13 @@ interface PetManagerModalProps {
   pets: PlacedPet[]
   onCreatePet: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet: (uid: string) => void
-  onEditPet: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => void
+  onEditPet: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null }) => void
+}
+
+const NO_VARIANT = '' as const
+
+function prettyVariantName(slug: string): string {
+  return slug.split('_').map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
 }
 
 const speciesOptions: { value: PetSpecies; label: string; emoji: string }[] = [
@@ -81,13 +87,15 @@ function drawPetToCanvas(
   frame: number,
   canvasSize: number,
   scale: number,
+  variant?: string,
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const sprites = getPetSprites(species)
+  const sprites = getPetSprites(species, variant)
   let sprite: SpriteData = sprites.frames[0][frame % 2]
-  sprite = colorPetSprite(sprite, species, petColors)
+  // Variants come pre-colored — skip palette swap.
+  if (!variant) sprite = colorPetSprite(sprite, species, petColors)
 
   ctx.clearRect(0, 0, canvasSize, canvasSize)
   ctx.imageSmoothingEnabled = false
@@ -112,7 +120,7 @@ function drawPetToCanvas(
 }
 
 /** Large animated pet preview canvas for the form */
-function PetPreview({ species, petColors }: { species: PetSpecies; petColors: PetColors }) {
+function PetPreview({ species, petColors, variant }: { species: PetSpecies; petColors: PetColors; variant?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const frameRef = useRef(0)
   const timerRef = useRef(0)
@@ -122,8 +130,8 @@ function PetPreview({ species, petColors }: { species: PetSpecies; petColors: Pe
   const drawFrame = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    drawPetToCanvas(canvas, species, petColors, frameRef.current, PET_PREVIEW_CANVAS_SIZE, PET_PREVIEW_SCALE)
-  }, [species, petColors])
+    drawPetToCanvas(canvas, species, petColors, frameRef.current, PET_PREVIEW_CANVAS_SIZE, PET_PREVIEW_SCALE, variant)
+  }, [species, petColors, variant])
 
   useEffect(() => {
     lastTimeRef.current = performance.now()
@@ -171,14 +179,14 @@ function PetPreview({ species, petColors }: { species: PetSpecies; petColors: Pe
 }
 
 /** Small static pet sprite for the list view */
-function PetListSprite({ species, petColors }: { species: PetSpecies; petColors?: PetColors }) {
+function PetListSprite({ species, petColors, variant }: { species: PetSpecies; petColors?: PetColors; variant?: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    drawPetToCanvas(canvas, species, petColors ?? {}, 0, PET_LIST_PREVIEW_CANVAS_SIZE, PET_LIST_PREVIEW_SCALE)
-  }, [species, petColors])
+    drawPetToCanvas(canvas, species, petColors ?? {}, 0, PET_LIST_PREVIEW_CANVAS_SIZE, PET_LIST_PREVIEW_SCALE, variant)
+  }, [species, petColors, variant])
 
   return (
     <canvas
@@ -384,6 +392,8 @@ function PetForm({
   setPetColors,
   personality,
   setPersonality,
+  variant,
+  setVariant,
   showSpeciesSelector,
 }: {
   species: PetSpecies
@@ -394,15 +404,19 @@ function PetForm({
   setPetColors: (c: PetColors) => void
   personality: PetPersonality
   setPersonality: (p: PetPersonality) => void
+  variant: string
+  setVariant: (v: string) => void
   showSpeciesSelector: boolean
 }) {
+  const availableVariants = listPetVariants(species)
+  const hasVariants = availableVariants.length > 0
   return (
     <>
       {/* Preview + Species selector row */}
       <div style={{ ...sectionStyle, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         {/* Large animated preview */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <PetPreview species={species} petColors={petColors} />
+          <PetPreview species={species} petColors={petColors} variant={variant || undefined} />
           {showSpeciesSelector && (
             <div
               role="radiogroup"
@@ -468,11 +482,36 @@ function PetForm({
               onPersonalityChange={setPersonality}
             />
           </div>
+
+          {hasVariants && (
+            <div>
+              <div style={sectionLabelStyle}>Breed</div>
+              <select
+                value={variant}
+                onChange={(e) => setVariant(e.target.value)}
+                style={{
+                  ...inputStyle,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <option value={NO_VARIANT}>Default (customizable colors)</option>
+                {availableVariants.map((v) => (
+                  <option key={v} value={v}>{prettyVariantName(v)}</option>
+                ))}
+              </select>
+              {variant && (
+                <div style={{ fontSize: '13px', color: 'var(--pixel-text-hint)', marginTop: 4 }}>
+                  Breed sprites come pre-colored — color pickers below are ignored.
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Body colors */}
-      <div style={sectionStyle}>
+      <div style={{ ...sectionStyle, opacity: variant ? 0.4 : 1, pointerEvents: variant ? 'none' : 'auto' }}>
         <SwatchPicker
           label="Body"
           presets={PET_BODY_PRESETS}
@@ -494,7 +533,7 @@ function PetForm({
       </div>
 
       {/* Coat pattern */}
-      <div style={lastSectionStyle}>
+      <div style={{ ...lastSectionStyle, opacity: variant ? 0.4 : 1, pointerEvents: variant ? 'none' : 'auto' }}>
         <div style={sectionLabelStyle}>Coat Pattern</div>
         <PatternPicker petColors={petColors} setPetColors={setPetColors} />
       </div>
@@ -513,6 +552,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const [name, setName] = useState('')
   const [petColors, setPetColors] = useState<PetColors>(emptyPetColors)
   const [personality, setPersonality] = useState<PetPersonality>(PetPersonalityConst.CHILL)
+  const [variant, setVariant] = useState<string>(NO_VARIANT)
 
   useEffect(() => {
     if (!isOpen) return
@@ -539,8 +579,14 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       setPetColors(emptyPetColors)
       setSpecies('cat')
       setPersonality(PetPersonalityConst.CHILL)
+      setVariant(NO_VARIANT)
     }
   }, [isOpen])
+
+  // Reset variant when species changes — a dog variant doesn't apply to a cat.
+  useEffect(() => {
+    setVariant(NO_VARIANT)
+  }, [species])
 
   if (!isOpen) return null
 
@@ -552,13 +598,17 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     onCreatePet({
       species,
       name: name.trim() || (species === 'cat' ? 'Kitty' : 'Buddy'),
-      petColors: hasPetColors ? petColors : undefined,
+      // When a breed variant is picked we drop the color overrides — variants
+      // are pre-colored and ignoring them avoids confusing dual state.
+      petColors: !variant && hasPetColors ? petColors : undefined,
       personality,
+      variant: variant || undefined,
     })
     setView('list')
     setName('')
     setPetColors(emptyPetColors)
     setPersonality(PetPersonalityConst.CHILL)
+    setVariant(NO_VARIANT)
   }
 
   const handleStartEdit = (pet: PlacedPet) => {
@@ -567,6 +617,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     setPetColors(pet.petColors || emptyPetColors)
     setSpecies(pet.species)
     setPersonality((pet.personality as PetPersonality) || PetPersonalityConst.CHILL)
+    setVariant(pet.variant || NO_VARIANT)
     setView('edit')
   }
 
@@ -576,8 +627,11 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     const finalName = name.trim() || (editedPet?.species === 'cat' ? 'Kitty' : 'Buddy')
     onEditPet(editingUid, {
       name: finalName,
-      petColors: hasPetColors ? petColors : undefined,
+      petColors: !variant && hasPetColors ? petColors : undefined,
       personality,
+      // null sentinel = clear variant (default sprite); undefined = leave as-is.
+      // We always intend to overwrite, so use null when empty.
+      variant: variant || null,
     })
     setView('list')
     setEditingUid(null)
@@ -723,7 +777,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   >
                     {/* Sprite + info */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                      <PetListSprite species={pet.species} petColors={pet.petColors} />
+                      <PetListSprite species={pet.species} petColors={pet.petColors} variant={pet.variant} />
                       <div style={{ minWidth: 0 }}>
                         <div style={{
                           fontSize: '20px',
@@ -859,6 +913,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 name={name} setName={setName}
                 petColors={petColors} setPetColors={setPetColors}
                 personality={personality} setPersonality={setPersonality}
+                variant={variant} setVariant={setVariant}
                 showSpeciesSelector={true}
               />
             </div>
@@ -901,6 +956,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 name={name} setName={setName}
                 petColors={petColors} setPetColors={setPetColors}
                 personality={personality} setPersonality={setPersonality}
+                variant={variant} setVariant={setVariant}
                 showSpeciesSelector={false}
               />
             </div>

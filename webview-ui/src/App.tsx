@@ -179,6 +179,7 @@ function App() {
       row: tile.row,
       petColors: petData.petColors,
       personality: petData.personality,
+      variant: petData.variant,
     }
     // Add to layout
     const layout = os.getLayout()
@@ -199,7 +200,7 @@ function App() {
     }
   }, [])
 
-  const handleEditPet = useCallback((uid: string, updates: { name?: string; petColors?: PetColors; personality?: string }) => {
+  const handleEditPet = useCallback((uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null }) => {
     const os = getOfficeState()
     const newLayout = os.editPet(uid, updates)
     if (newLayout) {
