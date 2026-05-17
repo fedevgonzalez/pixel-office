@@ -39,9 +39,9 @@ All magic numbers centralized — never inline:
 
 ## Community Gallery
 
-- Layouts repo: `fedevgonzalez/pixel-office-layouts` (GitHub)
-- Share flow: ShareModal → pre-filled GitHub Issue → Actions bot → PR with preview screenshot
-- Gallery fetches `gallery.json` from layouts repo (regenerated on merge via `generate-gallery.yml`)
+- Community repo: `fedevgonzalez/pixel-office-community` (GitHub). Hosts layouts, character/pet/prop sprites, and background themes. Renamed from `pixel-office-layouts` — old URL still redirects.
+- Share flow: ShareModal → pre-filled GitHub Issue → Actions bot → PR with preview/thumbnail
+- Gallery fetches `gallery.json` from community repo (regenerated on merge via `generate-gallery.yml`)
 - Screenshot mode used by CI to generate clean preview.png for each layout
 
 ## Docs

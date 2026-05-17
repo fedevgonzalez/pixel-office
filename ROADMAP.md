@@ -122,7 +122,7 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 ## Community
 
 ### Layout Gallery (Phase A done)
-- [x] `pixel-office-layouts` GitHub repo with seeded layouts
+- [x] `pixel-office-community` GitHub repo with seeded layouts
 - [x] In-app "Community" button with browse/preview/import UI
 - [x] One-click import from community gallery
 - [x] Share flow: ShareModal → pre-filled GitHub Issue → CI bot processes → PR with preview

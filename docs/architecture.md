@@ -194,9 +194,9 @@ Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Er
 
 ## Community Gallery & Voting
 
-**Gallery flow**: The server proxies `gallery.json` from the `pixel-office-layouts` GitHub repo. Layout preview screenshots are fetched via GitHub API. The frontend (`GalleryModal.tsx`) renders browsable cards with one-click import.
+**Gallery flow**: The server proxies `gallery.json` from the `pixel-office-community` GitHub repo. Layout preview screenshots are fetched via GitHub API. The frontend (`GalleryModal.tsx`) renders browsable cards with one-click import.
 
-**Share flow**: ShareModal generates a pre-filled GitHub Issue in `pixel-office-layouts`. A CI bot processes the submission, creates a PR with an auto-generated preview screenshot (using `?screenshot` mode), and merges on approval.
+**Share flow**: ShareModal generates a pre-filled GitHub Issue in `pixel-office-community`. A CI bot processes the submission, creates a PR with an auto-generated preview screenshot (using `?screenshot` mode), and merges on approval.
 
 **Voting**: Uses GitHub App OAuth (user-to-server tokens) with the `pixel-office-voting` GitHub App (Issues Read & Write permission). Each layout has a corresponding GitHub Issue; stars are `+1` reactions via the GitHub Reactions API. Users authenticate via a popup login flow (`/auth/login` → GitHub OAuth → `/auth/callback`).
 
@@ -204,7 +204,7 @@ Toggle via "Layout" button. Tools: SELECT (default), Floor paint, Wall paint, Er
 
 **Frontend**: `GalleryModal.tsx` renders star toggle (filled/empty) on each card. Optimistic updates for instant feedback. Live vote counts fetched on gallery load (persists across page refresh). INP feedback: star button disabled with pulse animation during API round-trip.
 
-**Vote persistence**: The `votes` field in `gallery.json` is updated every 6 hours by the `update-votes.yml` GitHub Actions workflow in `pixel-office-layouts`, ensuring counts stay fresh without requiring real-time queries.
+**Vote persistence**: The `votes` field in `gallery.json` is updated every 6 hours by the `update-votes.yml` GitHub Actions workflow in `pixel-office-community`, ensuring counts stay fresh without requiring real-time queries.
 
 ## Condensed Lessons
 

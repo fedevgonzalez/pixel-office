@@ -478,13 +478,13 @@ The display script:
 
 ## Community Gallery & Voting
 
-The community gallery lets users browse, import, and star layouts shared by other users. Gallery data is fetched from the `pixel-office-layouts` GitHub repo (`gallery.json`).
+The community gallery lets users browse, import, and star layouts shared by other users. Gallery data is fetched from the `pixel-office-community` GitHub repo (`gallery.json`).
 
 Voting is optional — the gallery works without it (star buttons are hidden). To enable voting, set `GITHUB_APP_CLIENT_ID` and `GITHUB_APP_CLIENT_SECRET` in your `.env` file. These correspond to a GitHub App (`pixel-office-voting`) with Issues Read & Write permission.
 
 ### How Voting Works
 
-Each community layout has a corresponding GitHub Issue in the `pixel-office-layouts` repo. Stars use the GitHub Reactions API (`+1` reaction on the issue). Users authenticate via GitHub App OAuth (popup login flow). Vote counts in `gallery.json` are updated every 6 hours by a GitHub Actions workflow (`update-votes.yml`).
+Each community layout has a corresponding GitHub Issue in the `pixel-office-community` repo. Stars use the GitHub Reactions API (`+1` reaction on the issue). Users authenticate via GitHub App OAuth (popup login flow). Vote counts in `gallery.json` are updated every 6 hours by a GitHub Actions workflow (`update-votes.yml`).
 
 ### Auth Endpoints
 

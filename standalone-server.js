@@ -94,8 +94,17 @@ function githubApiRequest(method, apiPath, token, body) {
   });
 }
 
-// Local gallery repo path for development (fallback when GitHub repo is private)
-const GALLERY_LOCAL_DIR = path.join(__dirname, '..', 'pixel-office-layouts');
+// Local community-repo path for development (fallback used when GitHub is
+// unreachable or the repo is private). Checks the new pixel-office-community
+// path first, then falls back to the historical pixel-office-layouts path
+// for unmigrated dev clones.
+const GALLERY_LOCAL_DIR = (() => {
+  const candidates = [
+    path.join(__dirname, '..', 'pixel-office-community'),
+    path.join(__dirname, '..', 'pixel-office-layouts'),
+  ];
+  return candidates.find((p) => fs.existsSync(p)) || candidates[0];
+})();
 
 function fetchFromGitHub(urlPath) {
   // When a token is available, use the GitHub API (works for private repos)
