@@ -275,6 +275,11 @@ function computeVariantBbox(v: LoadedPetData): Bbox | null {
  * Crop the source frame to `bbox` and nearest-neighbor resample the crop to
  * `targetW × targetH`. Anchor stays at bottom-center of the resulting cell,
  * which is what the renderer assumes.
+ *
+ * Caveat: when targetW/cropW (or targetH/cropH) is not an integer, the
+ * sample positions land on different source pixels per output column/row,
+ * which can drop or duplicate single-pixel walk-animation details
+ * (legs in/out). For animation-heavy variants prefer an integer ratio.
  */
 function cropResample(s: SpriteData, bbox: Bbox, targetW: number, targetH: number): SpriteData {
   const cropW = bbox.right - bbox.left + 1
@@ -292,34 +297,44 @@ function cropResample(s: SpriteData, bbox: Bbox, targetW: number, targetH: numbe
   return out
 }
 
-/**
- * Per-species target visual size in cell pixels. Cats are normalised to a
- * single size so a black shorthair (filling its 32-cell) doesn't tower over a
- * gray tabby (drawn with padding). Dog cell size scales with the artist's
- * bbox — a shepherd whose bbox is bigger than a corgi's gets a proportionally
- * bigger render cell — clamped so nothing dwarfs the agents.
- */
-function speciesCellSize(species: string, bbox: Bbox): { w: number; h: number } {
-  const bboxW = bbox.right - bbox.left + 1
-  const bboxH = bbox.bottom - bbox.top + 1
-  if (species === 'cat') {
-    // All cats render at 14×12 — pixel-art cats look better slightly wider than tall.
-    return { w: 14, h: 12 }
+/** Clean 2:1 nearest-neighbor downsample. Use it when the resample ratio MUST
+ *  be integer (e.g. dog walk animations are noisy when 32 → odd target). */
+function downsampleSprite2x(s: SpriteData): SpriteData {
+  const out: SpriteData = []
+  for (let r = 0; r < s.length; r += 2) {
+    const row: string[] = []
+    for (let c = 0; c < s[r].length; c += 2) row.push(s[r][c])
+    out.push(row)
   }
-  // Dogs: scale relative to bbox dim, clamped to [14, 18]. A bbox of 20 hits
-  // the upper cap (shepherd-ish); a 14 bbox hits the lower (corgi-ish).
-  const target = (d: number) => Math.max(14, Math.min(18, Math.round(d * 0.75)))
-  return { w: target(bboxW), h: target(bboxH) }
+  return out
 }
 
 function normalizeVariant(species: string, data: LoadedPetData): LoadedPetData {
-  const bbox = computeVariantBbox(data)
-  if (!bbox) return data
-  const { w: tw, h: th } = speciesCellSize(species, bbox)
+  if (species === 'cat') {
+    // Cats: per-variant content-bbox crop + non-integer resample to a uniform
+    // 14×12 cell so a black shorthair (fills its 32 cell) reads the same size
+    // as a gray tabby (heavy padding). The non-integer resample sometimes
+    // drops 1-pixel details across walk frames, but cat walks tend to keep
+    // the silhouette stable so the artefact isn't visible in practice.
+    const bbox = computeVariantBbox(data)
+    if (!bbox) return data
+    const tw = 14, th = 12
+    return {
+      down: data.down.map((f) => cropResample(f, bbox, tw, th)),
+      up: data.up.map((f) => cropResample(f, bbox, tw, th)),
+      right: data.right.map((f) => cropResample(f, bbox, tw, th)),
+      palette: data.palette,
+    }
+  }
+  // Dogs: clean 2:1 downsample (32 → 16) — integer ratio means every walk
+  // frame keeps the same sample pattern, so a shepherd's legs don't pop in
+  // and out between walk1 and walk2. Breed sizing falls out of the artist's
+  // content density: a shepherd that fills the cell stays larger than a
+  // corgi that doesn't.
   return {
-    down: data.down.map((f) => cropResample(f, bbox, tw, th)),
-    up: data.up.map((f) => cropResample(f, bbox, tw, th)),
-    right: data.right.map((f) => cropResample(f, bbox, tw, th)),
+    down: data.down.map(downsampleSprite2x),
+    up: data.up.map(downsampleSprite2x),
+    right: data.right.map(downsampleSprite2x),
     palette: data.palette,
   }
 }
