@@ -36,8 +36,17 @@ function playNote(ctx: AudioContext, freq: number, startOffset: number): void {
   osc.stop(t + NOTIFICATION_NOTE_DURATION_SEC)
 }
 
+// Debounce: when several agents flip to "waiting" in the same frame, overlapping
+// oscillators clip audibly. 300ms is below the chime duration but well above the
+// inter-event window we actually see in practice.
+const MIN_PLAY_INTERVAL_MS = 300
+let lastPlayedAt = 0
+
 export async function playDoneSound(): Promise<void> {
   if (!soundEnabled) return
+  const now = Date.now()
+  if (now - lastPlayedAt < MIN_PLAY_INTERVAL_MS) return
+  lastPlayedAt = now
   try {
     if (!audioCtx) {
       audioCtx = new AudioContext()

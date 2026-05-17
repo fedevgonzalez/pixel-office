@@ -137,13 +137,20 @@ a:focus-visible,
   border: 2px solid transparent;
   color: var(--pixel-text-dim);
   cursor: pointer;
-  transition: none; /* pixel art = no transitions */
+  /* steps(2) keeps the pixel-art aesthetic — color flips in 2 quantized stages
+     instead of snapping in 1 frame, but doesn't smear like a linear easing. */
+  transition: background 80ms steps(2, end), color 80ms steps(2, end), border-color 80ms steps(2, end);
   image-rendering: pixelated;
 }
 
 .pixel-btn:hover {
   background: var(--pixel-btn-hover-bg);
   color: var(--pixel-text);
+}
+
+.pixel-btn:active:not(:disabled) {
+  background: var(--pixel-btn-bg);
+  transform: translate(1px, 1px);
 }
 
 .pixel-btn-active,
@@ -187,6 +194,11 @@ a:focus-visible,
 .pixel-close-btn:hover {
   color: var(--pixel-close-hover);
   background: var(--pixel-btn-hover-bg);
+}
+
+.pixel-close-btn:active {
+  background: var(--pixel-btn-bg);
+  transform: translate(1px, 1px);
 }
 
 /* Shared modal header: consistent height, padding, divider across every modal. */
@@ -248,7 +260,29 @@ button[aria-busy='true'] {
   cursor: progress;
 }
 
-/* Gallery card hover */
+/* Modal / toast enter animation — opacity-only so it works regardless of
+   centering strategy (translate(-50%,-50%) modals and flexbox-centered ones). */
+@keyframes pixel-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.pixel-fade-in {
+  animation: pixel-fade-in 140ms ease-out;
+}
+
+/* Slight rise for modal dialogs so they feel placed rather than teleported. */
+@keyframes pixel-modal-rise {
+  from { opacity: 0; transform: translate(-50%, -48%); }
+  to { opacity: 1; transform: translate(-50%, -50%); }
+}
+.pixel-modal-rise {
+  animation: pixel-modal-rise 160ms ease-out;
+}
+
+/* Gallery card hover with subtle step transition. */
+.gallery-card {
+  transition: border-color 80ms steps(2, end), background 80ms steps(2, end);
+}
 .gallery-card:hover {
   border-color: var(--pixel-accent);
 }
@@ -258,9 +292,14 @@ button[aria-busy='true'] {
   background: rgba(255, 245, 235, 0.08);
 }
 
-/* Zoom button hover */
+/* Zoom button hover + pressed */
 .pixel-zoom-btn:hover:not(:disabled) {
   background: var(--pixel-btn-hover-bg);
+}
+
+.pixel-zoom-btn:active:not(:disabled) {
+  background: var(--pixel-btn-bg);
+  transform: translate(1px, 1px);
 }
 
 /* Share button hover styles */

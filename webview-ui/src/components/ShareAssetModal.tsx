@@ -134,6 +134,7 @@ export function ShareAssetModal({
 
   return (
     <div
+      className="pixel-fade-in"
       style={{
         position: 'fixed', inset: 0, zIndex: 'var(--pixel-modal-nested-z)',
         background: 'var(--pixel-modal-backdrop)',
@@ -147,6 +148,7 @@ export function ShareAssetModal({
         aria-modal="true"
         aria-labelledby="share-asset-title"
         tabIndex={-1}
+        className="pixel-fade-in"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: 'min(560px, 92vw)',

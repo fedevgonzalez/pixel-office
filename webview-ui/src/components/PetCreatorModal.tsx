@@ -919,6 +919,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       <div
         onClick={() => { if (confirmDiscard()) onClose() }}
         aria-hidden="true"
+        className="pixel-fade-in"
         style={{
           position: 'fixed',
           top: 0,
@@ -936,6 +937,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
         aria-modal="true"
         aria-labelledby="pet-modal-title"
         tabIndex={-1}
+        className="pixel-modal-rise"
         style={{
           position: 'fixed',
           top: '50%',

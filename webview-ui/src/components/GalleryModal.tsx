@@ -564,6 +564,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
       <div
         onClick={onClose}
         aria-hidden="true"
+        className="pixel-fade-in"
         style={{
           position: 'fixed',
           top: 0,
@@ -581,6 +582,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         aria-modal="true"
         aria-labelledby="gallery-modal-title"
         tabIndex={-1}
+        className="pixel-modal-rise"
         style={{
           position: 'fixed',
           top: '50%',

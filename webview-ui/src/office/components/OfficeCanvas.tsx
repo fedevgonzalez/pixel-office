@@ -938,7 +938,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         onWheel={handleWheel}
         onKeyDown={handleCanvasKeyDown}
         onContextMenu={handleContextMenu}
-        style={{ display: 'block', outline: 'none' }}
+        style={{
+          display: 'block',
+          outline: 'none',
+          // Hint that the canvas is draggable; kiosk/screenshot users don't
+          // interact, so they get the default cursor.
+          cursor: isKioskMode || isScreenshotMode ? 'default' : 'grab',
+        }}
       />
     </div>
   )

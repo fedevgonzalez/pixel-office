@@ -150,6 +150,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
       <div
         onClick={onClose}
         aria-hidden="true"
+        className="pixel-fade-in"
         style={{
           position: 'fixed',
           top: 0, left: 0, width: '100%', height: '100%',
@@ -164,6 +165,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
         aria-modal="true"
         aria-labelledby="share-modal-title"
         tabIndex={-1}
+        className="pixel-modal-rise"
         style={{
           position: 'fixed',
           top: '50%', left: '50%',

@@ -83,6 +83,7 @@ export function Toast() {
       {toasts.map((t) => (
         <div
           key={t.id}
+          className="pixel-fade-in"
           style={{
             padding: '8px 14px',
             fontSize: 18,

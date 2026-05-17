@@ -186,6 +186,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
       <div
         onClick={onClose}
         aria-hidden="true"
+        className="pixel-fade-in"
         style={{
           position: 'fixed',
           top: 0,
@@ -204,6 +205,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
         aria-modal="true"
         aria-labelledby="settings-modal-title"
         tabIndex={-1}
+        className="pixel-modal-rise"
         style={modal}
       >
         {/* Header */}
