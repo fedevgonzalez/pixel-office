@@ -749,15 +749,68 @@ function findBands(counts, threshold) {
 }
 
 /**
+ * Mode-resample a PNG region down to an outW × outH grid by taking the
+ * most-frequent opaque color in each source block. This preserves body
+ * fill colors when downsampling raster art with thin outlines — center-
+ * pixel nearest-neighbor often samples the outline (continuous lines hit
+ * every stride) and ends up with a mostly-outline result. The mode keeps
+ * the dominant local color so the body shows through.
+ *
+ * Output pixel is transparent when more than half of the source block is
+ * transparent.
+ */
+function pngToSpriteDataModeDownsampled(png, srcX, srcY, srcW, srcH, outW, outH) {
+  const sprite = [];
+  for (let row = 0; row < outH; row++) {
+    const y0 = srcY + Math.floor((row * srcH) / outH);
+    let y1 = srcY + Math.floor(((row + 1) * srcH) / outH);
+    if (y1 <= y0) y1 = y0 + 1;
+    const line = [];
+    for (let col = 0; col < outW; col++) {
+      const x0 = srcX + Math.floor((col * srcW) / outW);
+      let x1 = srcX + Math.floor(((col + 1) * srcW) / outW);
+      if (x1 <= x0) x1 = x0 + 1;
+      const counts = new Map();
+      let opaque = 0, total = 0;
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) {
+          total++;
+          const idx = (y * png.width + x) * 4;
+          if (png.data[idx + 3] < PNG_ALPHA_THRESHOLD) continue;
+          opaque++;
+          const r = png.data[idx];
+          const g = png.data[idx + 1];
+          const b = png.data[idx + 2];
+          const hex = '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+          counts.set(hex, (counts.get(hex) || 0) + 1);
+        }
+      }
+      if (opaque * 2 < total) {
+        line.push('');
+      } else {
+        let bestHex = '', bestC = -1;
+        for (const [hex, c] of counts) {
+          if (c > bestC) { bestC = c; bestHex = hex; }
+        }
+        line.push(bestHex);
+      }
+    }
+    sprite.push(line);
+  }
+  return sprite;
+}
+
+/**
  * Resample a per-frame bbox from the PNG into the PET_CELL grid, using a
  * SHARED `scale` (passed in by the caller). All frames of a variant get the
  * same scale so the pet doesn't visibly grow/shrink between walk frames.
  * Output is anchored bottom-center inside the PET_CELL × PET_CELL canvas.
+ * Uses mode-resampling so thin outlines don't dominate the result.
  */
 function resampleFrameBbox(png, bbox, scale, cellSize) {
   const tw = Math.max(1, Math.round(bbox.w * scale));
   const th = Math.max(1, Math.round(bbox.h * scale));
-  const inner = pngToSpriteDataResampled(png, bbox.x, bbox.y, bbox.w, bbox.h, tw, th);
+  const inner = pngToSpriteDataModeDownsampled(png, bbox.x, bbox.y, bbox.w, bbox.h, tw, th);
   const offsetX = Math.round((cellSize - tw) / 2);
   const offsetY = cellSize - th;
   const out = [];
