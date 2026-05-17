@@ -915,20 +915,17 @@ async function loadPetSprites() {
       const directions = { down: [], up: [], right: [] };
       const dirNames = ['down', 'up', 'right'];
       const colorCounts = new Map();
-      // For oversize sheets, derive the active region from the opaque bbox.
-      // Falls back to the full image if the bbox detection fails.
-      let activeX = 0, activeY = 0, activeW = png.width, activeH = png.height;
-      let trimmed = false;
-      if (!isLegacy16 && !isNative) {
-        const bb = computeOpaqueBboxPng(png);
-        if (bb && (bb.x > 0 || bb.y > 0 || bb.w < png.width || bb.h < png.height)) {
-          activeX = bb.x; activeY = bb.y; activeW = bb.w; activeH = bb.h;
-          trimmed = true;
-        }
-      }
-      // Source cell dimensions in raster pixels
-      const srcCellW = isLegacy16 ? 16 : Math.round(activeW / 5);
-      const srcCellH = isLegacy16 ? 16 : Math.round(activeH / 3);
+      // High-res ChatGPT-style sheets are drawn on a regular 5×3 grid spanning
+      // the full image canvas — each frame has its OWN padding inside its
+      // grid cell. Slicing by the union opaque-bbox would shift the cell
+      // boundaries off the artist's grid (e.g. one frame drawn closer to its
+      // own edge pulls the bbox in and offsets every other cell), producing
+      // animations where the body shifts/cuts between frames. So we slice by
+      // the full image dimensions and let per-cell resample handle padding.
+      // Use exact float positions, round only the integer-pixel sample call,
+      // so the grid stays aligned even when png.width is not divisible by 5.
+      const srcCellW = isLegacy16 ? 16 : png.width / 5;
+      const srcCellH = isLegacy16 ? 16 : png.height / 3;
       for (let d = 0; d < 3; d++) {
         for (let frame = 0; frame < 5; frame++) {
           let sprite;
@@ -943,12 +940,12 @@ async function loadPetSprites() {
               png, frame * 32, d * 32, 32, 32, PET_CELL, PET_CELL,
             );
           } else {
+            const sx = Math.round(frame * srcCellW);
+            const sy = Math.round(d * srcCellH);
+            const sw = Math.round((frame + 1) * srcCellW) - sx;
+            const sh = Math.round((d + 1) * srcCellH) - sy;
             sprite = pngToSpriteDataResampled(
-              png,
-              activeX + frame * srcCellW,
-              activeY + d * srcCellH,
-              srcCellW, srcCellH,
-              PET_CELL, PET_CELL,
+              png, sx, sy, sw, sh, PET_CELL, PET_CELL,
             );
           }
           directions[dirNames[d]].push(sprite);
@@ -967,8 +964,7 @@ async function loadPetSprites() {
       result[species][variant] = { ...directions, palette };
       if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 3× → ${PET_CELL}×${PET_CELL}`);
       else if (isNative) console.log(`  pet ${filename}: 160×96 native, resampled to ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
-      else if (trimmed) console.log(`  pet ${filename}: ${png.width}×${png.height} trimmed to ${activeW}×${activeH} bbox → cell ${srcCellW}×${srcCellH} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
-      else console.log(`  pet ${filename}: ${png.width}×${png.height} → cell ${srcCellW}×${srcCellH} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
+      else console.log(`  pet ${filename}: ${png.width}×${png.height} → cell ${srcCellW.toFixed(1)}×${srcCellH.toFixed(1)} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);
     }
