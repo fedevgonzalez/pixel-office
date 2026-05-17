@@ -168,8 +168,35 @@ const outDir = type === 'char'
 fs.mkdirSync(outDir, { recursive: true })
 const outPath = path.join(outDir, `${outName}.png`)
 fs.writeFileSync(outPath, PNG.sync.write(out))
-fs.rmSync(tmpDir, { recursive: true, force: true })
 
+console.log(`  resampled: ${outW} × ${outH}  (raw colors: ${palette.size})`)
+
+// ── 4. Quantize to a tight palette ──────────────────────────
+// Source rasters often have hundreds of near-duplicate colors from internal
+// anti-aliasing within each logical pixel. Center-sampling preserves those
+// blends, so the final sheet ends up with thousands of unique colors. A
+// quantize pass (median-cut to ≤ 8 colors) restores the pixel-art look.
+console.log(`→ quantizing to ≤ 8 colors…`)
+try {
+  execFileSync('uvx', [
+    '--from', 'Pillow', 'python', '-c',
+    `
+from PIL import Image
+img = Image.open('${outPath}').convert('RGBA')
+alpha = img.split()[3]
+rgb = img.convert('RGB')
+q = rgb.quantize(colors=8, method=Image.MEDIANCUT, dither=Image.NONE).convert('RGBA')
+q.putalpha(alpha)
+# Hard 0/255 alpha to keep edges crisp
+q.putdata([(r,g,b, 255 if a >= 128 else 0) for r,g,b,a in list(q.getdata())])
+q.save('${outPath}')
+print(f'  quantized → final palette: {len({(r,g,b) for r,g,b,a in list(q.getdata()) if a > 0})}')
+`,
+  ], { stdio: ['ignore', 'inherit', 'inherit'] })
+} catch (e) {
+  console.warn('  quantize skipped — uvx/Pillow not available')
+}
+
+fs.rmSync(tmpDir, { recursive: true, force: true })
 console.log(`\n✓ wrote ${outPath}`)
 console.log(`  dimensions: ${outW} × ${outH}`)
-console.log(`  unique colors: ${palette.size}`)
