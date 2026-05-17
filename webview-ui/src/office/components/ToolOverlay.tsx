@@ -112,8 +112,11 @@ export function ToolOverlay({
 
   // Memoized static styles — MUST be before any early return (React hook rules)
   const overflowStyle = useMemo(() => ({ overflow: 'hidden' } as const), [])
+  // Font sizes bumped to track the new TILE_SIZE=48 (everything in the world
+  // got 3× bigger, so the DOM-rendered agent name labels needed to grow too
+  // or they'd look like a postage stamp next to the now-large characters).
   const folderNameStyle = useMemo(() => ({
-    fontSize: isKioskMode ? '28px' : '16px',
+    fontSize: isKioskMode ? '40px' : '24px',
     color: 'var(--pixel-text-dim)',
     overflow: 'hidden' as const,
     textOverflow: 'ellipsis' as const,
@@ -125,14 +128,14 @@ export function ToolOverlay({
     color: 'var(--pixel-close-text)',
     cursor: 'pointer' as const,
     padding: '0 2px',
-    fontSize: '26px',
+    fontSize: '32px',
     lineHeight: 1,
     marginLeft: 2,
     flexShrink: 0,
   }), [])
   const dotSizeStyle = useMemo(() => ({
-    width: isKioskMode ? 12 : 8,
-    height: isKioskMode ? 12 : 8,
+    width: isKioskMode ? 16 : 10,
+    height: isKioskMode ? 16 : 10,
     borderRadius: '50%',
     flexShrink: 0,
   }), [])
