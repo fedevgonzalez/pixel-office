@@ -615,6 +615,18 @@ function loadPng(filePath) {
   });
 }
 
+/** Nearest-neighbor upscale of a SpriteData (2D array of '' | hex) by integer factor. */
+function upscaleSpriteData(sprite, factor) {
+  if (factor <= 1) return sprite;
+  const out = [];
+  for (const row of sprite) {
+    const upRow = [];
+    for (const cell of row) for (let i = 0; i < factor; i++) upRow.push(cell);
+    for (let i = 0; i < factor; i++) out.push(upRow.slice());
+  }
+  return out;
+}
+
 function pngToSpriteData(png, x, y, w, h) {
   const sprite = [];
   for (let row = 0; row < h; row++) {
