@@ -59,6 +59,11 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
   // Day/night ref: read in render callback without restarting game loop
   const dayNightRef = useRef(dayNight)
   dayNightRef.current = dayNight
+  // Editor state refs: read in render callback without restarting game loop on every keystroke
+  const editorStateRef = useRef(editorState)
+  editorStateRef.current = editorState
+  const isEditModeRef = useRef(isEditMode)
+  isEditModeRef.current = isEditMode
   // Kiosk smooth zoom (float, lerped each frame)
   const kioskZoomRef = useRef(zoom)
   const kioskLastSyncRef = useRef(0)
@@ -113,6 +118,10 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         officeState.update(dt)
       },
       render: (ctx) => {
+        // Read latest editor state via refs to keep the game loop stable across keystrokes
+        const isEditMode = isEditModeRef.current
+        const editorState = editorStateRef.current
+
         // Canvas dimensions are in device pixels
         const w = canvas.width
         const h = canvas.height
@@ -400,8 +409,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
       stop()
       observer.disconnect()
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- zoom read via zoomRef to avoid game loop restart
-  }, [officeState, resizeCanvas, isEditMode, editorState, _editorTick, panRef])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- editorState/isEditMode/zoom/dayNight read via refs to avoid game loop restart on every keystroke
+  }, [officeState, resizeCanvas])
 
   // Convert CSS mouse coords to world (sprite pixel) coords
   const screenToWorld = useCallback(

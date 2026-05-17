@@ -23,6 +23,7 @@ export function startGameLoop(
   let rafId = 0
   let stopped = false
   let lastRenderTime = 0
+  let watchdogId: ReturnType<typeof setInterval> | undefined
 
   const frame = (time: number) => {
     if (stopped) return
@@ -36,7 +37,6 @@ export function startGameLoop(
     const shouldRender = !isKioskMode || (time - lastRenderTime >= KIOSK_FRAME_INTERVAL_MS)
     if (shouldRender) {
       lastRenderTime = time
-      ctx.imageSmoothingEnabled = false
       callbacks.render(ctx)
     }
 
@@ -48,7 +48,8 @@ export function startGameLoop(
   // In kiosk mode, if rAF stops firing for 5s the render pipeline is frozen.
   // Force a full page reload to recover — this is the only reliable fix.
   if (isKioskMode) {
-    setInterval(() => {
+    watchdogId = setInterval(() => {
+      if (stopped) return
       if (lastFrameAt > 0 && Date.now() - lastFrameAt > 5000) {
         console.error('rAF stalled for 5s, reloading page')
         window.location.reload()
@@ -59,5 +60,8 @@ export function startGameLoop(
   return () => {
     stopped = true
     cancelAnimationFrame(rafId)
+    if (watchdogId !== undefined) clearInterval(watchdogId)
+    // Prevent any stale watchdog from misfiring on the next loop's frame timestamp.
+    lastFrameAt = 0
   }
 }
