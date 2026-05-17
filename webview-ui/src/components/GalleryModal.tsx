@@ -171,6 +171,27 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   const [activeKind, setActiveKind] = useState<'layouts' | 'pets' | 'characters' | 'props' | 'backgrounds'>('layouts')
   const [userLikes, setUserLikes] = useState<Record<number, UserLike>>({})
 
+  // Community pets manifest — fetched directly from raw.githubusercontent
+  // when the user opens the Pets tab. No server proxy needed since the
+  // community repo is public.
+  interface CommunityPet {
+    id: string
+    name: string
+    species: 'cat' | 'dog'
+    author: string
+    description: string
+    tags: string[]
+    sprite: string
+    thumbnail: string | null
+    createdAt?: string | null
+    votes?: number
+  }
+  const [petsManifest, setPetsManifest] = useState<CommunityPet[] | null>(null)
+  const [petsLoading, setPetsLoading] = useState(false)
+  const [petsError, setPetsError] = useState<string | null>(null)
+  const [installingPetId, setInstallingPetId] = useState<string | null>(null)
+  const [installedPetIds, setInstalledPetIds] = useState<Set<string>>(new Set())
+
   const { user, login, logout, signingIn } = useAuth()
   const [votingId, setVotingId] = useState<string | null>(null)
 
@@ -209,6 +230,19 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           setImporting(null)
           setError('Failed to download layout')
         }
+      } else if (msg.type === 'communityAssetInstalled') {
+        // Server finished installing a pet variant; mark its card "Installed".
+        if (msg.kind === 'pet' && msg.id) {
+          setInstalledPetIds((prev) => {
+            const next = new Set(prev)
+            next.add(msg.id as string)
+            return next
+          })
+          setInstallingPetId(null)
+        }
+      } else if (msg.type === 'communityAssetError') {
+        setInstallingPetId(null)
+        setPetsError(msg.error || 'Failed to install asset')
       } else if (msg.type === 'galleryImportResult') {
         setImporting(null)
         setConfirmId(null)
@@ -235,6 +269,32 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     setLiveCountsFetched(false)
     ws.postMessage({ type: 'fetchGalleryManifest' })
   }, [isOpen])
+
+  // Fetch the community pets manifest the first time the Pets tab is opened.
+  // Public repo → fetch directly from raw.githubusercontent so we don't need
+  // a server proxy. Thumbnails load via plain <img src=…> for the same reason.
+  useEffect(() => {
+    if (!isOpen || activeKind !== 'pets' || petsManifest !== null || petsLoading) return
+    setPetsLoading(true)
+    setPetsError(null)
+    fetch('https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/sprites/pets.json', { cache: 'no-cache' })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then((data: { pets?: CommunityPet[] }) => {
+        setPetsManifest(data.pets || [])
+        setPetsLoading(false)
+      })
+      .catch((err) => {
+        setPetsError(err.message || 'Failed to fetch pet gallery')
+        setPetsManifest([])
+        setPetsLoading(false)
+      })
+  }, [isOpen, activeKind, petsManifest, petsLoading])
+
+  const handleInstallPet = useCallback((pet: CommunityPet) => {
+    setInstallingPetId(pet.id)
+    setPetsError(null)
+    ws.postMessage({ type: 'installCommunityAsset', kind: 'pet', id: pet.id, species: pet.species })
+  }, [])
 
   // Fetch user likes and live vote counts when manifest loads and user is authenticated
   const [liveCountsFetched, setLiveCountsFetched] = useState(false)
@@ -502,17 +562,95 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
 
         {/* Content */}
         <div style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}>
-          {activeKind !== 'layouts' && (
+          {activeKind === 'pets' && (
+            <div>
+              {petsLoading && (
+                <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-text-hint)', fontSize: 18 }}>
+                  Loading community pets…
+                </div>
+              )}
+              {!petsLoading && petsError && (
+                <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-error)', fontSize: 16 }}>{petsError}</div>
+              )}
+              {!petsLoading && petsManifest && petsManifest.length === 0 && (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
+                  <div style={{ fontSize: 28, marginBottom: 12 }}>🐾</div>
+                  <div style={{ fontSize: 20, color: 'var(--pixel-text)', marginBottom: 6 }}>No community pets yet — be the first.</div>
+                  <div style={{ fontSize: 16, color: 'var(--pixel-text-hint)' }}>
+                    Use the 🌐 Share button in the Pets editor to submit yours.
+                  </div>
+                </div>
+              )}
+              {!petsLoading && petsManifest && petsManifest.length > 0 && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, padding: '4px 0' }}>
+                  {petsManifest.map((pet) => {
+                    const installed = installedPetIds.has(pet.id)
+                    const installing = installingPetId === pet.id
+                    const thumbnailUrl = pet.thumbnail
+                      ? `https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/${pet.thumbnail}`
+                      : null
+                    return (
+                      <div key={pet.id} style={{
+                        display: 'flex', flexDirection: 'column', gap: 8,
+                        padding: 10, background: 'var(--pixel-surface)',
+                        border: '2px solid var(--pixel-border)', borderRadius: 0,
+                      }}>
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                          {thumbnailUrl ? (
+                            <img
+                              src={thumbnailUrl}
+                              width={64} height={64}
+                              alt={pet.name}
+                              style={{ imageRendering: 'pixelated', background: 'rgba(0,0,0,0.2)', flexShrink: 0 }}
+                            />
+                          ) : (
+                            <div style={{ width: 64, height: 64, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
+                              {pet.species === 'cat' ? '🐱' : '🐶'}
+                            </div>
+                          )}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 18, color: 'var(--pixel-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pet.name}</div>
+                            <div style={{ fontSize: 14, color: 'var(--pixel-text-hint)' }}>
+                              {pet.species} · by {pet.author}
+                            </div>
+                          </div>
+                        </div>
+                        {pet.description && (
+                          <div style={{ fontSize: 14, color: 'var(--pixel-text-dim)', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
+                            {pet.description}
+                          </div>
+                        )}
+                        <button
+                          onClick={() => !installed && !installing && handleInstallPet(pet)}
+                          disabled={installed || installing}
+                          style={{
+                            padding: '8px 12px', fontSize: 16,
+                            background: installed ? 'transparent' : 'var(--pixel-agent-bg)',
+                            color: installed ? 'var(--pixel-text-hint)' : 'var(--pixel-agent-text)',
+                            border: `2px solid ${installed ? 'var(--pixel-border)' : 'var(--pixel-agent-border)'}`,
+                            borderRadius: 0,
+                            cursor: installed || installing ? 'default' : 'pointer',
+                          }}
+                        >
+                          {installed ? '✓ Installed' : installing ? 'Installing…' : 'Use this Pet'}
+                        </button>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+          {(activeKind === 'characters' || activeKind === 'props' || activeKind === 'backgrounds') && (
             <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
               <div style={{ fontSize: 28, marginBottom: 12 }}>
-                {activeKind === 'pets' ? '🐾' : activeKind === 'characters' ? '🧑‍💻' : activeKind === 'props' ? '🪴' : '🌆'}
+                {activeKind === 'characters' ? '🧑‍💻' : activeKind === 'props' ? '🪴' : '🌆'}
               </div>
               <div style={{ fontSize: '20px', color: 'var(--pixel-text)', marginBottom: 6 }}>
                 The community {activeKind} gallery is just getting started.
               </div>
               <div style={{ fontSize: '16px', color: 'var(--pixel-text-hint)', marginBottom: 20 }}>
-                Submit yours via the <strong>Share</strong> button in the relevant editor
-                (Pets editor for pet variants, etc.) and it'll appear here after review.
+                Browsing UI ships once contributions land. Submit yours via the Share button.
               </div>
               <a
                 href={`https://github.com/fedevgonzalez/pixel-office-community/tree/main/${

@@ -448,7 +448,9 @@ function processLine(agentId, line) {
               agent.activeToolIds.delete(tid);
               agent.activeToolStatuses.delete(tid);
               agent.activeToolNames.delete(tid);
-              if (!replaying) setTimeout(() => broadcast({ type: 'agentToolDone', id: agentId, toolId: tid }), TOOL_DONE_DELAY_MS);
+              // Surface is_error so external bridges can react (empathy bubble, etc.).
+              const isError = block.is_error === true;
+              if (!replaying) setTimeout(() => broadcast({ type: 'agentToolDone', id: agentId, toolId: tid, isError }), TOOL_DONE_DELAY_MS);
             }
           }
           if (agent.activeToolIds.size === 0) agent.hadToolsInTurn = false;
@@ -695,23 +697,36 @@ async function loadCharacterSprites() {
   return chars;
 }
 
+// Where community-installed pet variants live (downloaded via "Use this Pet"
+// from the community gallery). Loader checks this dir IN ADDITION to the
+// bundled dist/webview/assets/pets/ so installed variants appear without
+// rebuilding the app.
+const INSTALLED_PETS_DIR = path.join(os.homedir(), '.pixel-office', 'community-assets', 'pets');
+
 async function loadPetSprites() {
-  const dir = path.join(assetsDir, 'pets');
-  if (!fs.existsSync(dir)) return null;
-  // File naming: <species>_<variant>.png, e.g. dog_dachshund.png, cat_calico.png.
-  // Default sheet: 5×3 grid of 32×32 frames (walk1, walk2, idle, sleep1, sleep2)
-  // across 3 directions (down, up, right). Total dims 160×96.
-  // Legacy: 80×48 sheets (16×16 cells) are detected by dims and upscaled 2×.
-  const entries = fs.readdirSync(dir).filter((f) => f.endsWith('.png'));
-  if (entries.length === 0) return null;
+  // Collect (filePath, source) pairs from both bundled and installed dirs.
+  const bundledDir = path.join(assetsDir, 'pets');
+  const sources = [];
+  for (const dir of [bundledDir, INSTALLED_PETS_DIR]) {
+    if (!fs.existsSync(dir)) continue;
+    for (const f of fs.readdirSync(dir)) {
+      if (!f.endsWith('.png')) continue;
+      sources.push({ filePath: path.join(dir, f), filename: f, dir });
+    }
+  }
+  if (sources.length === 0) return null;
   // Result: { [species]: { [variant]: { down: [...5], up: [...5], right: [...5] } } }
+  // File naming: <species>_<variant>.png, e.g. dog_dachshund.png, cat_calico.png.
+  // Default sheet: 5×3 grid of 32×32 frames. Legacy 80×48 sheets are upscaled 2×.
+  // When a community-installed variant has the same id as a bundled one, the
+  // installed one wins (last-write semantics in the loop).
   const result = {};
-  for (const f of entries) {
-    const m = f.match(/^([a-z]+)_([a-z0-9_-]+)\.png$/i);
+  for (const { filePath, filename } of sources) {
+    const m = filename.match(/^([a-z]+)_([a-z0-9_-]+)\.png$/i);
     if (!m) continue;
     const [, species, variant] = m;
     try {
-      const png = await loadPng(path.join(dir, f));
+      const png = await loadPng(filePath);
       const isLegacy16 = png.width === 80 && png.height === 48;
       const cell = isLegacy16 ? 16 : 32;
       const directions = { down: [], up: [], right: [] };
@@ -725,9 +740,9 @@ async function loadPetSprites() {
       }
       if (!result[species]) result[species] = {};
       result[species][variant] = directions;
-      if (isLegacy16) console.log(`  pet ${f}: 16×16 legacy upscaled 2× → 32×32`);
+      if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 2× → 32×32`);
     } catch (e) {
-      console.error(`  pet sprite ${f} failed:`, e.message);
+      console.error(`  pet sprite ${filename} failed:`, e.message);
     }
   }
   return result;
@@ -1183,6 +1198,53 @@ async function handleClientMessage(ws, msg) {
         try { client.send(payload); } catch {}
       }
     }
+  } else if (msg.type === 'installCommunityAsset') {
+    // Downloads a community asset (currently only pets supported) to the
+    // per-user community-assets dir, then reloads sprites + broadcasts.
+    // Payload: { kind: 'pet', id: 'cat-calico', species: 'cat' }
+    (async () => {
+      const { kind, id, species } = msg;
+      if (kind !== 'pet') {
+        try { ws.send(JSON.stringify({ type: 'communityAssetError', kind, id, error: `kind '${kind}' not yet supported` })); } catch {}
+        return;
+      }
+      if (!id || !species || !/^[a-z0-9_-]+$/i.test(id) || !/^(cat|dog)$/i.test(species)) {
+        try { ws.send(JSON.stringify({ type: 'communityAssetError', kind, id, error: 'invalid asset id or species' })); } catch {}
+        return;
+      }
+      try {
+        // Fetch the sprite PNG + metadata.json from the community repo.
+        const spriteRemote = `sprites/pets/${id}/sprite.png`;
+        const metadataRemote = `sprites/pets/${id}/metadata.json`;
+        const spriteBuf = await fetchFromGitHub(spriteRemote);
+        const metadataBuf = await fetchFromGitHub(metadataRemote);
+        if (!fs.existsSync(INSTALLED_PETS_DIR)) fs.mkdirSync(INSTALLED_PETS_DIR, { recursive: true });
+        // Filename convention: <species>_<variant>.png so the loader picks
+        // up the right species mapping. id from the community repo already
+        // includes a species prefix in most cases (e.g. cat_calico).
+        const filename = id.startsWith(`${species}_`) ? `${id}.png` : `${species}_${id}.png`;
+        fs.writeFileSync(path.join(INSTALLED_PETS_DIR, filename), spriteBuf);
+        // Stash metadata alongside for future reference (e.g. credits panel).
+        fs.writeFileSync(path.join(INSTALLED_PETS_DIR, filename.replace(/\.png$/, '.json')), metadataBuf);
+        console.log(`Installed community pet → ${path.join(INSTALLED_PETS_DIR, filename)}`);
+
+        // Reload pet sprites and broadcast.
+        const pets = await loadPetSprites();
+        if (pets) {
+          const variantCount = Object.values(pets).reduce((s, v) => s + Object.keys(v).length, 0);
+          const payload = JSON.stringify({ type: 'petSpritesLoaded', pets });
+          for (const client of wsClients) {
+            try { client.send(payload); } catch {}
+          }
+          try {
+            ws.send(JSON.stringify({ type: 'communityAssetInstalled', kind, id, species, variantCount }));
+          } catch {}
+        }
+      } catch (e) {
+        console.error('installCommunityAsset failed:', e.message);
+        try { ws.send(JSON.stringify({ type: 'communityAssetError', kind, id, error: e.message })); } catch {}
+      }
+    })();
   } else if (msg.type === 'closeAgent') {
     removeAgent(msg.id, 'closed by user');
   } else if (msg.type === 'fetchGalleryManifest') {
