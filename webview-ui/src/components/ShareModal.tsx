@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
+import { showToast } from './Toast.js'
 import type { OfficeLayout } from '../office/types.js'
 
 interface ShareModalProps {
@@ -123,7 +124,10 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
     } else {
       issueUrl = `${ISSUE_URL_BASE}?title=${encodeURIComponent(title)}&body=${encodedBody}&labels=layout-submission`
       // Close modal after opening (user will be on GitHub)
-      setTimeout(onClose, 400)
+      setTimeout(() => {
+        showToast('✓ Submission opened in a new tab')
+        onClose()
+      }, 400)
     }
 
     window.open(issueUrl, '_blank')

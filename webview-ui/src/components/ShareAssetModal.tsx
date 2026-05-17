@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
+import { showToast } from './Toast.js'
 
 /**
  * Submission modal for sprite/background assets (pets, characters, props,
@@ -127,6 +128,7 @@ export function ShareAssetModal({
     const title = `Add ${cfg.label.toLowerCase()}: ${name.trim()}`
     const url = `${ISSUE_URL_BASE}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(body)}&labels=${cfg.submissionLabel}`
     window.open(url, '_blank')
+    showToast('✓ Submission opened in a new tab')
     onClose()
   }
 

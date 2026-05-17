@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
+import { showToast } from './Toast.js'
 import type { PetSpecies, PlacedPet, PetPersonality, PetColors, PetPattern, SpriteData } from '../office/types.js'
 import { PetPersonality as PetPersonalityConst } from '../office/types.js'
 import {
@@ -756,9 +757,10 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const hasVariantColors = variant && Object.keys(variantColors).length > 0
 
   const handleCreate = () => {
+    const finalName = name.trim() || (species === 'cat' ? 'Kitty' : 'Buddy')
     onCreatePet({
       species,
-      name: name.trim() || (species === 'cat' ? 'Kitty' : 'Buddy'),
+      name: finalName,
       // When a breed variant is picked we drop the legacy color overrides — they
       // only apply to the default sprite. Zone recoloring lives on `variantColors`.
       petColors: !variant && hasPetColors ? petColors : undefined,
@@ -776,6 +778,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     setVariantColors({})
     setBackstory('')
     setVoiceStyle('')
+    showToast(`✓ ${finalName} joined the office`)
   }
 
   const handleStartEdit = (pet: PlacedPet) => {
@@ -808,6 +811,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     })
     setView('list')
     setEditingUid(null)
+    showToast(`✓ ${finalName} saved`)
   }
 
   const handleDelete = (uid: string) => {

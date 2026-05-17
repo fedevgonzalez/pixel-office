@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { EditTool } from '../types.js'
 import type { TileType as TileTypeVal, FloorColor } from '../types.js'
-import { getCatalogByCategory, buildDynamicCatalog, getActiveCategories } from '../layout/furnitureCatalog.js'
+import { getCatalogByCategory, buildDynamicCatalog, getActiveCategories, FURNITURE_CATEGORIES } from '../layout/furnitureCatalog.js'
 import type { FurnitureCategory, LoadedAssetData } from '../layout/furnitureCatalog.js'
+
+const EDITOR_CATEGORY_STORAGE_KEY = 'pixel-office:editor:activeCategory'
 import { getCachedSprite } from '../sprites/spriteCache.js'
 import { getColorizedFloorSprite, getFloorPatternCount, hasFloorSprites } from '../floorTiles.js'
 
@@ -156,33 +158,44 @@ export function EditorToolbar({
   onFurnitureTypeChange,
   loadedAssets,
 }: EditorToolbarProps) {
-  const [activeCategory, setActiveCategory] = useState<FurnitureCategory>('desks')
+  // Persist the last-selected furniture category across editor open/close
+  // cycles. Falls back to 'desks' if nothing is stored or the stored value
+  // isn't part of the current active set.
+  const [activeCategory, setActiveCategory] = useState<FurnitureCategory>(() => {
+    try {
+      const stored = window.localStorage.getItem(EDITOR_CATEGORY_STORAGE_KEY)
+      if (stored && (FURNITURE_CATEGORIES.some((c) => c.id === stored))) {
+        return stored as FurnitureCategory
+      }
+    } catch { /* localStorage may be unavailable (private mode, kiosk) */ }
+    return 'desks'
+  })
   const [showColor, setShowColor] = useState(false)
   const [showWallColor, setShowWallColor] = useState(false)
   const [showFurnitureColor, setShowFurnitureColor] = useState(false)
 
-  // Build dynamic catalog from loaded assets
   useEffect(() => {
-    if (loadedAssets) {
-      try {
-        console.log(`[EditorToolbar] Building dynamic catalog with ${loadedAssets.catalog.length} assets...`)
-        const success = buildDynamicCatalog(loadedAssets)
-        console.log(`[EditorToolbar] Catalog build result: ${success}`)
+    try { window.localStorage.setItem(EDITOR_CATEGORY_STORAGE_KEY, activeCategory) } catch { /* ignore */ }
+  }, [activeCategory])
 
-        // Reset to first available category if current doesn't exist
-        const activeCategories = getActiveCategories()
-        if (activeCategories.length > 0) {
-          const firstCat = activeCategories[0]?.id
-          if (firstCat) {
-            console.log(`[EditorToolbar] Setting active category to: ${firstCat}`)
-            setActiveCategory(firstCat)
-          }
-        }
-      } catch (err) {
-        console.error(`[EditorToolbar] Error building dynamic catalog:`, err)
+  // Build dynamic catalog from loaded assets. Only snaps the active category
+  // when the stored preference is no longer valid for the loaded set —
+  // otherwise we'd clobber the user's choice every time furniture reloads.
+  useEffect(() => {
+    if (!loadedAssets) return
+    try {
+      buildDynamicCatalog(loadedAssets)
+      const activeCategories = getActiveCategories()
+      if (activeCategories.length === 0) return
+      const stillValid = activeCategories.some((c) => c.id === activeCategory)
+      if (!stillValid) {
+        const firstCat = activeCategories[0]?.id
+        if (firstCat) setActiveCategory(firstCat)
       }
+    } catch (err) {
+      console.error('[EditorToolbar] Error building dynamic catalog:', err)
     }
-  }, [loadedAssets])
+  }, [loadedAssets, activeCategory])
 
   const handleColorChange = useCallback((key: keyof FloorColor, value: number) => {
     onFloorColorChange({ ...floorColor, [key]: value })

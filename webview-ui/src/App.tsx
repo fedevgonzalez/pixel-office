@@ -18,6 +18,7 @@ import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
 import { KioskClock } from './components/KioskClock.js'
+import { Toast } from './components/Toast.js'
 import { isKioskMode, isScreenshotMode } from './wsClient.js'
 import { useDayNight } from './hooks/useDayNight.js'
 
@@ -490,6 +491,9 @@ function App() {
           onSelectAgent={handleSelectAgent}
         />
       )}
+
+      {/* Transient confirmations (import success, share submitted, pet saved…) */}
+      {!isScreenshotMode && <Toast />}
     </div>
   )
 }

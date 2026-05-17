@@ -3,6 +3,7 @@ import { useModalFocus } from '../hooks/useModalFocus.js'
 import { ws } from '../wsClient.js'
 import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
 import { ShareModal } from './ShareModal.js'
+import { showToast } from './Toast.js'
 import type { OfficeLayout } from '../office/types.js'
 
 interface GalleryLayout {
@@ -301,6 +302,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
       } else if (msg.type === 'communityAssetInstalled') {
         // Server finished installing an asset; mark its card "Installed".
         if (msg.id) {
+          const kindLabel = msg.kind === 'pet' ? 'Pet' : msg.kind === 'character' ? 'Character' : msg.kind === 'prop' ? 'Prop' : 'Asset'
           if (msg.kind === 'pet') {
             setInstalledPetIds((prev) => {
               const next = new Set(prev)
@@ -323,6 +325,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
             })
             setInstallingPropId(null)
           }
+          showToast(`✓ ${kindLabel} installed`)
         }
       } else if (msg.type === 'communityAssetError') {
         // Route the error to whichever kind is currently installing.
@@ -340,12 +343,14 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         setImporting(null)
         setConfirmId(null)
         if (msg.success) {
+          showToast('✓ Layout imported — pets and background kept')
           onClose()
         }
       } else if (msg.type === 'layoutLoaded' && importing) {
         // Standalone mode: importGalleryLayout directly sends layoutLoaded
         setImporting(null)
         setConfirmId(null)
+        showToast('✓ Layout imported — pets and background kept')
         onClose()
       }
     }
@@ -354,14 +359,18 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     return () => window.removeEventListener('message', handler)
   }, [isOpen, importing, onClose])
 
-  // Fetch manifest on open
+  // Fetch the layouts manifest the first time the Layouts tab is opened.
+  // Same lazy pattern used by pets/chars/props below — re-opening the modal
+  // reuses the cached `manifest` instead of paying the round-trip again. The
+  // server keeps its own short-lived cache, so a manual Retry is the only
+  // path that forces a refetch.
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen || activeKind !== 'layouts' || manifest !== null || loading) return
     setLoading(true)
     setError(null)
     setLiveCountsFetched(false)
     ws.postMessage({ type: 'fetchGalleryManifest' })
-  }, [isOpen])
+  }, [isOpen, activeKind, manifest, loading])
 
   // Fetch the community pets manifest the first time the Pets tab is opened.
   // Public repo → fetch directly from raw.githubusercontent so we don't need
@@ -1121,9 +1130,31 @@ function CommunityAssetGrid({
   emptyState,
 }: CommunityAssetGridProps) {
   if (loading) {
+    // Skeleton cards mirror the real card footprint so the layout doesn't
+    // jump when the manifest arrives. Pulse comes from the global animation.
     return (
-      <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-text-hint)', fontSize: 18 }}>
-        Loading…
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, padding: '4px 0' }} aria-busy="true" aria-live="polite">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <div
+            key={i}
+            className="pixel-agents-pulse"
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 8,
+              padding: 10, background: 'var(--pixel-surface)',
+              border: '2px solid var(--pixel-border)', borderRadius: 0,
+              minHeight: 132,
+            }}
+          >
+            <div style={{ display: 'flex', gap: 10 }}>
+              <div style={{ width: 64, height: 64, background: 'rgba(255,245,235,0.08)', flexShrink: 0 }} />
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 4 }}>
+                <div style={{ height: 16, background: 'rgba(255,245,235,0.08)', width: '70%' }} />
+                <div style={{ height: 12, background: 'rgba(255,245,235,0.06)', width: '50%' }} />
+              </div>
+            </div>
+            <div style={{ height: 32, background: 'rgba(255,245,235,0.06)', marginTop: 'auto' }} />
+          </div>
+        ))}
       </div>
     )
   }
