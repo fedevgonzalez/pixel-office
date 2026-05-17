@@ -160,6 +160,8 @@ export function renderScene(
   pets?: Pet[],
   selectedPetId?: string | null,
   hoveredPetId?: string | null,
+  canvasWidth?: number,
+  canvasHeight?: number,
 ): void {
   const drawables: ZDrawable[] = []
 
@@ -340,54 +342,9 @@ export function renderScene(
             c.globalAlpha = 1
           }
 
-          // Speech bubble (LLM-generated). Drawn above the reaction bubble
-          // and the name label so it doesn't overlap.
-          if (pet.speechText) {
-            const lineFontSize = Math.max(13, Math.round(15 * zoom / 2))
-            c.font = `${lineFontSize}px "FS Pixel Sans", monospace`
-            c.textAlign = 'center'
-            const maxWidthPx = Math.max(120, Math.round(160 * zoom / 2))
-            const lines = wrapTextToLines(c, pet.speechText, maxWidthPx, 3)
-            const lineHeight = Math.round(lineFontSize * 1.25)
-            const padH = Math.round(lineFontSize * 0.55)
-            const padV = Math.round(lineFontSize * 0.4)
-            let widest = 0
-            for (const ln of lines) {
-              const w = c.measureText(ln).width
-              if (w > widest) widest = w
-            }
-            const bgW = Math.round(widest + padH * 2)
-            const bgH = Math.round(lineHeight * lines.length + padV * 2)
-            const cx = petDrawX + petCached.width / 2
-            const baseY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
-            const bgX = Math.round(cx - bgW / 2)
-            const bgY = Math.round(baseY - bgH - lineFontSize * 0.6)
-
-            // Fade in 0.25 s, out in last 0.5 s
-            const t = pet.speechTimer
-            const total = pet.speechFullDuration
-            const fadeIn = Math.min(1, (total - t) / 0.25)
-            const fadeOut = t < 0.5 ? t / 0.5 : 1
-            const alpha = Math.min(fadeIn, fadeOut)
-
-            c.globalAlpha = 0.85 * alpha
-            c.fillStyle = 'rgba(31, 26, 36, 0.9)'
-            c.fillRect(bgX, bgY, bgW, bgH)
-            c.globalAlpha = 0.5 * alpha
-            c.strokeStyle = 'rgba(232, 168, 76, 0.6)'
-            c.lineWidth = 1
-            c.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
-
-            c.globalAlpha = alpha
-            c.fillStyle = 'rgba(255, 245, 235, 0.95)'
-            c.textBaseline = 'middle'
-            for (let i = 0; i < lines.length; i++) {
-              const ly = bgY + padV + lineHeight * i + Math.round(lineHeight / 2)
-              c.fillText(lines[i], cx, ly)
-            }
-            c.textBaseline = 'alphabetic'
-            c.globalAlpha = 1
-          }
+          // Speech bubble for pets is rendered in a separate pass at the end
+          // of the frame (see below) so it always sits on top of agent name
+          // labels regardless of z-order.
 
           // Name label when selected, hovered, or always in kiosk mode
           if (isSelected || isHovered || isKioskMode) {
@@ -403,8 +360,14 @@ export function renderScene(
 
             const bgW = nameMetrics.width + padH * 2
             const bgH = fontSize + padV * 2
-            const bgX = nameX - bgW / 2
+            let bgX = nameX - bgW / 2
             const bgY = nameY - bgH / 2
+            // Clamp inside the viewport so labels at the edges stay readable
+            const EDGE = 8
+            if (canvasWidth !== undefined) {
+              bgX = Math.max(EDGE, Math.min(canvasWidth - bgW - EDGE, bgX))
+            }
+            const textX = bgX + bgW / 2
 
             // Warm dark background
             c.globalAlpha = 0.85
@@ -421,7 +384,7 @@ export function renderScene(
             // Name text centered in warm cream
             c.textBaseline = 'middle'
             c.fillStyle = 'rgba(255, 245, 235, 0.95)'
-            c.fillText(pet.name, nameX, nameY)
+            c.fillText(pet.name, textX, nameY)
             c.textBaseline = 'alphabetic'
           }
         },
@@ -434,6 +397,79 @@ export function renderScene(
 
   for (const d of drawables) {
     d.draw(ctx)
+  }
+
+  // Pet speech bubbles — drawn in a separate pass at the END so they always
+  // sit above the agent name labels (which would otherwise win z-sort when an
+  // agent is in a row below the pet). Sleeping pets don't speak.
+  if (pets) {
+    for (const pet of pets) {
+      if (!pet.speechText) continue
+      if (pet.state === PetState.SLEEP) continue
+      const petSpriteData = getPetSprite(pet)
+      const petCached = getCachedSprite(petSpriteData, zoom)
+      const petDrawX = Math.round(offsetX + pet.x * zoom - petCached.width / 2)
+      const petDrawY = Math.round(offsetY + pet.y * zoom - petCached.height)
+
+      const lineFontSize = Math.max(13, Math.round(15 * zoom / 2))
+      ctx.font = `${lineFontSize}px "FS Pixel Sans", monospace`
+      ctx.textAlign = 'center'
+      const maxWidthPx = Math.max(120, Math.round(160 * zoom / 2))
+      const lines = wrapTextToLines(ctx, pet.speechText, maxWidthPx, 3)
+      const lineHeight = Math.round(lineFontSize * 1.25)
+      const padH = Math.round(lineFontSize * 0.55)
+      const padV = Math.round(lineFontSize * 0.4)
+      let widest = 0
+      for (const ln of lines) {
+        const w = ctx.measureText(ln).width
+        if (w > widest) widest = w
+      }
+      const bgW = Math.round(widest + padH * 2)
+      const bgH = Math.round(lineHeight * lines.length + padV * 2)
+      const cx = petDrawX + petCached.width / 2
+      const baseY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
+      let bgX = Math.round(cx - bgW / 2)
+      let bgY = Math.round(baseY - bgH - lineFontSize * 0.6)
+      // Keep the bubble inside the viewport: clamp horizontally with 8 px
+      // padding, and if there's no room above the pet, flip it below.
+      const EDGE = 8
+      if (canvasWidth !== undefined) {
+        bgX = Math.max(EDGE, Math.min(canvasWidth - bgW - EDGE, bgX))
+      }
+      if (bgY < EDGE) {
+        bgY = Math.round(petDrawY + petCached.height + lineFontSize * 0.4)
+      }
+      if (canvasHeight !== undefined) {
+        bgY = Math.min(canvasHeight - bgH - EDGE, bgY)
+      }
+      // Re-center text on the (possibly clamped) bubble
+      const textX = bgX + bgW / 2
+
+      // Fade in 0.25 s, out in last 0.5 s
+      const t = pet.speechTimer
+      const total = pet.speechFullDuration
+      const fadeIn = Math.min(1, (total - t) / 0.25)
+      const fadeOut = t < 0.5 ? t / 0.5 : 1
+      const alpha = Math.min(fadeIn, fadeOut)
+
+      ctx.globalAlpha = 0.85 * alpha
+      ctx.fillStyle = 'rgba(31, 26, 36, 0.9)'
+      ctx.fillRect(bgX, bgY, bgW, bgH)
+      ctx.globalAlpha = 0.5 * alpha
+      ctx.strokeStyle = 'rgba(232, 168, 76, 0.6)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
+
+      ctx.globalAlpha = alpha
+      ctx.fillStyle = 'rgba(255, 245, 235, 0.95)'
+      ctx.textBaseline = 'middle'
+      for (let i = 0; i < lines.length; i++) {
+        const ly = bgY + padV + lineHeight * i + Math.round(lineHeight / 2)
+        ctx.fillText(lines[i], textX, ly)
+      }
+      ctx.textBaseline = 'alphabetic'
+      ctx.globalAlpha = 1
+    }
   }
 }
 
@@ -989,7 +1025,7 @@ export function renderFrame(
   // Draw walls + furniture + characters (z-sorted)
   const selectedId = selection?.selectedAgentId ?? null
   const hoveredId = selection?.hoveredAgentId ?? null
-  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets, selection?.selectedPetId, selection?.hoveredPetId)
+  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets, selection?.selectedPetId, selection?.hoveredPetId, canvasWidth, canvasHeight)
 
   // Speech bubbles (always on top of characters) — hidden in screenshot mode
   if (!hideBubbles) {
