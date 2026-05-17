@@ -279,24 +279,17 @@ export function renderScene(
     })
   }
 
-  // Pets — sprite cells are 32×32 for PNG variants, 16×16 for built-in
-  // procedural sprites. To keep variant pets visually consistent with the
-  // 16×16 agents, 32×32 sprites render at half-scale (so a community PNG
-  // that fills the full 32 cell occupies the same on-screen footprint as
-  // a procedural 16-cell pet). The "padded 32 with smaller content" case
-  // from the original comment now renders a bit smaller, but that's the
-  // pragmatic trade for matching agent scale.
+  // Pets — all sprites are uniformly 16×16 at this point. Variant PNGs are
+  // downsampled at load (see setLoadedPetVariants), procedural sprites are
+  // authored at 16×16. Render 1:1 against the cached canvas; previous
+  // half-scale drawImage trick lost detail across walk frames inconsistently
+  // and made the gait look jittery.
   if (pets) {
     for (const pet of pets) {
       const petSpriteData = getPetSprite(pet)
       const petCached = getCachedSprite(petSpriteData, zoom)
-      // Native sprite height in source pixels (rows). 32 = community variant,
-      // 16 = procedural. Halve display for the larger cell.
-      const isLargeCell = petSpriteData.length >= 32
-      const displayW = isLargeCell ? petCached.width / 2 : petCached.width
-      const displayH = isLargeCell ? petCached.height / 2 : petCached.height
-      const petDrawX = Math.round(offsetX + pet.x * zoom - displayW / 2)
-      const petDrawY = Math.round(offsetY + pet.y * zoom - displayH)
+      const petDrawX = Math.round(offsetX + pet.x * zoom - petCached.width / 2)
+      const petDrawY = Math.round(offsetY + pet.y * zoom - petCached.height)
       const petZY = pet.y + TILE_SIZE / 2 + CHARACTER_Z_SORT_OFFSET
 
       drawables.push({
@@ -308,20 +301,18 @@ export function renderScene(
           if (isSelected || isHovered) {
             const outlineData = getOutlineSprite(petSpriteData)
             const outlineCached = getCachedSprite(outlineData, zoom)
-            const outW = isLargeCell ? outlineCached.width / 2 : outlineCached.width
-            const outH = isLargeCell ? outlineCached.height / 2 : outlineCached.height
             c.globalAlpha = isSelected ? SELECTED_OUTLINE_ALPHA : HOVERED_OUTLINE_ALPHA
-            c.drawImage(outlineCached, petDrawX - zoom, petDrawY - zoom, outW + 2 * zoom, outH + 2 * zoom)
+            c.drawImage(outlineCached, petDrawX - zoom, petDrawY - zoom)
             c.globalAlpha = 1
           }
 
           // Sleeping pets are slightly transparent
           if (pet.state === PetState.SLEEP) {
             c.globalAlpha = 0.85
-            c.drawImage(petCached, petDrawX, petDrawY, displayW, displayH)
+            c.drawImage(petCached, petDrawX, petDrawY)
             c.globalAlpha = 1
           } else {
-            c.drawImage(petCached, petDrawX, petDrawY, displayW, displayH)
+            c.drawImage(petCached, petDrawX, petDrawY)
           }
 
           // Zzz bubble for sleeping pets
@@ -329,7 +320,7 @@ export function renderScene(
             const zzzFrame = Math.floor(pet.frameTimer / PET_ZZZ_FRAME_DURATION_SEC) % 2 === 0
               ? PET_ZZZ_SPRITE_1 : PET_ZZZ_SPRITE_2
             const zzzCached = getCachedSprite(zzzFrame, zoom)
-            const zzzX = Math.round(petDrawX + displayW / 2)
+            const zzzX = Math.round(petDrawX + petCached.width / 2)
             const zzzY = Math.round(petDrawY - zzzCached.height + 2 * zoom)
             c.globalAlpha = 0.8
             c.drawImage(zzzCached, zzzX, zzzY)
@@ -340,7 +331,7 @@ export function renderScene(
           if (pet.reactionBubble) {
             const bubbleSprite = pet.reactionBubble === 'heart' ? PET_HEART_SPRITE : PET_HAPPY_SPRITE
             const bubbleCached = getCachedSprite(bubbleSprite, zoom)
-            const bx = Math.round(petDrawX + displayW / 2 - bubbleCached.width / 2)
+            const bx = Math.round(petDrawX + petCached.width / 2 - bubbleCached.width / 2)
             const by = Math.round(petDrawY - bubbleCached.height)
             // Fade out in last 0.5s
             const alpha = pet.reactionTimer < 0.5 ? pet.reactionTimer / 0.5 : 1
@@ -367,7 +358,7 @@ export function renderScene(
             }
             const bgW = Math.round(widest + padH * 2)
             const bgH = Math.round(lineHeight * lines.length + padV * 2)
-            const cx = petDrawX + displayW / 2
+            const cx = petDrawX + petCached.width / 2
             const baseY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
             const bgX = Math.round(cx - bgW / 2)
             const bgY = Math.round(baseY - bgH - lineFontSize * 0.6)
@@ -401,7 +392,7 @@ export function renderScene(
           // Name label when selected, hovered, or always in kiosk mode
           if (isSelected || isHovered || isKioskMode) {
             const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
-            const nameX = petDrawX + displayW / 2
+            const nameX = petDrawX + petCached.width / 2
             const fontSize = Math.max(13, Math.round(16 * zoom / 2))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
             c.textAlign = 'center'

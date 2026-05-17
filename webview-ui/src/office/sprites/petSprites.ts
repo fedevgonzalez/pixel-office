@@ -244,34 +244,22 @@ export const DOG_SPRITES: PetSpriteSet = {
 }
 
 /**
- * Nearest-neighbor upscale of a SpriteData by integer factor.
- * Used to lift the hand-coded 16×16 cat/dog arrays into the 32×32 runtime
- * format so they coexist with server-loaded 32×32 PNG variants without
- * re-drawing thirty sprite arrays by hand. Blockier than a true 32×32
- * redraw — replace per-species when artist-quality assets are available.
+ * Nearest-neighbor 2:1 downsample. PNG variant sprites are authored at 32×32
+ * but the runtime renders pets at 16×16 (matching the 16×16 procedural sprites
+ * and the agents' 16-cell scale). Dropping every other row/column once at
+ * load keeps walk frames pixel-coherent — earlier we downscaled per frame in
+ * drawImage, which destroyed fine 1-pixel details inconsistently between
+ * walk1 and walk2 and produced a "weird" walking jitter.
  */
-function upscaleSprite(s: SpriteData, factor = 2): SpriteData {
-  if (factor <= 1) return s
+function downsampleSprite(s: SpriteData): SpriteData {
   const out: SpriteData = []
-  for (const row of s) {
-    const upRow: string[] = []
-    for (const cell of row) for (let i = 0; i < factor; i++) upRow.push(cell)
-    for (let i = 0; i < factor; i++) out.push(upRow.slice())
+  for (let r = 0; r < s.length; r += 2) {
+    const row: string[] = []
+    for (let c = 0; c < s[r].length; c += 2) row.push(s[r][c])
+    out.push(row)
   }
   return out
 }
-
-function upscaleSpriteSet(set: PetSpriteSet, factor = 2): PetSpriteSet {
-  return {
-    frames: set.frames.map((dirRow) => dirRow.map((f) => upscaleSprite(f, factor))),
-  }
-}
-
-// Lift the 16×16 hand-coded sprites to 32×32 so the entire pet rendering path
-// (engine, renderer, preview, integrator) operates on a single uniform cell
-// size. PNG variants from server are already authored at 32×32 natively.
-const CAT_SPRITES_32: PetSpriteSet = upscaleSpriteSet(CAT_SPRITES, 2)
-const DOG_SPRITES_32: PetSpriteSet = upscaleSpriteSet(DOG_SPRITES, 2)
 
 // Server-loaded variant sprites, keyed [species][variant]. Populated from the
 // `petSpritesLoaded` WS message. When a pet has a `variant` set and that
@@ -285,7 +273,21 @@ type LoadedPetData = {
 let loadedPetVariants: Record<string, Record<string, LoadedPetData>> | null = null
 
 export function setLoadedPetVariants(data: Record<string, Record<string, LoadedPetData>>): void {
-  loadedPetVariants = data
+  // Variants come from the server as 32×32 PNG-derived sprite data. Downsample
+  // to 16×16 so the rendering path stays uniform and walk frames don't shimmer.
+  const downsampled: Record<string, Record<string, LoadedPetData>> = {}
+  for (const [species, variants] of Object.entries(data)) {
+    downsampled[species] = {}
+    for (const [name, v] of Object.entries(variants)) {
+      downsampled[species][name] = {
+        down: v.down.map(downsampleSprite),
+        up: v.up.map(downsampleSprite),
+        right: v.right.map(downsampleSprite),
+        palette: v.palette,
+      }
+    }
+  }
+  loadedPetVariants = downsampled
 }
 
 /** List variant names available for a species (deterministic order). Returns [] if none loaded. */
@@ -336,9 +338,9 @@ export function getPetSprites(
     }
   }
   switch (species) {
-    case 'dog': return DOG_SPRITES_32
+    case 'dog': return DOG_SPRITES
     case 'cat':
-    default: return CAT_SPRITES_32
+    default: return CAT_SPRITES
   }
 }
 
