@@ -769,18 +769,35 @@ async function loadCharacterSprites() {
   const chars = [];
   for (const { file } of [...bundled, ...community]) {
     const png = await loadPng(file);
-    const isLegacy16 = png.width === 112 && png.height === 96;
-    const cellW = isLegacy16 ? 16 : 24;
-    const cellH = 32;
+    // Three size paths, detected by sheet dimensions:
+    //   112 × 96  → legacy 16 × 32 cells (sprite cache upscales 3× on render)
+    //   168 × 96  → native bump 24 × 32 cells
+    //   432 × 288 → high-res 48 × 96 cells (matches TILE_SIZE=48 era)
+    //   anything else → assume high-res 48 × 96 and resample per-cell so a
+    //   ChatGPT raster (~1500×900) still works
+    let cellW, cellH, label;
+    if (png.width === 112 && png.height === 96) {
+      cellW = 16; cellH = 32; label = '16×32 legacy';
+    } else if (png.width === 168 && png.height === 96) {
+      cellW = 24; cellH = 32; label = '24×32 native';
+    } else {
+      cellW = 48; cellH = 96; label = `${png.width}×${png.height} → 48×96 cells (resampled)`;
+    }
     const directions = { down: [], up: [], right: [] };
     const dirNames = ['down', 'up', 'right'];
+    const isExact = (png.width === 7 * cellW) && (png.height === 3 * cellH);
+    const srcCellW = isExact ? cellW : Math.round(png.width / 7);
+    const srcCellH = isExact ? cellH : Math.round(png.height / 3);
     for (let d = 0; d < 3; d++) {
       for (let f = 0; f < 7; f++) {
-        directions[dirNames[d]].push(pngToSpriteData(png, f * cellW, d * cellH, cellW, cellH));
+        const sprite = isExact
+          ? pngToSpriteData(png, f * cellW, d * cellH, cellW, cellH)
+          : pngToSpriteDataResampled(png, f * srcCellW, d * srcCellH, srcCellW, srcCellH, cellW, cellH);
+        directions[dirNames[d]].push(sprite);
       }
     }
     chars.push(directions);
-    if (isLegacy16) console.log(`  char ${path.basename(file)}: 16×32 legacy cells`);
+    console.log(`  char ${path.basename(file)}: ${label}`);
   }
   return chars;
 }
@@ -977,9 +994,15 @@ async function loadFloorTiles() {
   const file = path.join(assetsDir, 'floors.png');
   if (!fs.existsSync(file)) return null;
   const png = await loadPng(file);
+  // Detect cell size from sheet width assuming exactly 7 cells: 112 (16×16
+  // legacy) or 336 (48×48 native). Any other width is treated as a single
+  // strip of (width/7) wide cells, square — supports future bumps without
+  // a code change.
+  const cellW = Math.round(png.width / 7);
+  const cellH = png.height; // floors are always 1 tile tall
   const sprites = [];
   for (let i = 0; i < 7; i++) {
-    sprites.push(pngToSpriteData(png, i * 16, 0, 16, 16));
+    sprites.push(pngToSpriteData(png, i * cellW, 0, cellW, cellH));
   }
   return sprites;
 }
@@ -988,10 +1011,15 @@ async function loadWallTiles() {
   const file = path.join(assetsDir, 'walls.png');
   if (!fs.existsSync(file)) return null;
   const png = await loadPng(file);
+  // Walls are 4 cols × 4 rows. Detect cell size from sheet dims:
+  //   64 × 128 → legacy 16×32 cells
+  //   192 × 384 → native 48×96 cells (TILE_SIZE=48 era)
+  const cellW = Math.round(png.width / 4);
+  const cellH = Math.round(png.height / 4);
   const sprites = [];
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 4; col++) {
-      sprites.push(pngToSpriteData(png, col * 16, row * 32, 16, 32));
+      sprites.push(pngToSpriteData(png, col * cellW, row * cellH, cellW, cellH));
     }
   }
   return sprites;

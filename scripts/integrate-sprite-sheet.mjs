@@ -33,14 +33,16 @@ if (!inputPath || !type || !outName) {
   process.exit(1)
 }
 
-// Target cell dimensions per asset type.
-// - char 24×32: bumped from 16×32 to allow visible accessories (glasses, ties).
-//   Legacy 16-wide sheets are still accepted by the runtime loader.
-// - pet 32×32: bumped from 16×16 so different species look proportionally
-//   different (kitten ~20×20, shepherd ~30×28) within the same cell.
+// Target cell dimensions per asset type, matching TILE_SIZE=48:
+// - char 48×96: a 1×2 tile humanoid at the new high-res tile scale. Glasses,
+//   ribbons, clothing patterns etc are visible at this resolution.
+// - pet 48×48: 1×1 tile. Pet silhouettes leave variable padding within the
+//   cell so a kitten reads smaller than a shepherd.
+// Legacy 16×32 char and 16×16 / 32×32 pet sheets still load fine; the server
+// loader detects them by sheet dimensions and resamples / upscales.
 const TARGETS = {
-  char: { cols: 7, rows: 3, cellW: 24, cellH: 32 },
-  pet:  { cols: 5, rows: 3, cellW: 32, cellH: 32 },
+  char: { cols: 7, rows: 3, cellW: 48, cellH: 96 },
+  pet:  { cols: 5, rows: 3, cellW: 48, cellH: 48 },
 }
 const target = TARGETS[type]
 if (!target) { console.error(`unknown type: ${type}`); process.exit(1) }
