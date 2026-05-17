@@ -267,12 +267,14 @@ export function renderScene(
     })
   }
 
-  // Pets (16x16, no sitting offset, no matrix effect)
+  // Pets — sprite cells are 32×32 for PNG variants, 16×16 for built-in
+  // procedural sprites. Anchoring uses petCached.width/height so it works
+  // for any cell size; smaller pets within a 32×32 cell stay visually
+  // smaller via the transparent padding baked into the sprite.
   if (pets) {
     for (const pet of pets) {
       const petSpriteData = getPetSprite(pet)
       const petCached = getCachedSprite(petSpriteData, zoom)
-      // Pets are 16x16, anchor at bottom-center
       const petDrawX = Math.round(offsetX + pet.x * zoom - petCached.width / 2)
       const petDrawY = Math.round(offsetY + pet.y * zoom - petCached.height)
       const petZY = pet.y + TILE_SIZE / 2 + CHARACTER_Z_SORT_OFFSET
@@ -729,30 +731,81 @@ export function renderBubbles(
   zoom: number,
 ): void {
   for (const ch of characters) {
-    if (!ch.bubbleType) continue
+    const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0
 
-    const sprite = ch.bubbleType === 'permission'
-      ? BUBBLE_PERMISSION_SPRITE
-      : BUBBLE_WAITING_SPRITE
+    if (ch.bubbleType) {
+      const sprite = ch.bubbleType === 'permission'
+        ? BUBBLE_PERMISSION_SPRITE
+        : BUBBLE_WAITING_SPRITE
 
-    // Compute opacity: permission = full, waiting = fade in last 0.5s
-    let alpha = 1.0
-    if (ch.bubbleType === 'waiting' && ch.bubbleTimer < BUBBLE_FADE_DURATION_SEC) {
-      alpha = ch.bubbleTimer / BUBBLE_FADE_DURATION_SEC
+      // Compute opacity: permission = full, waiting = fade in last 0.5s
+      let alpha = 1.0
+      if (ch.bubbleType === 'waiting' && ch.bubbleTimer < BUBBLE_FADE_DURATION_SEC) {
+        alpha = ch.bubbleTimer / BUBBLE_FADE_DURATION_SEC
+      }
+
+      const cached = getCachedSprite(sprite, zoom)
+      // Position: centered above the character's head
+      // Character is anchored bottom-center at (ch.x, ch.y), sprite is 16x24
+      // Place bubble above head with a small gap; follow sitting offset
+      const bubbleX = Math.round(offsetX + ch.x * zoom - cached.width / 2)
+      const bubbleY = Math.round(offsetY + (ch.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX) * zoom - cached.height - 1 * zoom)
+
+      ctx.save()
+      if (alpha < 1.0) ctx.globalAlpha = alpha
+      ctx.drawImage(cached, bubbleX, bubbleY)
+      ctx.restore()
     }
 
-    const cached = getCachedSprite(sprite, zoom)
-    // Position: centered above the character's head
-    // Character is anchored bottom-center at (ch.x, ch.y), sprite is 16x24
-    // Place bubble above head with a small gap; follow sitting offset
-    const sittingOff = ch.state === CharacterState.TYPE ? BUBBLE_SITTING_OFFSET_PX : 0
-    const bubbleX = Math.round(offsetX + ch.x * zoom - cached.width / 2)
-    const bubbleY = Math.round(offsetY + (ch.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX) * zoom - cached.height - 1 * zoom)
+    // Free-text speech bubble (LLM-generated dialog). Drawn above any
+    // permission/waiting sprite so it never collides.
+    if (ch.speechText) {
+      const lineFontSize = Math.max(13, Math.round(15 * zoom / 2))
+      ctx.font = `${lineFontSize}px "FS Pixel Sans", monospace`
+      ctx.textAlign = 'center'
+      const maxWidthPx = Math.max(140, Math.round(180 * zoom / 2))
+      const lines = wrapTextToLines(ctx, ch.speechText, maxWidthPx, 3)
+      const lineHeight = Math.round(lineFontSize * 1.25)
+      const padH = Math.round(lineFontSize * 0.55)
+      const padV = Math.round(lineFontSize * 0.4)
+      let widest = 0
+      for (const ln of lines) {
+        const w = ctx.measureText(ln).width
+        if (w > widest) widest = w
+      }
+      const bgW = Math.round(widest + padH * 2)
+      const bgH = Math.round(lineHeight * lines.length + padV * 2)
+      const cx = offsetX + ch.x * zoom
+      // Stack the speech bubble above the sprite bubble area, with extra
+      // headroom so it never overlaps the character itself.
+      const headY = offsetY + (ch.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX) * zoom
+      const bgX = Math.round(cx - bgW / 2)
+      const bgY = Math.round(headY - bgH - 28 * zoom / 2)
 
-    ctx.save()
-    if (alpha < 1.0) ctx.globalAlpha = alpha
-    ctx.drawImage(cached, bubbleX, bubbleY)
-    ctx.restore()
+      const t = ch.speechTimer
+      const total = ch.speechFullDuration
+      const fadeIn = Math.min(1, (total - t) / 0.25)
+      const fadeOut = t < 0.5 ? t / 0.5 : 1
+      const alpha = Math.min(fadeIn, fadeOut)
+
+      ctx.globalAlpha = 0.85 * alpha
+      ctx.fillStyle = 'rgba(31, 26, 36, 0.9)'
+      ctx.fillRect(bgX, bgY, bgW, bgH)
+      ctx.globalAlpha = 0.5 * alpha
+      ctx.strokeStyle = 'rgba(232, 168, 76, 0.6)'
+      ctx.lineWidth = 1
+      ctx.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
+
+      ctx.globalAlpha = alpha
+      ctx.fillStyle = 'rgba(255, 245, 235, 0.95)'
+      ctx.textBaseline = 'middle'
+      for (let i = 0; i < lines.length; i++) {
+        const ly = bgY + padV + lineHeight * i + Math.round(lineHeight / 2)
+        ctx.fillText(lines[i], cx, ly)
+      }
+      ctx.textBaseline = 'alphabetic'
+      ctx.globalAlpha = 1
+    }
   }
 }
 

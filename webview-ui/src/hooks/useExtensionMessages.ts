@@ -214,6 +214,11 @@ export function useExtensionMessages(
         const text = msg.text as string
         const durationSec = (msg.durationSec as number) || 8
         os.setPetSpeech(petId, text, durationSec)
+      } else if (msg.type === 'agentSpeak') {
+        const agentId = msg.agentId as number
+        const text = msg.text as string
+        const durationSec = (msg.durationSec as number) || 8
+        os.setCharacterSpeech(agentId, text, durationSec)
       } else if (msg.type === 'petReactionBubble') {
         const petId = msg.petId as string
         const bubbleType = msg.bubbleType as 'heart' | 'happy'

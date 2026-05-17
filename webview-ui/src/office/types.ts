@@ -341,6 +341,12 @@ export interface Character {
   bubbleType: 'permission' | 'waiting' | null
   /** Countdown timer for bubble (waiting: 2→0, permission: unused) */
   bubbleTimer: number
+  /** Active free-text speech bubble (LLM-generated dialog), or null */
+  speechText: string | null
+  /** Countdown timer for the free-text bubble (seconds remaining) */
+  speechTimer: number
+  /** Original duration of the current free-text bubble, for fade-out alpha */
+  speechFullDuration: number
   /** Timer to stay seated while inactive after seat reassignment (counts down to 0) */
   seatTimer: number
   /** Whether this character represents a sub-agent (spawned by Task tool) */

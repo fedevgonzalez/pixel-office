@@ -884,6 +884,15 @@ export class OfficeState {
     if (pet) setPetReactionBubble(pet, type, durationSec)
   }
 
+  /** Show a free-text speech bubble above an agent character */
+  setCharacterSpeech(id: number, text: string, durationSec: number): void {
+    const ch = this.characters.get(id)
+    if (!ch) return
+    ch.speechText = text
+    ch.speechTimer = durationSec
+    ch.speechFullDuration = durationSec
+  }
+
   /** Send a pet to walk toward a tile */
   walkPetToTile(uid: string, col: number, row: number): boolean {
     const pet = this.pets.get(uid)
@@ -934,6 +943,16 @@ export class OfficeState {
         if (ch.bubbleTimer <= 0) {
           ch.bubbleType = null
           ch.bubbleTimer = 0
+        }
+      }
+
+      // Tick free-text speech bubble
+      if (ch.speechText) {
+        ch.speechTimer -= dt
+        if (ch.speechTimer <= 0) {
+          ch.speechText = null
+          ch.speechTimer = 0
+          ch.speechFullDuration = 0
         }
       }
     }

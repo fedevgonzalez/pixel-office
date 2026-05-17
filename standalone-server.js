@@ -31,10 +31,13 @@ const IDLE_CHECK_INTERVAL_MS = 30000;  // check every 30s
 const BASH_CMD_MAX = 30;
 const TASK_DESC_MAX = 40;
 const PNG_ALPHA_THRESHOLD = 128;
-const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/pixel-office-layouts/main/';
-const GALLERY_REPO_API_BASE = 'https://api.github.com/repos/fedevgonzalez/pixel-office-layouts/contents/';
+// Community repo. The old pixel-office-layouts URL still works thanks to
+// GitHub's automatic redirect, but we point at the canonical name so any
+// future API quirks (rate-limit headers, etag) match the active repo.
+const GALLERY_REPO_RAW_BASE = 'https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/';
+const GALLERY_REPO_API_BASE = 'https://api.github.com/repos/fedevgonzalez/pixel-office-community/contents/';
 const GALLERY_REPO_OWNER = 'fedevgonzalez';
-const GALLERY_REPO_NAME = 'pixel-office-layouts';
+const GALLERY_REPO_NAME = 'pixel-office-community';
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
 const GITHUB_APP_CLIENT_ID = process.env.GITHUB_APP_CLIENT_ID || '';
 const GITHUB_APP_CLIENT_SECRET = process.env.GITHUB_APP_CLIENT_SECRET || '';
@@ -1592,7 +1595,7 @@ const wss = new WebSocket.Server({ server });
 // Types that external broadcasters are allowed to inject. Anything else is
 // dropped to prevent a malicious or buggy bridge from injecting layout
 // edits, agent state, etc. Extend as new event types stabilize.
-const BROADCAST_ALLOWED_TYPES = new Set(['agentToolStatusRefined', 'petSpeak', 'petReactionBubble']);
+const BROADCAST_ALLOWED_TYPES = new Set(['agentToolStatusRefined', 'petSpeak', 'petReactionBubble', 'agentSpeak']);
 const broadcasterClients = new Set();
 
 wss.on('connection', (ws, req) => {
