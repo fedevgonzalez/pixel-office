@@ -339,7 +339,10 @@ export const HUE_SHIFT_MIN_DEG = 45
 export const HUE_SHIFT_RANGE_DEG = 271
 export const AUTO_ON_FACING_DEPTH = 3
 export const AUTO_ON_SIDE_DEPTH = 2
-export const CHARACTER_HIT_HALF_WIDTH = 8
+// Hit half-width is 12 to cover both legacy 16-wide chars and new 24-wide
+// PNG-loaded chars. Slight over-coverage for 16-wide is acceptable since
+// agents are spaced more than 8 px apart in practice.
+export const CHARACTER_HIT_HALF_WIDTH = 12
 export const CHARACTER_HIT_HEIGHT = 24
 export const TOOL_OVERLAY_VERTICAL_OFFSET = 32
 export const PULSE_ANIMATION_DURATION_SEC = 1.5

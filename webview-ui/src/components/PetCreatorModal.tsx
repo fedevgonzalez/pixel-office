@@ -16,7 +16,7 @@ import {
   PET_PATTERN_COLOR_PRESETS,
   PET_TUXEDO_DEFAULT_COLOR,
 } from '../constants.js'
-import { getPetSprites, colorPetSprite, listPetVariants } from '../office/sprites/petSprites.js'
+import { getPetSprites, colorPetSprite, listPetVariants, getPetVariantPalette } from '../office/sprites/petSprites.js'
 import { ws } from '../wsClient.js'
 import type { PetTemplate } from '../hooks/useExtensionMessages.js'
 import { ShareAssetModal } from './ShareAssetModal.js'
@@ -27,7 +27,7 @@ interface PetManagerModalProps {
   pets: PlacedPet[]
   onCreatePet: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet: (uid: string) => void
-  onEditPet: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null; backstory?: string | null; voiceStyle?: string | null }) => void
+  onEditPet: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null; variantColors?: Record<string, string> | null; backstory?: string | null; voiceStyle?: string | null }) => void
   templates: PetTemplate[]
 }
 
@@ -92,11 +92,12 @@ function drawPetToCanvas(
   canvasSize: number,
   scale: number,
   variant?: string,
+  variantColors?: Record<string, string> | null,
 ) {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
 
-  const sprites = getPetSprites(species, variant)
+  const sprites = getPetSprites(species, variant, variantColors)
   let sprite: SpriteData = sprites.frames[0][frame % 2]
   // Variants come pre-colored — skip palette swap.
   if (!variant) sprite = colorPetSprite(sprite, species, petColors)
@@ -127,7 +128,7 @@ function drawPetToCanvas(
 }
 
 /** Large animated pet preview canvas for the form */
-function PetPreview({ species, petColors, variant }: { species: PetSpecies; petColors: PetColors; variant?: string }) {
+function PetPreview({ species, petColors, variant, variantColors }: { species: PetSpecies; petColors: PetColors; variant?: string; variantColors?: Record<string, string> | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const frameRef = useRef(0)
   const timerRef = useRef(0)
@@ -137,8 +138,8 @@ function PetPreview({ species, petColors, variant }: { species: PetSpecies; petC
   const drawFrame = useCallback(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    drawPetToCanvas(canvas, species, petColors, frameRef.current, PET_PREVIEW_CANVAS_SIZE, PET_PREVIEW_SCALE, variant)
-  }, [species, petColors, variant])
+    drawPetToCanvas(canvas, species, petColors, frameRef.current, PET_PREVIEW_CANVAS_SIZE, PET_PREVIEW_SCALE, variant, variantColors)
+  }, [species, petColors, variant, variantColors])
 
   useEffect(() => {
     lastTimeRef.current = performance.now()
@@ -186,14 +187,14 @@ function PetPreview({ species, petColors, variant }: { species: PetSpecies; petC
 }
 
 /** Small static pet sprite for the list view */
-function PetListSprite({ species, petColors, variant }: { species: PetSpecies; petColors?: PetColors; variant?: string }) {
+function PetListSprite({ species, petColors, variant, variantColors }: { species: PetSpecies; petColors?: PetColors; variant?: string; variantColors?: Record<string, string> | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    drawPetToCanvas(canvas, species, petColors ?? {}, 0, PET_LIST_PREVIEW_CANVAS_SIZE, PET_LIST_PREVIEW_SCALE, variant)
-  }, [species, petColors, variant])
+    drawPetToCanvas(canvas, species, petColors ?? {}, 0, PET_LIST_PREVIEW_CANVAS_SIZE, PET_LIST_PREVIEW_SCALE, variant, variantColors)
+  }, [species, petColors, variant, variantColors])
 
   return (
     <canvas
@@ -401,6 +402,8 @@ function PetForm({
   setPersonality,
   variant,
   setVariant,
+  variantColors,
+  setVariantColors,
   backstory,
   setBackstory,
   voiceStyle,
@@ -417,6 +420,8 @@ function PetForm({
   setPersonality: (p: PetPersonality) => void
   variant: string
   setVariant: (v: string) => void
+  variantColors: Record<string, string>
+  setVariantColors: (c: Record<string, string>) => void
   backstory: string
   setBackstory: (s: string) => void
   voiceStyle: string
@@ -425,13 +430,14 @@ function PetForm({
 }) {
   const availableVariants = listPetVariants(species)
   const hasVariants = availableVariants.length > 0
+  const variantPalette = variant ? getPetVariantPalette(species, variant) : []
   return (
     <>
       {/* Preview + Species selector row */}
       <div style={{ ...sectionStyle, display: 'flex', gap: 12, alignItems: 'flex-start' }}>
         {/* Large animated preview */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-          <PetPreview species={species} petColors={petColors} variant={variant || undefined} />
+          <PetPreview species={species} petColors={petColors} variant={variant || undefined} variantColors={variantColors} />
           {showSpeciesSelector && (
             <div
               role="radiogroup"
@@ -517,13 +523,81 @@ function PetForm({
               </select>
               {variant && (
                 <div style={{ fontSize: '13px', color: 'var(--pixel-text-hint)', marginTop: 4 }}>
-                  Breed sprites come pre-colored — color pickers below are ignored.
+                  Tweak any zone color below to recolor this breed.
                 </div>
               )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Zone recoloring — appears when a breed variant is selected */}
+      {variant && variantPalette.length > 0 && (
+        <div style={sectionStyle}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={sectionLabelStyle}>Recolor Zones</div>
+            {Object.keys(variantColors).length > 0 && (
+              <button
+                type="button"
+                onClick={() => setVariantColors({})}
+                style={{
+                  fontSize: '12px',
+                  padding: '3px 8px',
+                  background: 'transparent',
+                  color: 'var(--pixel-text-hint)',
+                  border: '1px solid var(--pixel-border)',
+                  borderRadius: 0,
+                  cursor: 'pointer',
+                  letterSpacing: '0.06em',
+                  textTransform: 'uppercase' as const,
+                }}
+              >
+                Reset
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {variantPalette.map((srcHex) => {
+              const current = variantColors[srcHex] || srcHex
+              return (
+                <label
+                  key={srcHex}
+                  style={{
+                    position: 'relative',
+                    width: 36,
+                    height: 36,
+                    background: current,
+                    border: variantColors[srcHex] ? '2px solid var(--pixel-accent)' : '2px solid rgba(255, 245, 235, 0.12)',
+                    cursor: 'pointer',
+                    display: 'block',
+                  }}
+                  title={`Original: ${srcHex} → ${current}`}
+                >
+                  <input
+                    type="color"
+                    value={current}
+                    onChange={(e) => {
+                      const dst = e.target.value
+                      if (dst.toLowerCase() === srcHex.toLowerCase()) {
+                        const next = { ...variantColors }
+                        delete next[srcHex]
+                        setVariantColors(next)
+                      } else {
+                        setVariantColors({ ...variantColors, [srcHex]: dst })
+                      }
+                    }}
+                    style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
+                    aria-label={`Recolor ${srcHex}`}
+                  />
+                </label>
+              )
+            })}
+          </div>
+          <div style={{ fontSize: '12px', color: 'var(--pixel-text-hint)', marginTop: 6 }}>
+            Click a swatch to pick a new color for that zone. Highlights stay accented when remapped.
+          </div>
+        </div>
+      )}
 
       {/* Voice — optional narration hints used by external bridges */}
       <div style={sectionStyle}>
@@ -549,8 +623,8 @@ function PetForm({
         />
       </div>
 
-      {/* Body colors */}
-      <div style={{ ...sectionStyle, opacity: variant ? 0.4 : 1, pointerEvents: variant ? 'none' : 'auto' }}>
+      {/* Body colors — only the default (no-variant) sprite respects these. */}
+      <div style={{ ...sectionStyle, display: variant ? 'none' : 'block' }}>
         <SwatchPicker
           label="Body"
           presets={PET_BODY_PRESETS}
@@ -571,8 +645,8 @@ function PetForm({
         />
       </div>
 
-      {/* Coat pattern */}
-      <div style={{ ...lastSectionStyle, opacity: variant ? 0.4 : 1, pointerEvents: variant ? 'none' : 'auto' }}>
+      {/* Coat pattern — default sprite only */}
+      <div style={{ ...lastSectionStyle, display: variant ? 'none' : 'block' }}>
         <div style={sectionLabelStyle}>Coat Pattern</div>
         <PatternPicker petColors={petColors} setPetColors={setPetColors} />
       </div>
@@ -592,6 +666,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const [petColors, setPetColors] = useState<PetColors>(emptyPetColors)
   const [personality, setPersonality] = useState<PetPersonality>(PetPersonalityConst.CHILL)
   const [variant, setVariant] = useState<string>(NO_VARIANT)
+  const [variantColors, setVariantColors] = useState<Record<string, string>>({})
   const [backstory, setBackstory] = useState<string>('')
   const [voiceStyle, setVoiceStyle] = useState<string>('')
   // Template UI state
@@ -626,6 +701,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       setSpecies('cat')
       setPersonality(PetPersonalityConst.CHILL)
       setVariant(NO_VARIANT)
+      setVariantColors({})
       setSavingTemplate(false)
       setTemplateNameInput('')
       setSelectedTemplateId('')
@@ -635,7 +711,16 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   // Reset variant when species changes — a dog variant doesn't apply to a cat.
   useEffect(() => {
     setVariant(NO_VARIANT)
+    setVariantColors({})
   }, [species])
+
+  // User-driven variant change must clear stale zone remaps. We use a wrapped
+  // setter (not a useEffect on `variant`) so programmatic loads of variant +
+  // variantColors together (template apply, edit-start) don't trigger a reset.
+  const handleVariantChange = (v: string) => {
+    setVariant(v)
+    setVariantColors({})
+  }
 
   const templatesForSpecies = templates.filter((t) => t.species === species)
 
@@ -645,6 +730,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     if (!tpl) return
     setSpecies(tpl.species)
     setVariant(tpl.variant || NO_VARIANT)
+    setVariantColors((tpl.variantColors as Record<string, string>) || {})
     setPetColors((tpl.petColors as PetColors) || {})
     setPersonality(((tpl.personality as PetPersonality) || PetPersonalityConst.CHILL))
   }
@@ -653,12 +739,14 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     const trimmed = templateNameInput.trim()
     if (!trimmed) return
     const colorsSet = !!(petColors.body || petColors.eyes || petColors.nose || (petColors.pattern && petColors.pattern !== 'solid'))
+    const hasVariantRemaps = Object.keys(variantColors).length > 0
     const id = `tmpl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     ws.postMessage({
       type: 'savePetTemplate',
       template: {
         id, name: trimmed, species, variant: variant || undefined,
         petColors: !variant && colorsSet ? petColors : undefined,
+        variantColors: variant && hasVariantRemaps ? variantColors : undefined,
         personality,
       },
     })
@@ -678,13 +766,16 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
 
   const hasPetColors = petColors.body || petColors.eyes || petColors.nose || (petColors.pattern && petColors.pattern !== 'solid')
 
+  const hasVariantColors = variant && Object.keys(variantColors).length > 0
+
   const handleCreate = () => {
     onCreatePet({
       species,
       name: name.trim() || (species === 'cat' ? 'Kitty' : 'Buddy'),
-      // When a breed variant is picked we drop the color overrides — variants
-      // are pre-colored and ignoring them avoids confusing dual state.
+      // When a breed variant is picked we drop the legacy color overrides — they
+      // only apply to the default sprite. Zone recoloring lives on `variantColors`.
       petColors: !variant && hasPetColors ? petColors : undefined,
+      variantColors: hasVariantColors ? variantColors : undefined,
       personality,
       variant: variant || undefined,
       backstory: backstory.trim() || undefined,
@@ -695,6 +786,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     setPetColors(emptyPetColors)
     setPersonality(PetPersonalityConst.CHILL)
     setVariant(NO_VARIANT)
+    setVariantColors({})
     setBackstory('')
     setVoiceStyle('')
   }
@@ -706,6 +798,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     setSpecies(pet.species)
     setPersonality((pet.personality as PetPersonality) || PetPersonalityConst.CHILL)
     setVariant(pet.variant || NO_VARIANT)
+    setVariantColors(pet.variantColors || {})
     setBackstory(pet.backstory || '')
     setVoiceStyle(pet.voiceStyle || '')
     setView('edit')
@@ -722,6 +815,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       // null sentinel = clear variant (default sprite); undefined = leave as-is.
       // We always intend to overwrite, so use null when empty.
       variant: variant || null,
+      variantColors: hasVariantColors ? variantColors : null,
       backstory: backstory.trim() || null,
       voiceStyle: voiceStyle.trim() || null,
     })
@@ -869,7 +963,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                   >
                     {/* Sprite + info */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0, flex: 1 }}>
-                      <PetListSprite species={pet.species} petColors={pet.petColors} variant={pet.variant} />
+                      <PetListSprite species={pet.species} petColors={pet.petColors} variant={pet.variant} variantColors={pet.variantColors} />
                       <div style={{ minWidth: 0 }}>
                         <div style={{
                           fontSize: '20px',
@@ -1108,7 +1202,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 name={name} setName={setName}
                 petColors={petColors} setPetColors={setPetColors}
                 personality={personality} setPersonality={setPersonality}
-                variant={variant} setVariant={setVariant}
+                variant={variant} setVariant={handleVariantChange}
+                variantColors={variantColors} setVariantColors={setVariantColors}
                 backstory={backstory} setBackstory={setBackstory}
                 voiceStyle={voiceStyle} setVoiceStyle={setVoiceStyle}
                 showSpeciesSelector={true}
@@ -1176,7 +1271,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 name={name} setName={setName}
                 petColors={petColors} setPetColors={setPetColors}
                 personality={personality} setPersonality={setPersonality}
-                variant={variant} setVariant={setVariant}
+                variant={variant} setVariant={handleVariantChange}
+                variantColors={variantColors} setVariantColors={setVariantColors}
                 backstory={backstory} setBackstory={setBackstory}
                 voiceStyle={voiceStyle} setVoiceStyle={setVoiceStyle}
                 showSpeciesSelector={false}

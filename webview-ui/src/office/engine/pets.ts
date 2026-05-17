@@ -115,6 +115,7 @@ export function createPet(placed: PlacedPet): Pet {
     variant: placed.variant,
     color: placed.color,
     petColors: placed.petColors,
+    variantColors: placed.variantColors,
     personality: placed.personality,
     reactionBubble: null,
     reactionTimer: 0,
@@ -424,7 +425,7 @@ function resolveEffectiveVariant(pet: Pet): string | undefined {
 /** Get the current sprite frame for a pet (with palette swap if petColors set) */
 export function getPetSprite(pet: Pet): SpriteData {
   const effectiveVariant = resolveEffectiveVariant(pet)
-  const sprites = getPetSprites(pet.species, effectiveVariant)
+  const sprites = getPetSprites(pet.species, effectiveVariant, pet.variantColors)
   // Direction mapping: DOWN=0, LEFT=flip of RIGHT=2, RIGHT=2, UP=1
   const dirIndex = pet.dir === Direction.UP ? 1 : pet.dir === Direction.RIGHT || pet.dir === Direction.LEFT ? 2 : 0
 

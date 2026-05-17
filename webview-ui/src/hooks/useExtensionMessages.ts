@@ -53,6 +53,7 @@ export interface PetTemplate {
     pattern?: string
     patternColor?: string
   }
+  variantColors?: Record<string, string>
   personality?: string
   createdAt?: string
   updatedAt?: string
@@ -388,7 +389,7 @@ export function useExtensionMessages(
         console.log(`[Webview] Received ${characters.length} pre-colored character sprites`)
         setCharacterTemplates(characters)
       } else if (msg.type === 'petSpritesLoaded') {
-        const pets = msg.pets as Record<string, Record<string, { down: string[][][]; up: string[][][]; right: string[][][] }>>
+        const pets = msg.pets as Record<string, Record<string, { down: string[][][]; up: string[][][]; right: string[][][]; palette?: string[] }>>
         const variantCount = Object.values(pets).reduce((sum, v) => sum + Object.keys(v).length, 0)
         console.log(`[Webview] Received ${variantCount} pet sprite variant(s) across ${Object.keys(pets).length} species`)
         setLoadedPetVariants(pets)

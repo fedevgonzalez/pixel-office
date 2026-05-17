@@ -276,7 +276,12 @@ const DOG_SPRITES_32: PetSpriteSet = upscaleSpriteSet(DOG_SPRITES, 2)
 // Server-loaded variant sprites, keyed [species][variant]. Populated from the
 // `petSpritesLoaded` WS message. When a pet has a `variant` set and that
 // species+variant exists here, it overrides the hardcoded sprite.
-type LoadedPetData = { down: SpriteData[]; up: SpriteData[]; right: SpriteData[] }
+type LoadedPetData = {
+  down: SpriteData[]
+  up: SpriteData[]
+  right: SpriteData[]
+  palette?: string[]
+}
 let loadedPetVariants: Record<string, Record<string, LoadedPetData>> | null = null
 
 export function setLoadedPetVariants(data: Record<string, Record<string, LoadedPetData>>): void {
@@ -291,20 +296,41 @@ export function listPetVariants(species: string): string[] {
   return Object.keys(variants).sort()
 }
 
+/** Top-N most-frequent opaque colors in the variant sprite (extracted server-side). */
+export function getPetVariantPalette(species: string, variant: string): string[] {
+  return loadedPetVariants?.[species]?.[variant]?.palette ?? []
+}
+
+/** Apply a srcHex → dstHex substitution to every cell of a sprite. */
+function recolorSprite(sprite: SpriteData, subs: Record<string, string>): SpriteData {
+  return sprite.map((row) => row.map((cell) => (cell && subs[cell]) || cell))
+}
+
 /**
  * Resolve sprite set for a (species, variant) pair.
  * - If variant is set and loaded → return that variant's PNG sprites.
  * - Else → fall back to hardcoded CAT_SPRITES / DOG_SPRITES.
+ * - If `variantColors` provides srcHex→dstHex remappings, apply them per-pixel.
  */
-export function getPetSprites(species: string, variant?: string | null): PetSpriteSet {
+export function getPetSprites(
+  species: string,
+  variant?: string | null,
+  variantColors?: Record<string, string> | null,
+): PetSpriteSet {
   if (variant && loadedPetVariants) {
     const v = loadedPetVariants[species]?.[variant]
     if (v) {
+      const subs = variantColors && Object.keys(variantColors).length > 0 ? variantColors : null
+      const pick = (sprites: SpriteData[]) =>
+        subs ? sprites.map((s) => recolorSprite(s, subs)) : sprites
+      const down = pick(v.down)
+      const up = pick(v.up)
+      const right = pick(v.right)
       return {
         frames: [
-          [v.down[0], v.down[1], v.down[2], v.down[3], v.down[4]],
-          [v.up[0], v.up[1], v.up[2], v.up[3], v.up[4]],
-          [v.right[0], v.right[1], v.right[2], v.right[3], v.right[4]],
+          [down[0], down[1], down[2], down[3], down[4]],
+          [up[0], up[1], up[2], up[3], up[4]],
+          [right[0], right[1], right[2], right[3], right[4]],
         ],
       }
     }

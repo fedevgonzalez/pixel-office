@@ -731,15 +731,26 @@ async function loadPetSprites() {
       const cell = isLegacy16 ? 16 : 32;
       const directions = { down: [], up: [], right: [] };
       const dirNames = ['down', 'up', 'right'];
+      const colorCounts = new Map();
       for (let d = 0; d < 3; d++) {
         for (let frame = 0; frame < 5; frame++) {
           let sprite = pngToSpriteData(png, frame * cell, d * cell, cell, cell);
           if (isLegacy16) sprite = upscaleSpriteData(sprite, 2);
+          for (const row of sprite) {
+            for (const px of row) {
+              if (!px) continue;
+              colorCounts.set(px, (colorCounts.get(px) || 0) + 1);
+            }
+          }
           directions[dirNames[d]].push(sprite);
         }
       }
+      const palette = [...colorCounts.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6)
+        .map(([hex]) => hex);
       if (!result[species]) result[species] = {};
-      result[species][variant] = directions;
+      result[species][variant] = { ...directions, palette };
       if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 2× → 32×32`);
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);

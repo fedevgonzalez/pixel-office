@@ -850,8 +850,8 @@ export class OfficeState {
     return this.layout
   }
 
-  /** Edit a pet's name, color, petColors, and/or personality */
-  editPet(uid: string, updates: { name?: string; color?: FloorColor; petColors?: PetColors; personality?: string; variant?: string | null; backstory?: string | null; voiceStyle?: string | null }): OfficeLayout | null {
+  /** Edit a pet's name, color, petColors, variantColors, and/or personality */
+  editPet(uid: string, updates: { name?: string; color?: FloorColor; petColors?: PetColors; personality?: string; variant?: string | null; variantColors?: Record<string, string> | null; backstory?: string | null; voiceStyle?: string | null }): OfficeLayout | null {
     // Only stored on the layout — runtime Pet doesn't read them; the bridge does.
     const layoutPet = (this.layout.pets || []).find((p) => p.uid === uid)
     const pet = this.pets.get(uid)
@@ -862,12 +862,14 @@ export class OfficeState {
     if (updates.personality !== undefined) pet.personality = updates.personality as Pet['personality']
     // null sentinel = clear (back to default sprite); undefined = leave alone.
     if (updates.variant !== undefined) pet.variant = updates.variant ?? undefined
+    if (updates.variantColors !== undefined) pet.variantColors = updates.variantColors ?? undefined
     if (layoutPet) {
       if (updates.name !== undefined) layoutPet.name = updates.name
       if (updates.color !== undefined) layoutPet.color = updates.color
       if (updates.petColors !== undefined) layoutPet.petColors = updates.petColors
       if (updates.personality !== undefined) layoutPet.personality = updates.personality as Pet['personality']
       if (updates.variant !== undefined) layoutPet.variant = updates.variant ?? undefined
+      if (updates.variantColors !== undefined) layoutPet.variantColors = updates.variantColors ?? undefined
       if (updates.backstory !== undefined) layoutPet.backstory = updates.backstory ?? undefined
       if (updates.voiceStyle !== undefined) layoutPet.voiceStyle = updates.voiceStyle ?? undefined
     }

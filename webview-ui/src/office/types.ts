@@ -204,6 +204,8 @@ export interface PlacedPet {
   color?: FloorColor
   /** Per-part color customization (body, eyes, nose) — only applies when variant is NOT set. */
   petColors?: PetColors
+  /** Per-zone recoloring of the variant sprite (srcHex → dstHex). Applies when `variant` is set. */
+  variantColors?: Record<string, string>
   /** Personality affects behavior weights */
   personality?: PetPersonality
   /** Free-text backstory used by narration integrations to colour the pet's voice */
@@ -240,6 +242,8 @@ export interface Pet {
   color?: FloorColor
   /** Per-part color customization (body, eyes, nose) — ignored when `variant` is set. */
   petColors?: PetColors
+  /** Per-zone recoloring of the variant sprite (srcHex → dstHex). Applies when `variant` is set. */
+  variantColors?: Record<string, string>
   /** Personality affects behavior weights */
   personality?: PetPersonality
   /** Active reaction bubble (heart for cats, happy for dogs) */
