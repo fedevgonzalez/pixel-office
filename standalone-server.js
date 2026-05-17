@@ -1068,6 +1068,10 @@ const INSTALLED_PETS_DIR = path.join(os.homedir(), '.pixel-office', 'community-a
 //
 // Schema:
 //   {
+//     "sizeScale": 0.7,   // OPTIONAL multiplier on top of the global render scale
+//                         // (1.0 = no shrink; <1 = smaller). Use to make a cat
+//                         // visibly smaller than a shepherd when ChatGPT drew them
+//                         // at similar sizes in the source PNGs.
 //     "directions": {
 //       "<dir>": { "useDirection": "<otherDir>" }
 //         // copies ALL 5 slots from another direction's row
@@ -1082,7 +1086,7 @@ const INSTALLED_PETS_DIR = path.join(os.homedir(), '.pixel-office', 'community-a
 //     }
 //   }
 //
-// Both forms can be partial: only override the directions/slots that need it.
+// All fields are optional; only override what you need.
 const PET_DIR_NAMES = ['down', 'up', 'right'];
 const PET_SLOT_NAMES = ['walkA', 'walkB', 'idle', 'sleepA', 'sleepB'];
 
@@ -1134,6 +1138,14 @@ async function loadPetSprites() {
   // at native tile size without further downsample / upscale.
   const PET_CELL = 48;
   const result = {};
+  // PASS 1: load every PNG, detect grids, collect ALL frame bboxes so we
+  // can compute one global scale. Per-variant scales used to make every
+  // pet fill its 48×48 cell independently — which flattened relative
+  // sizes (a shepherd ended up the same on-screen size as a cat). A
+  // global scale based on the largest bbox across ALL variants preserves
+  // the size hierarchy in the source art (shepherd > cat > hamster).
+  const prepared = [];
+  let globalMaxW = 0, globalMaxH = 0;
   for (const { filePath, filename } of sources) {
     const m = filename.match(/^([a-z]+)_([a-z0-9_-]+)\.png$/i);
     if (!m) continue;
@@ -1141,45 +1153,49 @@ async function loadPetSprites() {
     try {
       const png = await loadPng(filePath);
       const variantConfig = loadPetVariantConfig(filePath);
+      const isLegacy16 = png.width === 80 && png.height === 48;
+      const isNative = png.width === 160 && png.height === 96;
+      let grid = null;
+      if (!isLegacy16 && !isNative) {
+        grid = detectPetFrameGrid(png);
+        if (grid) {
+          for (const row of grid) for (const b of row) {
+            if (b.w > globalMaxW) globalMaxW = b.w;
+            if (b.h > globalMaxH) globalMaxH = b.h;
+          }
+        }
+      }
+      prepared.push({ filePath, filename, species, variant, png, variantConfig, isLegacy16, isNative, grid });
+    } catch (e) {
+      console.error(`  pet sprite ${filename} failed to load:`, e.message);
+    }
+  }
+  // Most restrictive scale: largest pet fills the cell, smaller pets stay
+  // proportionally smaller. If only one variant is present this still works.
+  const globalScale = globalMaxW > 0 && globalMaxH > 0
+    ? Math.min(PET_CELL / globalMaxW, PET_CELL / globalMaxH)
+    : 1;
+  // PASS 2: render each variant using the global scale.
+  for (const { filePath: _fp, filename, species, variant, png, variantConfig, isLegacy16, isNative, grid } of prepared) {
+    try {
       // Three loading paths:
       //   - Legacy 80×48: 16×16 cells, upscale 2× to 32×32 logical
       //   - Native 160×96: 32×32 cells, pixel-perfect 1:1
-      //   - Anything else: detect the opaque-content bbox (so transparent
-      //     padding from AI-generated sheets like ChatGPT's 1536×1024 is
-      //     trimmed) and slice the bbox into 5×3 cells, resampling each cell
-      //     to 32×32. The bbox-trim step means the grid is aligned to the
-      //     drawn content, not the raw image edges.
-      const isLegacy16 = png.width === 80 && png.height === 48;
-      const isNative = png.width === 160 && png.height === 96;
+      //   - Anything else: detect the opaque-content bbox per frame (so transparent
+      //     padding from AI-generated sheets like ChatGPT's 1536×1024 is trimmed)
+      //     and resample with the GLOBAL scale computed in pass 1.
       const directions = { down: [], up: [], right: [] };
       const dirNames = ['down', 'up', 'right'];
-      // For high-res ChatGPT-style sheets, auto-detect each frame's tight bbox
-      // by projecting alpha onto each axis (finds 3 row bands × 5 column
-      // bands separated by transparent gaps). This is more robust than
-      // assuming a fixed grid: the AI tools don't always place each frame at
-      // exactly the same position inside its grid cell, and the body sizes
-      // vary, so uniform-grid slicing produced animations where the silhouette
-      // shifted or got cut between frames.
-      // We then resample every frame with a SHARED scale (derived from the
-      // largest bbox across all 15 frames) so the pet stays the same size
-      // across walk frames, and anchor at bottom-center so the feet stay on
-      // the ground.
-      let grid = null;
-      let detectionMethod = 'uniform';
-      if (!isLegacy16 && !isNative) {
-        grid = detectPetFrameGrid(png);
-        if (grid) detectionMethod = 'auto-bbox';
-      }
-      // Pre-compute shared scale (auto-bbox path only)
-      let sharedScale = 1;
-      if (grid) {
-        let maxW = 0, maxH = 0;
-        for (const row of grid) for (const b of row) {
-          if (b.w > maxW) maxW = b.w;
-          if (b.h > maxH) maxH = b.h;
-        }
-        sharedScale = Math.min(PET_CELL / maxW, PET_CELL / maxH);
-      }
+      const detectionMethod = grid ? 'auto-bbox' : 'uniform';
+      // Per-variant sizeScale multiplies the global scale — values <1 shrink
+      // a specific pet (e.g. cats vs a shepherd when ChatGPT drew both at
+      // similar source sizes). Clamp to (0, 1] to avoid upscaling past cell.
+      const variantSizeScale = (() => {
+        const v = variantConfig?.sizeScale;
+        if (typeof v !== 'number' || !isFinite(v) || v <= 0) return 1;
+        return Math.min(1, v);
+      })();
+      const sharedScale = globalScale * variantSizeScale;
       // Fallback path: slice by full image dims (used for legacy/native and
       // when auto-detection can't resolve exactly 3×5 bands).
       const srcCellW = isLegacy16 ? 16 : png.width / 5;
@@ -1236,7 +1252,8 @@ async function loadPetSprites() {
           if (b.w > maxW) maxW = b.w;
           if (b.h > maxH) maxH = b.h;
         }
-        console.log(`  pet ${filename}: ${png.width}×${png.height} auto-detected 5×3 grid, frame bbox ${minW}–${maxW}×${minH}–${maxH} → ${PET_CELL}×${PET_CELL}`);
+        const renderedW = Math.round(maxW * sharedScale), renderedH = Math.round(maxH * sharedScale);
+        console.log(`  pet ${filename}: ${png.width}×${png.height} auto-detected 5×3 grid, frame bbox ${minW}–${maxW}×${minH}–${maxH} → renders at ${renderedW}×${renderedH} in ${PET_CELL}×${PET_CELL} cell`);
       } else console.log(`  pet ${filename}: ${png.width}×${png.height} uniform-grid fallback ${srcCellW.toFixed(1)}×${srcCellH.toFixed(1)} → ${PET_CELL}×${PET_CELL}`);
       if (variantConfig) {
         const dirs = Object.keys(variantConfig.directions || {});
