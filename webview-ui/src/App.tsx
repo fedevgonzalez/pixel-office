@@ -14,6 +14,7 @@ import { useExtensionMessages } from './hooks/useExtensionMessages.js'
 import { PULSE_ANIMATION_DURATION_SEC } from './constants.js'
 import { useEditorActions } from './hooks/useEditorActions.js'
 import { useEditorKeyboard } from './hooks/useEditorKeyboard.js'
+import { useScreenWakeLock } from './hooks/useScreenWakeLock.js'
 import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
@@ -129,6 +130,12 @@ function EditActionBar({ editor, editorState: es }: { editor: ReturnType<typeof 
 }
 
 function App() {
+  // Keep the display awake whenever the webview is mounted (in any mode
+  // except CI screenshots). Critical for the kiosk display, which would
+  // otherwise let X11/Wayland sleep the monitor after the OS idle timeout
+  // even though pixel-office itself is still running.
+  useScreenWakeLock(!isScreenshotMode)
+
   const editor = useEditorActions(getOfficeState, editorState)
 
   const isEditDirty = useCallback(() => editor.isEditMode && editor.isDirty, [editor.isEditMode, editor.isDirty])
