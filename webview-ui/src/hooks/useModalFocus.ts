@@ -1,5 +1,9 @@
 import { useEffect, useRef } from 'react'
 
+// Tracks how many modals are open so nested modals (ShareModal opened from
+// inside GalleryModal) don't release the body lock until both are closed.
+let openModalCount = 0
+
 export function useModalFocus(isOpen: boolean) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const previousFocusRef = useRef<HTMLElement | null>(null)
@@ -20,6 +24,19 @@ export function useModalFocus(isOpen: boolean) {
     } else if (previousFocusRef.current) {
       previousFocusRef.current.focus()
       previousFocusRef.current = null
+    }
+  }, [isOpen])
+
+  // Body scroll lock while any modal is open. Refcounted so nested modals
+  // share the lock — the body scroll only restores when every modal closes.
+  useEffect(() => {
+    if (!isOpen) return
+    openModalCount += 1
+    const previousOverflow = document.body.style.overflow
+    if (openModalCount === 1) document.body.style.overflow = 'hidden'
+    return () => {
+      openModalCount = Math.max(0, openModalCount - 1)
+      if (openModalCount === 0) document.body.style.overflow = previousOverflow
     }
   }, [isOpen])
 

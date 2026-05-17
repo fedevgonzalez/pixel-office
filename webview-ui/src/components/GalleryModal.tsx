@@ -655,8 +655,11 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           ).map((tab) => (
             <button
               key={tab.id}
+              id={`gallery-tab-${tab.id}`}
               role="tab"
               aria-selected={activeKind === tab.id}
+              aria-controls={`gallery-panel-${tab.id}`}
+              tabIndex={activeKind === tab.id ? 0 : -1}
               onClick={() => setActiveKind(tab.id)}
               style={{
                 flex: 1,
@@ -700,8 +703,14 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           </div>
         )}
 
-        {/* Content */}
-        <div style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}>
+        {/* Content — only the active tab's panel is rendered, so the same
+            element doubles as the tabpanel for whichever tab is selected. */}
+        <div
+          role="tabpanel"
+          id={`gallery-panel-${activeKind}`}
+          aria-labelledby={`gallery-tab-${activeKind}`}
+          style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}
+        >
           {activeKind === 'pets' && (
             <CommunityAssetGrid
               items={(petsManifest ?? []).map((pet) => ({
@@ -1188,12 +1197,16 @@ function CommunityAssetGrid({
                 <img
                   src={item.thumbnailUrl}
                   width={64} height={64}
-                  alt={item.name}
+                  alt={`${item.name} — ${item.subtitle}`}
                   style={{ imageRendering: 'pixelated', background: 'rgba(0,0,0,0.2)', flexShrink: 0 }}
                 />
               ) : (
-                <div style={{ width: 64, height: 64, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
-                  {item.fallbackIcon}
+                <div
+                  role="img"
+                  aria-label={`${item.name} (no thumbnail)`}
+                  style={{ width: 64, height: 64, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26, flexShrink: 0 }}
+                >
+                  <span aria-hidden="true">{item.fallbackIcon}</span>
                 </div>
               )}
               <div style={{ flex: 1, minWidth: 0 }}>

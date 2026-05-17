@@ -245,11 +245,31 @@ function SwatchPicker({
                   : '2px solid rgba(255, 245, 235, 0.12)',
                 borderRadius: 0,
                 cursor: 'pointer',
-
                 position: 'relative',
               }}
             >
               {isDefault ? 'Default' : ''}
+              {selected && !isDefault && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    background: 'var(--pixel-accent)',
+                    color: 'var(--pixel-bg)',
+                    fontSize: 11,
+                    lineHeight: 1,
+                    width: 14,
+                    height: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  ✓
+                </span>
+              )}
             </button>
           )
         })}
@@ -644,6 +664,8 @@ function PetForm({
 
 const emptyPetColors: PetColors = {}
 
+const DIRTY_DISCARD_PROMPT = 'You have unsaved changes. Discard them?'
+
 export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePet, onEditPet, templates }: PetManagerModalProps) {
   const dialogRef = useModalFocus(isOpen)
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list')
@@ -657,6 +679,26 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const [variantColors, setVariantColors] = useState<Record<string, string>>({})
   const [backstory, setBackstory] = useState<string>('')
   const [voiceStyle, setVoiceStyle] = useState<string>('')
+
+  // Dirty tracking: snapshot the form when entering create/edit view, then
+  // compare against the current values to decide whether to warn on back/close.
+  // The snapshot resets to null when we leave the editor (returns to list).
+  const initialFormRef = useRef<string | null>(null)
+  const formKey = JSON.stringify({ name, species, personality, variant, variantColors, petColors, backstory, voiceStyle })
+  const isDirty = initialFormRef.current !== null && initialFormRef.current !== formKey
+  useEffect(() => {
+    if (view === 'create' || view === 'edit') {
+      // Snapshot the just-applied initial state. Subsequent edits become dirty.
+      initialFormRef.current = formKey
+    } else {
+      initialFormRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formKey is intentionally not in deps
+  }, [view])
+  const confirmDiscard = useCallback(() => {
+    if (!isDirty) return true
+    return window.confirm(DIRTY_DISCARD_PROMPT)
+  }, [isDirty])
   // Template UI state
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateNameInput, setTemplateNameInput] = useState('')
@@ -668,6 +710,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if (view !== 'list') {
+          if (!confirmDiscard()) return
           setView('list')
         } else {
           onClose()
@@ -676,7 +719,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     }
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, onClose, view])
+  }, [isOpen, onClose, view, confirmDiscard])
 
   // Reset on open
   useEffect(() => {
@@ -829,13 +872,18 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     return opt ? opt.icon : '😌'
   }
 
-  const headerTitle = view === 'create' ? 'New Pet' : view === 'edit' ? 'Edit Pet' : 'Your Pets'
+  const editingPet = editingUid ? pets.find((p) => p.uid === editingUid) : null
+  const headerTitle = view === 'create'
+    ? `New ${species === 'cat' ? 'cat' : 'dog'}${isDirty ? ' •' : ''}`
+    : view === 'edit'
+      ? `Editing: ${editingPet?.name || 'pet'}${isDirty ? ' •' : ''}`
+      : 'Your Pets'
 
   return (
     <>
       {/* Backdrop */}
       <div
-        onClick={onClose}
+        onClick={() => { if (confirmDiscard()) onClose() }}
         aria-hidden="true"
         style={{
           position: 'fixed',
@@ -879,7 +927,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
             {view !== 'list' && (
               <button
-                onClick={() => setView('list')}
+                onClick={() => { if (confirmDiscard()) setView('list') }}
                 aria-label="Back to pet list"
                 className="pixel-close-btn"
                 style={{ fontSize: '20px' }}
@@ -892,7 +940,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
             </span>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => { if (confirmDiscard()) onClose() }}
             aria-label="Close pet manager"
             className="pixel-close-btn"
           >
