@@ -1,0 +1,5 @@
+{
+  "directions": {
+    "right": { "useDirection": "down" }
+  }
+}

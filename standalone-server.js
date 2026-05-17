@@ -1056,6 +1056,64 @@ async function loadCharacterSprites() {
 // rebuilding the app.
 const INSTALLED_PETS_DIR = path.join(os.homedir(), '.pixel-office', 'community-assets', 'pets');
 
+// Per-variant frame-mapping sidecar.
+//
+// AI-generated pet sheets (ChatGPT) don't always follow the 5×3 grid spec:
+// row 3 may be back views instead of side profiles, idle frames may end up
+// in wrong cells, etc. Drop a `<species>_<variant>.json` next to the PNG to
+// remap source cells to logical slots without re-rendering the art.
+//
+// Slot order per direction: walkA, walkB, idle, sleepA, sleepB (cols 0..4)
+// Direction order: down (row 0), up (row 1), right (row 2)
+//
+// Schema:
+//   {
+//     "directions": {
+//       "<dir>": { "useDirection": "<otherDir>" }
+//         // copies ALL 5 slots from another direction's row
+//       | {
+//           "walkA":  { "col": 0, "row": 0 },
+//           "walkB":  { "col": 1, "row": 0 },
+//           "idle":   { "col": 2, "row": 0 },
+//           "sleepA": { "col": 3, "row": 2 },
+//           "sleepB": { "col": 4, "row": 2 }
+//         }
+//         // per-slot override — any missing slot falls back to default (col=slot, row=dir)
+//     }
+//   }
+//
+// Both forms can be partial: only override the directions/slots that need it.
+const PET_DIR_NAMES = ['down', 'up', 'right'];
+const PET_SLOT_NAMES = ['walkA', 'walkB', 'idle', 'sleepA', 'sleepB'];
+
+function loadPetVariantConfig(pngPath) {
+  const jsonPath = pngPath.replace(/\.png$/i, '.json');
+  if (!fs.existsSync(jsonPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(jsonPath, 'utf-8'));
+  } catch (e) {
+    console.warn(`  pet config ${path.basename(jsonPath)} invalid JSON: ${e.message}`);
+    return null;
+  }
+}
+
+function resolvePetCellCoords(dirIdx, slotIdx, config) {
+  let srcCol = slotIdx, srcRow = dirIdx;
+  const dirConfig = config?.directions?.[PET_DIR_NAMES[dirIdx]];
+  if (!dirConfig) return { srcCol, srcRow };
+  if (typeof dirConfig.useDirection === 'string') {
+    const srcDir = PET_DIR_NAMES.indexOf(dirConfig.useDirection);
+    if (srcDir >= 0) srcRow = srcDir;
+    return { srcCol, srcRow };
+  }
+  const slotConfig = dirConfig[PET_SLOT_NAMES[slotIdx]];
+  if (slotConfig && Number.isInteger(slotConfig.col) && Number.isInteger(slotConfig.row)) {
+    srcCol = slotConfig.col;
+    srcRow = slotConfig.row;
+  }
+  return { srcCol, srcRow };
+}
+
 async function loadPetSprites() {
   // Collect (filePath, source) pairs from both bundled and installed dirs.
   const bundledDir = path.join(assetsDir, 'pets');
@@ -1082,6 +1140,7 @@ async function loadPetSprites() {
     const [, species, variant] = m;
     try {
       const png = await loadPng(filePath);
+      const variantConfig = loadPetVariantConfig(filePath);
       // Three loading paths:
       //   - Legacy 80×48: 16×16 cells, upscale 2× to 32×32 logical
       //   - Native 160×96: 32×32 cells, pixel-perfect 1:1
@@ -1127,24 +1186,28 @@ async function loadPetSprites() {
       const srcCellH = isLegacy16 ? 16 : png.height / 3;
       for (let d = 0; d < 3; d++) {
         for (let frame = 0; frame < 5; frame++) {
+          // Resolve which source cell (col, row) to pull for this logical
+          // (direction, slot). Default is identity (frame, d); the sidecar
+          // JSON can remap when the art has frames in the wrong cells.
+          const { srcCol, srcRow } = resolvePetCellCoords(d, frame, variantConfig);
           let sprite;
           if (grid) {
-            sprite = resampleFrameBbox(png, grid[d][frame], sharedScale, PET_CELL);
+            sprite = resampleFrameBbox(png, grid[srcRow][srcCol], sharedScale, PET_CELL);
           } else if (isLegacy16) {
             // 16×16 legacy → scale 3× directly to TILE_SIZE=48.
-            sprite = pngToSpriteData(png, frame * 16, d * 16, 16, 16);
+            sprite = pngToSpriteData(png, srcCol * 16, srcRow * 16, 16, 16);
             sprite = upscaleSpriteData(sprite, PET_CELL / 16);
           } else if (isNative) {
             // Legacy native 32-cell → resample 32 → PET_CELL.
             sprite = pngToSpriteDataResampled(
-              png, frame * 32, d * 32, 32, 32, PET_CELL, PET_CELL,
+              png, srcCol * 32, srcRow * 32, 32, 32, PET_CELL, PET_CELL,
             );
           } else {
             // Uniform-grid fallback when auto-detection fails.
-            const sx = Math.round(frame * srcCellW);
-            const sy = Math.round(d * srcCellH);
-            const sw = Math.round((frame + 1) * srcCellW) - sx;
-            const sh = Math.round((d + 1) * srcCellH) - sy;
+            const sx = Math.round(srcCol * srcCellW);
+            const sy = Math.round(srcRow * srcCellH);
+            const sw = Math.round((srcCol + 1) * srcCellW) - sx;
+            const sh = Math.round((srcRow + 1) * srcCellH) - sy;
             sprite = pngToSpriteDataResampled(
               png, sx, sy, sw, sh, PET_CELL, PET_CELL,
             );
@@ -1175,6 +1238,10 @@ async function loadPetSprites() {
         }
         console.log(`  pet ${filename}: ${png.width}×${png.height} auto-detected 5×3 grid, frame bbox ${minW}–${maxW}×${minH}–${maxH} → ${PET_CELL}×${PET_CELL}`);
       } else console.log(`  pet ${filename}: ${png.width}×${png.height} uniform-grid fallback ${srcCellW.toFixed(1)}×${srcCellH.toFixed(1)} → ${PET_CELL}×${PET_CELL}`);
+      if (variantConfig) {
+        const dirs = Object.keys(variantConfig.directions || {});
+        console.log(`    + sidecar config: remapped ${dirs.join(', ')}`);
+      }
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);
     }
