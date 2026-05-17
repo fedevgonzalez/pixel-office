@@ -92,6 +92,8 @@ export function renderTileGrid(
   zoom: number,
   tileColors?: Array<FloorColor | null>,
   cols?: number,
+  canvasWidth?: number,
+  canvasHeight?: number,
 ): void {
   const s = TILE_SIZE * zoom
   const useSpriteFloors = hasFloorSprites()
@@ -99,9 +101,19 @@ export function renderTileGrid(
   const tmCols = tmRows > 0 ? tileMap[0].length : 0
   const layoutCols = cols ?? tmCols
 
+  // Viewport culling: skip rows/cols entirely outside the visible area. Falls
+  // back to the full grid when canvas dimensions weren't provided (e.g. tests).
+  let minR = 0, maxR = tmRows, minC = 0, maxC = tmCols
+  if (canvasWidth !== undefined && canvasHeight !== undefined && s > 0) {
+    minC = Math.max(0, Math.floor(-offsetX / s))
+    maxC = Math.min(tmCols, Math.ceil((canvasWidth - offsetX) / s))
+    minR = Math.max(0, Math.floor(-offsetY / s))
+    maxR = Math.min(tmRows, Math.ceil((canvasHeight - offsetY) / s))
+  }
+
   // Floor tiles + wall base color
-  for (let r = 0; r < tmRows; r++) {
-    for (let c = 0; c < tmCols; c++) {
+  for (let r = minR; r < maxR; r++) {
+    for (let c = minC; c < maxC; c++) {
       const tile = tileMap[r][c]
 
       // Skip VOID tiles entirely (transparent)
@@ -957,8 +969,8 @@ export function renderFrame(
     renderWorldBackground(ctx, canvasWidth, canvasHeight, backgroundTheme, cols, rows, offsetX, offsetY, zoom, dayNight)
   }
 
-  // Draw tiles (floor + wall base color)
-  renderTileGrid(ctx, tileMap, offsetX, offsetY, zoom, tileColors, layoutCols)
+  // Draw tiles (floor + wall base color) — pass canvas dims for viewport culling.
+  renderTileGrid(ctx, tileMap, offsetX, offsetY, zoom, tileColors, layoutCols, canvasWidth, canvasHeight)
 
   // Seat indicators (below furniture/characters, on top of floor)
   if (selection) {

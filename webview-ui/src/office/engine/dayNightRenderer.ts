@@ -72,6 +72,52 @@ export function renderDayNightOverlay(
   ctx.restore()
 }
 
+/**
+ * Glow sprite cache: rendering a radial gradient into the main ctx ran
+ * createRadialGradient + 4 addColorStops + a screen-blend fillRect for every
+ * emitter every frame. With ~10 emitters that's the dominant night-time render
+ * cost. We bake each (lightType × alpha-bucket × radius) glow into an offscreen
+ * canvas once, then drawImage it in screen-blend mode per emitter.
+ */
+const glowCache = new Map<string, HTMLCanvasElement>()
+const ALPHA_BUCKETS = 20 // 0.05 steps across [0, 1]
+
+function quantizeAlpha(a: number): number {
+  return Math.round(a * ALPHA_BUCKETS) / ALPHA_BUCKETS
+}
+
+function getGlowSprite(lightType: LightType, alpha: number, radius: number): HTMLCanvasElement {
+  const radiusPx = Math.round(radius)
+  const alphaBucket = quantizeAlpha(alpha)
+  const key = `${lightType}|${alphaBucket}|${radiusPx}`
+  let cached = glowCache.get(key)
+  if (cached) return cached
+
+  const size = radiusPx * 2
+  const off = document.createElement('canvas')
+  off.width = size
+  off.height = size
+  const offCtx = off.getContext('2d')
+  if (!offCtx) return off
+  const color = lightType === 'warm' ? DN_GLOW_WARM : DN_GLOW_COOL
+  const grad = offCtx.createRadialGradient(radiusPx, radiusPx, 0, radiusPx, radiusPx, radiusPx)
+  grad.addColorStop(0, replaceAlpha(color, alphaBucket))
+  grad.addColorStop(0.25, replaceAlpha(color, alphaBucket * 0.65))
+  grad.addColorStop(0.6, replaceAlpha(color, alphaBucket * 0.2))
+  grad.addColorStop(1, replaceAlpha(color, 0))
+  offCtx.fillStyle = grad
+  offCtx.fillRect(0, 0, size, size)
+  // Cap cache growth — if a kiosk hammers many radii/alpha combinations the
+  // cache can otherwise grow unbounded. ~120 entries covers all real cases.
+  if (glowCache.size >= 200) {
+    const firstKey = glowCache.keys().next().value
+    if (firstKey !== undefined) glowCache.delete(firstKey)
+  }
+  glowCache.set(key, off)
+  cached = off
+  return cached
+}
+
 /** Render radial glow around light-emitting furniture */
 function renderLightGlows(
   ctx: CanvasRenderingContext2D,
@@ -95,16 +141,8 @@ function renderLightGlows(
     const cx = offsetX + (f.col + 0.5) * TILE_SIZE * zoom
     const cy = offsetY + (f.row + 0.5) * TILE_SIZE * zoom
 
-    const color = lightType === 'warm' ? DN_GLOW_WARM : DN_GLOW_COOL
-
-    const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, glowRadius)
-    gradient.addColorStop(0, replaceAlpha(color, alpha))
-    gradient.addColorStop(0.25, replaceAlpha(color, alpha * 0.65))
-    gradient.addColorStop(0.6, replaceAlpha(color, alpha * 0.2))
-    gradient.addColorStop(1, replaceAlpha(color, 0))
-
-    ctx.fillStyle = gradient
-    ctx.fillRect(cx - glowRadius, cy - glowRadius, glowRadius * 2, glowRadius * 2)
+    const sprite = getGlowSprite(lightType, alpha, glowRadius)
+    ctx.drawImage(sprite, cx - sprite.width / 2, cy - sprite.height / 2)
   }
 }
 
