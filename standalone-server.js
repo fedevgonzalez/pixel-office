@@ -662,8 +662,12 @@ function pngToSpriteData(png, x, y, w, h) {
 async function loadCharacterSprites() {
   const dir = path.join(assetsDir, 'characters');
   if (!fs.existsSync(dir)) return null;
-  // Scan dir for char_*.png and load in numeric order. Used to be hard-coded
-  // to exactly 6 files which blocked adding new variants without code changes.
+  // Scan dir for char_*.png and load in numeric order.
+  // Default sheet: 7×3 grid of 24×32 frames (walk_A, idle, walk_B, type_A,
+  // type_B, read_A, read_B) across 3 directions (down, up, right). Total 168×96.
+  // Legacy: 112×96 sheets (16×32 cells) are detected by dims and loaded as-is —
+  // they render correctly side-by-side with new sprites since the renderer
+  // anchors at bottom-center using each sprite's intrinsic width/height.
   const entries = fs.readdirSync(dir)
     .map((name) => {
       const m = name.match(/^char_(\d+)\.png$/);
@@ -675,14 +679,18 @@ async function loadCharacterSprites() {
   const chars = [];
   for (const { file } of entries) {
     const png = await loadPng(file);
+    const isLegacy16 = png.width === 112 && png.height === 96;
+    const cellW = isLegacy16 ? 16 : 24;
+    const cellH = 32;
     const directions = { down: [], up: [], right: [] };
     const dirNames = ['down', 'up', 'right'];
     for (let d = 0; d < 3; d++) {
       for (let f = 0; f < 7; f++) {
-        directions[dirNames[d]].push(pngToSpriteData(png, f * 16, d * 32, 16, 32));
+        directions[dirNames[d]].push(pngToSpriteData(png, f * cellW, d * cellH, cellW, cellH));
       }
     }
     chars.push(directions);
+    if (isLegacy16) console.log(`  char ${path.basename(file)}: 16×32 legacy cells`);
   }
   return chars;
 }
@@ -1604,7 +1612,7 @@ const wss = new WebSocket.Server({ server });
 // Types that external broadcasters are allowed to inject. Anything else is
 // dropped to prevent a malicious or buggy bridge from injecting layout
 // edits, agent state, etc. Extend as new event types stabilize.
-const BROADCAST_ALLOWED_TYPES = new Set(['agentToolStatusRefined', 'petSpeak', 'petReactionBubble', 'agentSpeak']);
+const BROADCAST_ALLOWED_TYPES = new Set(['agentToolStatusRefined', 'petSpeak', 'petReactionBubble', 'agentSpeak', 'petWalkToAgent', 'dailySummary']);
 const broadcasterClients = new Set();
 
 wss.on('connection', (ws, req) => {

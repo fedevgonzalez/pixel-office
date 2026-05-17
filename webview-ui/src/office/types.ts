@@ -206,6 +206,10 @@ export interface PlacedPet {
   petColors?: PetColors
   /** Personality affects behavior weights */
   personality?: PetPersonality
+  /** Free-text backstory used by narration integrations to colour the pet's voice */
+  backstory?: string
+  /** Short tag describing the pet's speech style (e.g. "snobby", "gossipy", "deadpan") */
+  voiceStyle?: string
 }
 
 export const PetBubble = {

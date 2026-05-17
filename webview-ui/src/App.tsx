@@ -180,6 +180,8 @@ function App() {
       petColors: petData.petColors,
       personality: petData.personality,
       variant: petData.variant,
+      backstory: petData.backstory,
+      voiceStyle: petData.voiceStyle,
     }
     // Add to layout
     const layout = os.getLayout()
@@ -200,7 +202,7 @@ function App() {
     }
   }, [])
 
-  const handleEditPet = useCallback((uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null }) => {
+  const handleEditPet = useCallback((uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null; backstory?: string | null; voiceStyle?: string | null }) => {
     const os = getOfficeState()
     const newLayout = os.editPet(uid, updates)
     if (newLayout) {

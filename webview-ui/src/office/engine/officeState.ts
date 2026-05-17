@@ -46,6 +46,12 @@ export class OfficeState {
   hoveredPetId: string | null = null
   /** Seconds since any agent was last active (for pet sleep behavior) */
   officeIdleTime = 0
+  /** End-of-day banner text from an external narration source, or null */
+  dailySummaryText: string | null = null
+  /** Countdown timer for the banner (seconds remaining) */
+  dailySummaryTimer = 0
+  /** Original duration of the current banner, for fade-out alpha */
+  dailySummaryFullDuration = 0
   /** Maps "parentId:toolId" → sub-agent character ID (negative) */
   subagentIdMap: Map<string, number> = new Map()
   /** Reverse lookup: sub-agent character ID → parent info */
@@ -845,7 +851,9 @@ export class OfficeState {
   }
 
   /** Edit a pet's name, color, petColors, and/or personality */
-  editPet(uid: string, updates: { name?: string; color?: FloorColor; petColors?: PetColors; personality?: string; variant?: string | null }): OfficeLayout | null {
+  editPet(uid: string, updates: { name?: string; color?: FloorColor; petColors?: PetColors; personality?: string; variant?: string | null; backstory?: string | null; voiceStyle?: string | null }): OfficeLayout | null {
+    // Only stored on the layout — runtime Pet doesn't read them; the bridge does.
+    const layoutPet = (this.layout.pets || []).find((p) => p.uid === uid)
     const pet = this.pets.get(uid)
     if (!pet) return null
     if (updates.name !== undefined) pet.name = updates.name
@@ -854,14 +862,14 @@ export class OfficeState {
     if (updates.personality !== undefined) pet.personality = updates.personality as Pet['personality']
     // null sentinel = clear (back to default sprite); undefined = leave alone.
     if (updates.variant !== undefined) pet.variant = updates.variant ?? undefined
-    // Update layout too
-    const layoutPet = (this.layout.pets || []).find((p) => p.uid === uid)
     if (layoutPet) {
       if (updates.name !== undefined) layoutPet.name = updates.name
       if (updates.color !== undefined) layoutPet.color = updates.color
       if (updates.petColors !== undefined) layoutPet.petColors = updates.petColors
       if (updates.personality !== undefined) layoutPet.personality = updates.personality as Pet['personality']
       if (updates.variant !== undefined) layoutPet.variant = updates.variant ?? undefined
+      if (updates.backstory !== undefined) layoutPet.backstory = updates.backstory ?? undefined
+      if (updates.voiceStyle !== undefined) layoutPet.voiceStyle = updates.voiceStyle ?? undefined
     }
     return this.layout
   }
@@ -898,6 +906,32 @@ export class OfficeState {
     const pet = this.pets.get(uid)
     if (!pet) return false
     return petWalkToTile(pet, col, row, this.tileMap, this.blockedTiles, this.doorTiles)
+  }
+
+  /** Show an end-of-day banner over the whole canvas for `durationSec` seconds. */
+  setDailySummary(text: string, durationSec: number): void {
+    this.dailySummaryText = text
+    this.dailySummaryTimer = durationSec
+    this.dailySummaryFullDuration = durationSec
+  }
+
+  /** Send a pet toward an agent's seat. Tries the agent's tile first, then
+   *  cardinal neighbours, then nothing if every option is blocked. */
+  walkPetToAgent(petUid: string, agentId: number): boolean {
+    const pet = this.pets.get(petUid)
+    const ch = this.characters.get(agentId)
+    if (!pet || !ch) return false
+    const offsets = [
+      { c: 0, r: 0 },   // agent's own tile (usually blocked by seat, but try)
+      { c: 0, r: 1 }, { c: 0, r: -1 }, { c: 1, r: 0 }, { c: -1, r: 0 },
+      { c: 1, r: 1 }, { c: -1, r: 1 }, { c: 1, r: -1 }, { c: -1, r: -1 },
+    ]
+    for (const o of offsets) {
+      if (petWalkToTile(pet, ch.tileCol + o.c, ch.tileRow + o.r, this.tileMap, this.blockedTiles, this.doorTiles)) {
+        return true
+      }
+    }
+    return false
   }
 
   /** Perk up nearby pets when an agent does something */
@@ -974,6 +1008,16 @@ export class OfficeState {
       this.officeIdleTime = 0
     } else {
       this.officeIdleTime += dt
+    }
+
+    // Tick daily summary banner
+    if (this.dailySummaryText) {
+      this.dailySummaryTimer -= dt
+      if (this.dailySummaryTimer <= 0) {
+        this.dailySummaryText = null
+        this.dailySummaryTimer = 0
+        this.dailySummaryFullDuration = 0
+      }
     }
 
     // Update pets

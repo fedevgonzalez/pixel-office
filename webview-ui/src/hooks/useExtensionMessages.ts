@@ -219,6 +219,14 @@ export function useExtensionMessages(
         const text = msg.text as string
         const durationSec = (msg.durationSec as number) || 8
         os.setCharacterSpeech(agentId, text, durationSec)
+      } else if (msg.type === 'dailySummary') {
+        const text = msg.text as string
+        const durationSec = (msg.durationSec as number) || 30
+        os.setDailySummary(text, durationSec)
+      } else if (msg.type === 'petWalkToAgent') {
+        const petId = msg.petId as string
+        const agentId = msg.agentId as number
+        os.walkPetToAgent(petId, agentId)
       } else if (msg.type === 'petReactionBubble') {
         const petId = msg.petId as string
         const bubbleType = msg.bubbleType as 'heart' | 'happy'
