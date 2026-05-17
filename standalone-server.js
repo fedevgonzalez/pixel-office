@@ -671,6 +671,74 @@ function computeOpaqueBboxPng(png) {
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
+/**
+ * Quantize sprite cells to a shared palette so the result reads as proper
+ * pixel art instead of a noisy raster downsample.
+ *
+ * The ChatGPT-style sources are rasterized illustrations: every pixel can be
+ * a slightly different shade (we saw 813 unique colors in a 48×48 cell). The
+ * solution is to build a frequency histogram across ALL cells of the variant,
+ * keep the top N colors as the palette, and snap every pixel to its nearest
+ * palette color in RGB space.
+ *
+ * Operates in-place on the array of sprite frames.
+ */
+function quantizeFramesToPalette(framesByDir, paletteSize) {
+  // 1. Count colors across all frames/directions.
+  const counts = new Map();
+  for (const dir of Object.values(framesByDir)) {
+    for (const frame of dir) {
+      for (const row of frame) {
+        for (const px of row) {
+          if (!px) continue;
+          counts.set(px, (counts.get(px) || 0) + 1);
+        }
+      }
+    }
+  }
+  if (counts.size <= paletteSize) return Array.from(counts.keys());
+  // 2. Take top-N most frequent as palette anchors.
+  const palette = [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, paletteSize)
+    .map(([hex]) => hex);
+  const paletteRgb = palette.map(hexToRgb);
+  // 3. Snap every pixel to nearest palette color (Euclidean RGB). Cache
+  //    decisions so repeat colors don't pay the full search cost.
+  const snapCache = new Map();
+  const snap = (hex) => {
+    let dst = snapCache.get(hex);
+    if (dst !== undefined) return dst;
+    const [r, g, b] = hexToRgb(hex);
+    let best = palette[0]; let bestD = Infinity;
+    for (let i = 0; i < paletteRgb.length; i++) {
+      const [pr, pg, pb] = paletteRgb[i];
+      const dr = r - pr, dg = g - pg, db = b - pb;
+      const d = dr * dr + dg * dg + db * db;
+      if (d < bestD) { bestD = d; best = palette[i]; }
+    }
+    snapCache.set(hex, best);
+    return best;
+  };
+  for (const dir of Object.values(framesByDir)) {
+    for (const frame of dir) {
+      for (let r = 0; r < frame.length; r++) {
+        for (let c = 0; c < frame[r].length; c++) {
+          const px = frame[r][c];
+          if (px) frame[r][c] = snap(px);
+        }
+      }
+    }
+  }
+  return palette;
+}
+
+function hexToRgb(hex) {
+  // hex is '#rrggbb'
+  const v = parseInt(hex.slice(1), 16);
+  return [(v >> 16) & 0xff, (v >> 8) & 0xff, v & 0xff];
+}
+
 function pngToSpriteData(png, x, y, w, h) {
   const sprite = [];
   for (let row = 0; row < h; row++) {
@@ -883,25 +951,24 @@ async function loadPetSprites() {
               PET_CELL, PET_CELL,
             );
           }
-          for (const row of sprite) {
-            for (const px of row) {
-              if (!px) continue;
-              colorCounts.set(px, (colorCounts.get(px) || 0) + 1);
-            }
-          }
           directions[dirNames[d]].push(sprite);
         }
       }
-      const palette = [...colorCounts.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-        .map(([hex]) => hex);
+      // ChatGPT-style sources are rasterised illustrations: a 48×48 cell can
+      // end up with 800+ unique colours due to subtle gradients/AA. Quantise
+      // to a per-variant palette so each variant reads as proper pixel art
+      // and the result fits the 6-colour swatch UI without losing fidelity.
+      // 16 colours is enough for body + shading + eyes + nose + accents
+      // while still flattening single-pixel noise around the silhouette.
+      const QUANT_PALETTE_SIZE = 16;
+      const palette = quantizeFramesToPalette(directions, QUANT_PALETTE_SIZE)
+        .slice(0, 6); // keep the swatch UI showing the dominant 6
       if (!result[species]) result[species] = {};
       result[species][variant] = { ...directions, palette };
-      if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 2× → 32×32`);
-      else if (isNative) console.log(`  pet ${filename}: 160×96 native 32×32 cells`);
-      else if (trimmed) console.log(`  pet ${filename}: ${png.width}×${png.height} trimmed to ${activeW}×${activeH} bbox, cell ${srcCellW}×${srcCellH} → 32×32`);
-      else console.log(`  pet ${filename}: ${png.width}×${png.height} resampled cell ${srcCellW}×${srcCellH} → 32×32`);
+      if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 3× → ${PET_CELL}×${PET_CELL}`);
+      else if (isNative) console.log(`  pet ${filename}: 160×96 native, resampled to ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
+      else if (trimmed) console.log(`  pet ${filename}: ${png.width}×${png.height} trimmed to ${activeW}×${activeH} bbox → cell ${srcCellW}×${srcCellH} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
+      else console.log(`  pet ${filename}: ${png.width}×${png.height} → cell ${srcCellW}×${srcCellH} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);
     }
