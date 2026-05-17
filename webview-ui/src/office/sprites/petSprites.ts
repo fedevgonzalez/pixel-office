@@ -244,21 +244,84 @@ export const DOG_SPRITES: PetSpriteSet = {
 }
 
 /**
- * Nearest-neighbor 2:1 downsample. PNG variant sprites are authored at 32×32
- * but the runtime renders pets at 16×16 (matching the 16×16 procedural sprites
- * and the agents' 16-cell scale). Dropping every other row/column once at
- * load keeps walk frames pixel-coherent — earlier we downscaled per frame in
- * drawImage, which destroyed fine 1-pixel details inconsistently between
- * walk1 and walk2 and produced a "weird" walking jitter.
+ * Find the smallest axis-aligned rect that covers every opaque pixel across
+ * every frame/direction of a variant. The crop must be consistent across
+ * frames so the walk animation doesn't wobble (each frame uses the SAME
+ * source rect — the union of all frames' bboxes).
  */
-function downsampleSprite(s: SpriteData): SpriteData {
+interface Bbox { top: number; bottom: number; left: number; right: number }
+function computeVariantBbox(v: LoadedPetData): Bbox | null {
+  let top = Infinity, bottom = -1, left = Infinity, right = -1
+  for (const dir of [v.down, v.up, v.right]) {
+    for (const s of dir) {
+      for (let r = 0; r < s.length; r++) {
+        const row = s[r]
+        for (let c = 0; c < row.length; c++) {
+          if (row[c]) {
+            if (r < top) top = r
+            if (r > bottom) bottom = r
+            if (c < left) left = c
+            if (c > right) right = c
+          }
+        }
+      }
+    }
+  }
+  if (bottom < 0) return null
+  return { top, bottom, left, right }
+}
+
+/**
+ * Crop the source frame to `bbox` and nearest-neighbor resample the crop to
+ * `targetW × targetH`. Anchor stays at bottom-center of the resulting cell,
+ * which is what the renderer assumes.
+ */
+function cropResample(s: SpriteData, bbox: Bbox, targetW: number, targetH: number): SpriteData {
+  const cropW = bbox.right - bbox.left + 1
+  const cropH = bbox.bottom - bbox.top + 1
   const out: SpriteData = []
-  for (let r = 0; r < s.length; r += 2) {
+  for (let r = 0; r < targetH; r++) {
+    const srcR = bbox.top + Math.min(cropH - 1, Math.floor(r * cropH / targetH))
     const row: string[] = []
-    for (let c = 0; c < s[r].length; c += 2) row.push(s[r][c])
+    for (let c = 0; c < targetW; c++) {
+      const srcC = bbox.left + Math.min(cropW - 1, Math.floor(c * cropW / targetW))
+      row.push(s[srcR]?.[srcC] ?? '')
+    }
     out.push(row)
   }
   return out
+}
+
+/**
+ * Per-species target visual size in cell pixels. Cats are normalised to a
+ * single size so a black shorthair (filling its 32-cell) doesn't tower over a
+ * gray tabby (drawn with padding). Dog cell size scales with the artist's
+ * bbox — a shepherd whose bbox is bigger than a corgi's gets a proportionally
+ * bigger render cell — clamped so nothing dwarfs the agents.
+ */
+function speciesCellSize(species: string, bbox: Bbox): { w: number; h: number } {
+  const bboxW = bbox.right - bbox.left + 1
+  const bboxH = bbox.bottom - bbox.top + 1
+  if (species === 'cat') {
+    // All cats render at 14×12 — pixel-art cats look better slightly wider than tall.
+    return { w: 14, h: 12 }
+  }
+  // Dogs: scale relative to bbox dim, clamped to [14, 18]. A bbox of 20 hits
+  // the upper cap (shepherd-ish); a 14 bbox hits the lower (corgi-ish).
+  const target = (d: number) => Math.max(14, Math.min(18, Math.round(d * 0.75)))
+  return { w: target(bboxW), h: target(bboxH) }
+}
+
+function normalizeVariant(species: string, data: LoadedPetData): LoadedPetData {
+  const bbox = computeVariantBbox(data)
+  if (!bbox) return data
+  const { w: tw, h: th } = speciesCellSize(species, bbox)
+  return {
+    down: data.down.map((f) => cropResample(f, bbox, tw, th)),
+    up: data.up.map((f) => cropResample(f, bbox, tw, th)),
+    right: data.right.map((f) => cropResample(f, bbox, tw, th)),
+    palette: data.palette,
+  }
 }
 
 // Server-loaded variant sprites, keyed [species][variant]. Populated from the
@@ -273,21 +336,21 @@ type LoadedPetData = {
 let loadedPetVariants: Record<string, Record<string, LoadedPetData>> | null = null
 
 export function setLoadedPetVariants(data: Record<string, Record<string, LoadedPetData>>): void {
-  // Variants come from the server as 32×32 PNG-derived sprite data. Downsample
-  // to 16×16 so the rendering path stays uniform and walk frames don't shimmer.
-  const downsampled: Record<string, Record<string, LoadedPetData>> = {}
+  // Variants come from the server as 32×32 PNG-derived sprite data. Each
+  // artist drew the animal at a different size inside the cell, so a uniform
+  // downsample produced wildly inconsistent visual sizes (filled-cell black
+  // cats towered over a padded gray tabby). normalizeVariant detects the
+  // content bbox and re-crops + resamples every frame to a species-specific
+  // target cell — within cats they all match; within dogs the cell scales
+  // with the artist's bbox so a shepherd reads bigger than a corgi.
+  const normalised: Record<string, Record<string, LoadedPetData>> = {}
   for (const [species, variants] of Object.entries(data)) {
-    downsampled[species] = {}
+    normalised[species] = {}
     for (const [name, v] of Object.entries(variants)) {
-      downsampled[species][name] = {
-        down: v.down.map(downsampleSprite),
-        up: v.up.map(downsampleSprite),
-        right: v.right.map(downsampleSprite),
-        palette: v.palette,
-      }
+      normalised[species][name] = normalizeVariant(species, v)
     }
   }
-  loadedPetVariants = downsampled
+  loadedPetVariants = normalised
 }
 
 /** List variant names available for a species (deterministic order). Returns [] if none loaded. */
