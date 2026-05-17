@@ -194,16 +194,20 @@ export function renderScene(
     // at lower rows (e.g. desks, bookshelves that occlude from below).
     const charZY = ch.y + TILE_SIZE / 2 + CHARACTER_Z_SORT_OFFSET
 
-    // Matrix spawn/despawn effect — skip outline, use per-pixel rendering
+    // Matrix spawn/despawn effect — skip outline, use per-pixel rendering.
+    // Compute pixelSize from the cached canvas so legacy-upscaled procedurals
+    // (cached at zoom × 3) and native-48 chars (cached at zoom × 1) both
+    // line up with their rendered visual size.
     if (ch.matrixEffect) {
       const mDrawX = drawX
       const mDrawY = drawY
       const mSpriteData = spriteData
       const mCh = ch
+      const mPixelSize = cached.width / (spriteData[0]?.length || 1)
       drawables.push({
         zY: charZY,
         draw: (c) => {
-          renderMatrixEffect(c, mCh, mSpriteData, mDrawX, mDrawY, zoom)
+          renderMatrixEffect(c, mCh, mSpriteData, mDrawX, mDrawY, mPixelSize)
         },
       })
       continue

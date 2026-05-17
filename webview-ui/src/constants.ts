@@ -13,7 +13,9 @@ export const MAX_COLS = 64
 export const MAX_ROWS = 64
 
 // ── Character Animation ─────────────────────────────────────
-export const WALK_SPEED_PX_PER_SEC = 48
+// Speeds are world pixels per second. Original 48 was 3 old-tiles/sec at
+// TILE_SIZE=16; scale to keep ~3 tiles/sec at TILE_SIZE=48.
+export const WALK_SPEED_PX_PER_SEC = 144
 export const WALK_FRAME_DURATION_SEC = 0.15
 export const TYPE_FRAME_DURATION_SEC = 0.3
 export const WANDER_PAUSE_MIN_SEC = 2.0
@@ -38,7 +40,9 @@ export const MATRIX_TRAIL_MID_THRESHOLD = 0.33
 export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66
 
 // ── Rendering ────────────────────────────────────────────────
-export const CHARACTER_SITTING_OFFSET_PX = 6
+// Sitting offset in world pixels — scales with TILE_SIZE (was 6 at 16-tile,
+// keep same 3/8 of tile = 18 at 48-tile).
+export const CHARACTER_SITTING_OFFSET_PX = 18
 export const CHARACTER_Z_SORT_OFFSET = 0.5
 export const OUTLINE_Z_SORT_OFFSET = 0.001
 export const SELECTED_OUTLINE_ALPHA = 1.0
@@ -52,8 +56,9 @@ export const BUTTON_ICON_SIZE_FACTOR = 0.45
 export const BUTTON_LINE_WIDTH_MIN = 1.5
 export const BUTTON_LINE_WIDTH_ZOOM_FACTOR = 0.5
 export const BUBBLE_FADE_DURATION_SEC = 0.5
-export const BUBBLE_SITTING_OFFSET_PX = 10
-export const BUBBLE_VERTICAL_OFFSET_PX = 24
+// Speech / status bubble offsets — world pixels, scale with TILE_SIZE.
+export const BUBBLE_SITTING_OFFSET_PX = 30
+export const BUBBLE_VERTICAL_OFFSET_PX = 72
 export const FALLBACK_FLOOR_COLOR = '#808080'
 
 // ── Rendering - Overlay Colors (canvas, not CSS) ─────────────
@@ -81,16 +86,17 @@ export const CAMERA_FOLLOW_LERP = 0.1
 export const CAMERA_FOLLOW_SNAP_THRESHOLD = 0.5
 
 // ── Kiosk Auto-Frame ────────────────────────────────────────
-// Character bounding box offsets (world pixels)
-export const KIOSK_CHAR_BBOX_HALF_WIDTH = 16
-export const KIOSK_CHAR_BBOX_TOP = 40
-export const KIOSK_CHAR_BBOX_BOTTOM = 16
-// Padding: base + per-viewport fraction (adapts to screen size)
-export const KIOSK_PAD_SINGLE = 48
-export const KIOSK_PAD_MULTI = 32
+// Character bounding box offsets (world pixels) — scale with TILE_SIZE.
+// Original values assumed a 16-tile; scale to 48-tile (×3).
+export const KIOSK_CHAR_BBOX_HALF_WIDTH = 48
+export const KIOSK_CHAR_BBOX_TOP = 120
+export const KIOSK_CHAR_BBOX_BOTTOM = 48
+// Padding: base + per-viewport fraction (adapts to screen size).
+export const KIOSK_PAD_SINGLE = 144
+export const KIOSK_PAD_MULTI = 96
 export const KIOSK_PAD_VIEWPORT_FRACTION = 0.05
-// Minimum bbox size to prevent extreme zoom
-export const KIOSK_BBOX_MIN = 64
+// Minimum bbox size to prevent extreme zoom (world pixels).
+export const KIOSK_BBOX_MIN = 192
 // Zoom lerp thresholds (adaptive speed: fast approach, slow settle)
 export const KIOSK_ZOOM_LERP_FAST_THRESHOLD = 2
 export const KIOSK_ZOOM_LERP_FAST = 0.04
@@ -151,7 +157,8 @@ export const GALLERY_CARD_GAP = 12
 export const GALLERY_CARD_PADDING = 8
 
 // ── Pets ────────────────────────────────────────────────────
-export const PET_WALK_SPEED_PX_PER_SEC = 32
+// World pixels per second — was 2 old-tiles/sec at TILE_SIZE=16, scale ×3.
+export const PET_WALK_SPEED_PX_PER_SEC = 96
 export const PET_WALK_FRAME_DURATION_SEC = 0.2
 export const PET_IDLE_MIN_SEC = 3.0
 export const PET_IDLE_MAX_SEC = 10.0
@@ -160,11 +167,14 @@ export const PET_SLEEP_MAX_SEC = 60.0
 export const PET_SLEEP_FRAME_DURATION_SEC = 1.0
 export const PET_WANDER_MOVES_MIN = 2
 export const PET_WANDER_MOVES_MAX = 5
-export const PET_SPRITE_WIDTH = 32
-export const PET_SPRITE_HEIGHT = 32
-export const PET_HIT_HALF_WIDTH = 8
-export const PET_HIT_HEIGHT = 16
-export const PET_NAME_LABEL_Y_OFFSET = 18
+// Pets now render at PET_CELL=48 (matches TILE_SIZE). Legacy 32-cell sheets
+// are resampled to 48×48 by the server loader, legacy 16-cell sprites are
+// auto-upscaled by spriteCache. So the runtime sprite is always 48×48.
+export const PET_SPRITE_WIDTH = 48
+export const PET_SPRITE_HEIGHT = 48
+export const PET_HIT_HALF_WIDTH = 18
+export const PET_HIT_HEIGHT = 36
+export const PET_NAME_LABEL_Y_OFFSET = 28
 export const PET_REACTION_DURATION_SEC = 2.0
 export const PET_IDLE_OFFICE_THRESHOLD_SEC = 120.0
 export const PET_PERK_DURATION_SEC = 1.5
@@ -172,9 +182,9 @@ export const PET_DOG_FOLLOW_CHANCE = 0.3
 export const PET_DOG_FOLLOW_MAX_DIST = 6
 export const PET_ZZZ_FRAME_DURATION_SEC = 0.8
 export const PET_MAX_NAME_LENGTH = 20
-export const PET_PREVIEW_CANVAS_SIZE = 96
+export const PET_PREVIEW_CANVAS_SIZE = 144
 export const PET_PREVIEW_SCALE = 6
-export const PET_LIST_PREVIEW_CANVAS_SIZE = 32
+export const PET_LIST_PREVIEW_CANVAS_SIZE = 48
 export const PET_LIST_PREVIEW_SCALE = 2
 
 /** Source palette colors for cat sprites (used for palette swap) */
@@ -344,11 +354,11 @@ export const HUE_SHIFT_MIN_DEG = 45
 export const HUE_SHIFT_RANGE_DEG = 271
 export const AUTO_ON_FACING_DEPTH = 3
 export const AUTO_ON_SIDE_DEPTH = 2
-// Hit half-width is 12 to cover both legacy 16-wide chars and new 24-wide
-// PNG-loaded chars. Slight over-coverage for 16-wide is acceptable since
-// agents are spaced more than 8 px apart in practice.
-export const CHARACTER_HIT_HALF_WIDTH = 12
-export const CHARACTER_HIT_HEIGHT = 24
+// Hit box covers chars at the new high-res 48×96 cell size. Legacy 16-wide
+// chars upscaled 3× by spriteCache visually occupy the same 48 px width, so
+// the same half-width (24 ≈ 48/2) is correct for both.
+export const CHARACTER_HIT_HALF_WIDTH = 24
+export const CHARACTER_HIT_HEIGHT = 72
 export const TOOL_OVERLAY_VERTICAL_OFFSET = 32
 export const PULSE_ANIMATION_DURATION_SEC = 1.5
 export const TOOL_OVERLAY_LABEL_Y_OFFSET = 24
