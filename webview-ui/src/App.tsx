@@ -256,6 +256,11 @@ function App() {
   })()
 
   if (!layoutReady) {
+    // Screenshot mode: render a bare dark stage so CI tooling that waits on
+    // data-screenshot-ready never captures the "Loading..." placeholder.
+    if (isScreenshotMode) {
+      return <div style={{ width: '100%', height: '100%', background: 'var(--pixel-bg)' }} />
+    }
     return (
       <div role="status" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--pixel-text)' }}>
         <span

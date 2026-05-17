@@ -69,6 +69,8 @@ interface CommunityAssetGridProps {
   /** Used to build the install button label, e.g. 'Pet' → 'Use this Pet'. */
   itemLabel: string
   emptyState: { icon: string; primary: string; hint: string }
+  /** Fired from the in-grid Retry button when the fetch failed. */
+  onRetry?: () => void
 }
 
 const actionBtnBase: React.CSSProperties = {
@@ -740,6 +742,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                 primary: 'No community pets yet — be the first.',
                 hint: 'Use the 🌐 Share button in the Pets editor to submit yours.',
               }}
+              onRetry={() => { setPetsError(null); setPetsManifest(null) }}
             />
           )}
           {activeKind === 'characters' && (
@@ -766,6 +769,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                 primary: 'No community characters yet — be the first.',
                 hint: 'Drop a 168×96 sprite sheet into the community repo and open a PR.',
               }}
+              onRetry={() => { setCharsError(null); setCharsManifest(null) }}
             />
           )}
           {activeKind === 'props' && (
@@ -792,6 +796,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                 primary: 'No community props yet — be the first.',
                 hint: 'Drop a sprite + metadata.json into sprites/props/ in the community repo.',
               }}
+              onRetry={() => { setPropsError(null); setPropsManifest(null) }}
             />
           )}
           {activeKind === 'backgrounds' && (
@@ -1139,6 +1144,7 @@ function CommunityAssetGrid({
   onInstall,
   itemLabel,
   emptyState,
+  onRetry,
 }: CommunityAssetGridProps) {
   if (loading) {
     // Skeleton cards mirror the real card footprint so the layout doesn't
@@ -1171,7 +1177,18 @@ function CommunityAssetGrid({
   }
   if (error) {
     return (
-      <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-error)', fontSize: 16 }}>{error}</div>
+      <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-error)', fontSize: 16, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div>{error}</div>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="pixel-btn"
+            style={{ padding: '6px 14px', fontSize: 16, border: '2px solid var(--pixel-border)' }}
+          >
+            Retry
+          </button>
+        )}
+      </div>
     )
   }
   if (items.length === 0) {

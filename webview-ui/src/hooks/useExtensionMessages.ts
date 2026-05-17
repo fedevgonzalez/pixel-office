@@ -170,6 +170,7 @@ export function useExtensionMessages(
         setSubagentCharacters((prev) => prev.filter((s) => s.parentAgentId !== id))
         os.removeAgent(id)
       } else if (msg.type === 'existingAgents') {
+        if (isNoAgentsMode) return
         const incoming = msg.agents as number[]
         const meta = (msg.agentMeta || {}) as Record<number, { palette?: number; hueShift?: number; seatId?: string }>
         const folderNames = (msg.folderNames || {}) as Record<number, string>

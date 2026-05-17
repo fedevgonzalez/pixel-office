@@ -1,16 +1,25 @@
+import { showToast } from './components/Toast.js'
+
 function createStandaloneApi(): { postMessage(msg: unknown): void } {
   const pending: unknown[] = []
   let wsConn: WebSocket | null = null
   let connected = false
   let disconnectedSince: number | null = null
+  let everConnected = false
   const RELOAD_AFTER_MS = 30_000 // full page reload after 30s disconnected
+  // Don't spam the user with a reconnect toast on initial page load — only after
+  // we've successfully been connected once.
+  const RECONNECT_TOAST_AFTER_MS = 1500
 
   function connect() {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
     wsConn = new WebSocket(`${proto}//${location.host}`)
     wsConn.onopen = () => {
+      const wasDisconnected = everConnected && disconnectedSince !== null
       connected = true
       disconnectedSince = null
+      everConnected = true
+      if (wasDisconnected) showToast('Reconnected', 'success')
       // Re-send webviewReady on every reconnect so the server sends assets + agents
       const params = new URLSearchParams(window.location.search)
       const isHomeserver = params.has('homeserver')
@@ -38,8 +47,16 @@ function createStandaloneApi(): { postMessage(msg: unknown): void } {
       } catch {}
     }
     wsConn.onclose = () => {
+      const wasConnected = connected
       connected = false
       if (!disconnectedSince) disconnectedSince = Date.now()
+      // Only surface a toast if we lost a live connection (not on initial
+      // page-load failures, which the user will recover from in <2s).
+      if (wasConnected && everConnected) {
+        setTimeout(() => {
+          if (!connected && disconnectedSince) showToast('Reconnecting…', 'info')
+        }, RECONNECT_TOAST_AFTER_MS)
+      }
       setTimeout(connect, 2000)
     }
   }

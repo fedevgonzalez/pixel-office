@@ -47,7 +47,14 @@ export function KioskClock({ dayNight }: KioskClockProps) {
 
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), KIOSK_CLOCK_UPDATE_MS)
-    return () => clearInterval(id)
+    // Re-sync immediately when the tab regains visibility so the clock can't
+    // sit on a stale minute after a screen wake.
+    const onVisibility = () => { if (!document.hidden) setNow(new Date()) }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [])
 
   const timeStr = formatTime(now)

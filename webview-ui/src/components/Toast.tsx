@@ -20,6 +20,9 @@ export function showToast(message: string, variant: ToastVariant = 'success'): v
 }
 
 const TOAST_LIFETIME_MS = 2800
+// Cap stack size so rapid-fire emitters (e.g. several community-asset installs)
+// don't push toasts off the bottom of the viewport.
+const MAX_VISIBLE_TOASTS = 5
 
 const variantStyles: Record<ToastVariant, React.CSSProperties> = {
   success: {
@@ -47,7 +50,21 @@ export function Toast() {
 
   useEffect(() => {
     const handle = (t: ToastEntry) => {
-      setToasts((prev) => [...prev, t])
+      setToasts((prev) => {
+        const next = [...prev, t]
+        // Drop the oldest entries past the cap so the stack stays on-screen.
+        if (next.length > MAX_VISIBLE_TOASTS) {
+          for (const dropped of next.slice(0, next.length - MAX_VISIBLE_TOASTS)) {
+            const handle = timeoutsRef.current.get(dropped.id)
+            if (handle !== undefined) {
+              window.clearTimeout(handle)
+              timeoutsRef.current.delete(dropped.id)
+            }
+          }
+          return next.slice(-MAX_VISIBLE_TOASTS)
+        }
+        return next
+      })
       const timeoutId = window.setTimeout(() => {
         setToasts((prev) => prev.filter((x) => x.id !== t.id))
         timeoutsRef.current.delete(t.id)

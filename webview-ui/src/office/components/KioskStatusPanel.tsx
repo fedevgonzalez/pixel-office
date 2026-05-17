@@ -133,7 +133,9 @@ export function KioskStatusPanel({
         gap: 4,
         padding: '16px 14px',
         overflowY: 'auto',
-        pointerEvents: 'none',
+        // Pointer events are restricted to the panel itself so users can
+        // scroll long agent lists, but child elements stay non-interactive.
+        pointerEvents: 'auto',
         zIndex: 50,
       }}
     >

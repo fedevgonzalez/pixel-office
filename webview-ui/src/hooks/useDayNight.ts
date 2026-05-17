@@ -80,12 +80,19 @@ export function useDayNight() {
     return () => window.removeEventListener('message', handler)
   }, [])
 
-  // Periodically update state from real clock
+  // Periodically update state from real clock. Also re-sync on tab focus so
+  // the kiosk doesn't show a stale day/night for up to UPDATE_INTERVAL_MS
+  // after waking from sleep.
   useEffect(() => {
     const update = () => setState(getDayNightState(mode, hemisphere))
     update()
     const id = setInterval(update, UPDATE_INTERVAL_MS)
-    return () => clearInterval(id)
+    const onVisibility = () => { if (!document.hidden) update() }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
   }, [mode, hemisphere])
 
   return { state, mode, setMode, hemisphere, setHemisphere }
