@@ -841,6 +841,28 @@ function resampleFrameBbox(png, bbox, scale, cellSize) {
  *
  * Operates in-place on the array of sprite frames.
  */
+/**
+ * Return the top-N most frequent opaque colors across all frames/directions
+ * of a variant. Used to populate the swatch UI without modifying the sprites.
+ */
+function topColors(framesByDir, n) {
+  const counts = new Map();
+  for (const dir of Object.values(framesByDir)) {
+    for (const frame of dir) {
+      for (const row of frame) {
+        for (const px of row) {
+          if (!px) continue;
+          counts.set(px, (counts.get(px) || 0) + 1);
+        }
+      }
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([hex]) => hex);
+}
+
 function quantizeFramesToPalette(framesByDir, paletteSize) {
   // 1. Count colors across all frames/directions.
   const counts = new Map();
@@ -1130,23 +1152,20 @@ async function loadPetSprites() {
           directions[dirNames[d]].push(sprite);
         }
       }
-      // ChatGPT-style sources are rasterised illustrations: a 48×48 cell can
-      // end up with 800+ unique colours due to subtle gradients/AA. Quantise
-      // to a per-variant palette so each variant reads as proper pixel art
-      // and the result fits the 6-colour swatch UI without losing fidelity.
-      // 16 colours is enough for body + shading + eyes + nose + accents
-      // while still flattening single-pixel noise around the silhouette.
-      const QUANT_PALETTE_SIZE = 16;
-      const palette = quantizeFramesToPalette(directions, QUANT_PALETTE_SIZE)
-        .slice(0, 6); // keep the swatch UI showing the dominant 6
+      // Extract the top-6 colours for the swatch UI (used to render a chip
+      // strip in the pet editor) but DON'T snap pixels to a tiny palette —
+      // it was washing out body fill on dogs with thick outlines (the
+      // outline dominated frequency counts, so palette anchors clustered
+      // around outline shades and the body tones snapped to dark anchors).
+      // Mode-resample already collapses each output pixel to a single source
+      // colour, so each sprite naturally ends up with ~30-50 colours instead
+      // of the raw 800+ — that's already clean pixel art without quantising.
+      const palette = topColors(directions, 6);
       if (!result[species]) result[species] = {};
       result[species][variant] = { ...directions, palette };
       if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 3× → ${PET_CELL}×${PET_CELL}`);
-      else if (isNative) console.log(`  pet ${filename}: 160×96 native, resampled to ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
+      else if (isNative) console.log(`  pet ${filename}: 160×96 native, resampled to ${PET_CELL}×${PET_CELL}`);
       else if (detectionMethod === 'auto-bbox') {
-        // Report the smallest and largest detected frame bbox so it's obvious
-        // when one frame is much smaller / off-grid (the shared scale is
-        // derived from the max, so the others get padding).
         let minW = Infinity, minH = Infinity, maxW = 0, maxH = 0;
         for (const row of grid) for (const b of row) {
           if (b.w < minW) minW = b.w;
@@ -1154,8 +1173,8 @@ async function loadPetSprites() {
           if (b.w > maxW) maxW = b.w;
           if (b.h > maxH) maxH = b.h;
         }
-        console.log(`  pet ${filename}: ${png.width}×${png.height} auto-detected 5×3 grid, frame bbox ${minW}–${maxW}×${minH}–${maxH} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
-      } else console.log(`  pet ${filename}: ${png.width}×${png.height} uniform-grid fallback ${srcCellW.toFixed(1)}×${srcCellH.toFixed(1)} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
+        console.log(`  pet ${filename}: ${png.width}×${png.height} auto-detected 5×3 grid, frame bbox ${minW}–${maxW}×${minH}–${maxH} → ${PET_CELL}×${PET_CELL}`);
+      } else console.log(`  pet ${filename}: ${png.width}×${png.height} uniform-grid fallback ${srcCellW.toFixed(1)}×${srcCellH.toFixed(1)} → ${PET_CELL}×${PET_CELL}`);
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);
     }
