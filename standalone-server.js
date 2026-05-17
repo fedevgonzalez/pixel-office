@@ -8,7 +8,6 @@ const http = require('http');
 const https = require('https');
 const os = require('os');
 const { PNG } = require('pngjs');
-const { classifyTool, petSpeak } = require('./lib/claudeClient');
 
 // Load .env file if present (for GITHUB_TOKEN etc.)
 const envFile = path.join(__dirname, '.env');
@@ -302,28 +301,6 @@ function formatToolStatus(toolName, input) {
   }
 }
 
-// High-volume tools whose default label is already informative, and that
-// would otherwise saturate claude-service (MAX_CONCURRENT_QUERIES is small).
-// Anything not in this set goes through the refinement pipeline.
-const SKIP_REFINEMENT_FOR = new Set([
-  'Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'AskUserQuestion',
-]);
-
-// Fire-and-forget refinement of an agentToolStart status via claude-service.
-// The synchronous formatToolStatus() already produced a label; this just
-// upgrades it to a narrated Spanish version when Claude responds in time.
-// Skipped for replay events; tolerates the agent disappearing mid-flight.
-function refineToolStatus(agentId, toolId, toolName, input) {
-  if (SKIP_REFINEMENT_FOR.has(toolName)) return;
-  classifyTool(toolName, input).then((refined) => {
-    if (!refined) return;
-    const agent = agents.get(agentId);
-    if (!agent || !agent.activeToolIds.has(toolId)) return; // tool already finished
-    agent.activeToolStatuses.set(toolId, refined);
-    broadcast({ type: 'agentToolStatusRefined', id: agentId, toolId, status: refined });
-  }).catch(() => {});
-}
-
 // --- Timer management ---
 function cancelTimer(map, id) {
   const t = map.get(id);
@@ -432,10 +409,7 @@ function processLine(agentId, line) {
             agent.activeToolStatuses.set(block.id, status);
             agent.activeToolNames.set(block.id, toolName);
             if (!isPermissionExempt(toolName)) hasNonExempt = true;
-            if (!replaying) {
-              broadcast({ type: 'agentToolStart', id: agentId, toolId: block.id, status });
-              refineToolStatus(agentId, block.id, toolName, block.input || {});
-            }
+            if (!replaying) broadcast({ type: 'agentToolStart', id: agentId, toolId: block.id, status });
           }
         }
         if (hasNonExempt && !replaying) startPermissionTimer(agentId);
@@ -1502,6 +1476,21 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // API: read-only layout snapshot. Allows external tools (e.g. an LLM
+  // narration bridge) to see which pets and agents are placed without
+  // having to read the layout file directly.
+  if (urlPath === '/api/layout' && req.method === 'GET') {
+    const layout = loadLayout();
+    if (!layout) {
+      res.writeHead(404, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'No layout' }));
+      return;
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify(layout));
+    return;
+  }
+
   // API: client health check — reports whether any UI client has responded to a WS ping recently
   if (urlPath === '/api/client-health') {
     const now = Date.now();
@@ -1530,8 +1519,47 @@ const server = http.createServer(async (req, res) => {
 
 const wss = new WebSocket.Server({ server });
 
+// Types that external broadcasters are allowed to inject. Anything else is
+// dropped to prevent a malicious or buggy bridge from injecting layout
+// edits, agent state, etc. Extend as new event types stabilize.
+const BROADCAST_ALLOWED_TYPES = new Set(['agentToolStatusRefined', 'petSpeak']);
+const broadcasterClients = new Set();
+
 wss.on('connection', (ws, req) => {
   const urlPath = (req.url || '').split('?')[0];
+
+  // External broadcaster: /ws/broadcast?token=XXX
+  // Authenticated clients can inject messages whose type is in
+  // BROADCAST_ALLOWED_TYPES; the server fans them out to viewers.
+  if (urlPath === '/ws/broadcast') {
+    const expected = process.env.PIXEL_OFFICE_BROADCAST_TOKEN;
+    if (!expected) {
+      console.warn('Broadcast connection rejected: PIXEL_OFFICE_BROADCAST_TOKEN not set');
+      ws.close(1008, 'broadcast disabled');
+      return;
+    }
+    const params = new URL(req.url, 'http://localhost').searchParams;
+    const token = params.get('token');
+    if (token !== expected) {
+      console.warn('Broadcast connection rejected: invalid token');
+      ws.close(1008, 'invalid token');
+      return;
+    }
+    broadcasterClients.add(ws);
+    console.log('Broadcaster connected');
+
+    ws.on('message', (data) => {
+      try {
+        const msg = JSON.parse(data.toString());
+        if (msg && typeof msg.type === 'string' && BROADCAST_ALLOWED_TYPES.has(msg.type)) {
+          broadcast(msg);
+        }
+      } catch {}
+    });
+    ws.on('close', () => { broadcasterClients.delete(ws); console.log('Broadcaster disconnected'); });
+    ws.on('error', () => { broadcasterClients.delete(ws); });
+    return;
+  }
 
   // Reporter connections: /ws/report?machineId=xxx
   if (urlPath === '/ws/report') {
@@ -1601,62 +1629,4 @@ server.listen(PORT, '0.0.0.0', () => {
   }
   // Watch layout file for cross-tab sync
   watchLayoutFile();
-  // Periodic LLM-narrated pet utterances
-  schedulePetSpeak();
 });
-
-// --- Pet speak loop ---
-// Every ~90 s (±30 s jitter), pick a random pet from the active layout and
-// ask claude-service to produce an in-character one-liner. Skip when no
-// viewer is connected so the kiosk being asleep doesn't burn quota.
-
-const PET_SPEAK_BASE_MS = 90_000;
-const PET_SPEAK_JITTER_MS = 30_000;
-const PET_SPEAK_DURATION_SEC = 10;
-
-function hasViewerClients() {
-  for (const client of wss.clients) {
-    if (!reporterClients.has(client) && client.readyState === WebSocket.OPEN) return true;
-  }
-  return false;
-}
-
-function collectRecentActivity(maxLines) {
-  const lines = [];
-  for (const agent of agents.values()) {
-    for (const status of agent.activeToolStatuses.values()) {
-      if (status) lines.push('- ' + status);
-      if (lines.length >= maxLines) return lines.join('\n');
-    }
-  }
-  return lines.join('\n');
-}
-
-function schedulePetSpeak() {
-  const delay = PET_SPEAK_BASE_MS + (Math.random() * 2 - 1) * PET_SPEAK_JITTER_MS;
-  setTimeout(runPetSpeakTick, Math.max(15_000, delay));
-}
-
-async function runPetSpeakTick() {
-  try {
-    if (!hasViewerClients()) return;
-    const layout = loadLayout();
-    const pets = layout && Array.isArray(layout.pets) ? layout.pets : [];
-    if (!pets.length) return;
-    const pet = pets[Math.floor(Math.random() * pets.length)];
-    if (!pet || !pet.uid || !pet.name || !pet.species) return;
-    const text = await petSpeak({
-      petName: pet.name,
-      species: pet.species,
-      personality: pet.personality,
-      recentActivity: collectRecentActivity(5) || undefined,
-    });
-    if (text) {
-      broadcast({ type: 'petSpeak', petId: pet.uid, text, durationSec: PET_SPEAK_DURATION_SEC });
-    }
-  } catch {
-    // Network errors fall through; the next tick will try again.
-  } finally {
-    schedulePetSpeak();
-  }
-}
