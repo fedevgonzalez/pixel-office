@@ -82,6 +82,8 @@ Pixel Office stores layout data in `~/.pixel-office/layout.json`. This is create
 
 Add cats and dogs to your office. Each pet has customizable colors (body, eyes, nose), coat patterns (solid, striped, spotted, bicolor, tuxedo), and personality traits that affect behavior.
 
+Pick a **breed** to use a PNG sprite sheet directly (32×32 frames), then optionally **recolor zones** — the server extracts the top-frequency colors from the variant and exposes them as swatches you can remap one at a time. Save the combo as a named **template** to reuse later.
+
 ![Pet Editor](docs/screenshots/03-pet-editor.png)
 
 ### Layout Editor
@@ -99,7 +101,7 @@ Toggle the editor to customize your office:
 
 ### Community Gallery
 
-Browse layouts shared by the community and import them with one click. Share your own designs via GitHub.
+Browse community-shared content across five tabs — **Layouts**, **Pets**, **Characters**, **Props**, and **Backgrounds** — and import with one click. Share your own designs via a pre-filled GitHub Issue; the CI bot validates dimensions, auto-generates a thumbnail, and opens a PR.
 
 ![Community Gallery](docs/screenshots/07-community-gallery.png)
 

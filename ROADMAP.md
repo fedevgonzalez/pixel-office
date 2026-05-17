@@ -80,6 +80,11 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [x] React to agent activity (perk up when tools run, sleep when office idle >120s)
 - [x] Click interaction (heart/happy bubbles), dogs follow active agents
 - [x] Unlimited pets (no restrictions)
+- [x] 32×32 sprite migration with legacy 16×16 auto-upscale
+- [x] Breed variant picker (PNG sprite sheets loaded from server)
+- [x] Pet templates (save name+species+variant+colors+personality as reusable combo)
+- [x] Backstory + voice-style fields for narration integrations
+- [x] Zone-based recoloring of variant sprites (top-N palette extracted server-side, per-zone color pickers in UI)
 - [ ] Bird, fish, hamster species
 - [ ] In-app pixel art editor for custom pet sprites (draw/modify sprites, auto walk cycle from single pose)
 - [ ] Photo → pixel art (template color match, or Claude Vision for higher quality)
@@ -121,16 +126,22 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 
 ## Community
 
-### Layout Gallery (Phase A done)
-- [x] `pixel-office-community` GitHub repo with seeded layouts
+### Community Gallery — Multi-Kind (Phase A done)
+- [x] `pixel-office-community` GitHub repo (renamed from `pixel-office-layouts`) with seeded layouts
 - [x] In-app "Community" button with browse/preview/import UI
-- [x] One-click import from community gallery
-- [x] Share flow: ShareModal → pre-filled GitHub Issue → CI bot processes → PR with preview
+- [x] One-click import for layouts
+- [x] **"Use this Pet"** import for community pets (downloads sprite to `~/.pixel-office/community-assets/pets/`, server reloads variants automatically)
+- [x] Multi-kind tabs: Layouts · Pets · Characters · Props · Backgrounds
+- [x] Share flow per kind: ShareModal/ShareAssetModal → pre-filled GitHub Issue → CI bot → PR
+- [x] `process-sprite-submission.yml` validates sprite dims + auto-generates thumbnail
+- [x] `scripts/generate-manifests.js` emits per-kind JSON manifests on PR merge
+- [x] CONTRIBUTING.md rewritten multi-kind
 - [x] Screenshot mode (`?screenshot`) for CI preview generation
 - [x] GitHub token auth for private gallery repo (`.env` GITHUB_TOKEN)
 - [ ] In-app upload with auto-generated preview (Phase B)
 - [x] Star ratings via GitHub Reactions (Phase B → done)
-- [ ] "Featured layouts" curated selection
+- [ ] "Featured" curated selection per kind
+- [ ] "Use this" import for characters / props / backgrounds (parity with pets)
 
 ### Replay Mode
 - Load old JSONL files and replay sessions as if live
@@ -141,12 +152,13 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 
 ## Art Direction
 
-- **Resolution**: 16×16 tiles, 16×32 characters
+- **Resolution**: 16×16 tiles, 16×32 (legacy) / 24×32 (current) characters
 - **Palette**: Limited palette per theme (16-32 colors)
 - **Style**: Top-down with slight perspective (Stardew Valley / office RPG feel)
 - **Animation**: 2-3 frame animations, smooth but pixel-crisp
 - **Consistency**: All new sprites must match the existing tileset aesthetic
-- **Pets**: Same proportional scale as characters (16×16 footprint, 16×32 sprite height)
+- **Pets**: 32×32 sprites (legacy 16×16 sheets auto-upscale 2× at load)
+- **Sprite sheets** — pets: 5 cols × 3 rows (160×96), chars: 7 cols × 3 rows (168×96 new / 112×96 legacy)
 
 See `docs/asset-sources.md` for open source sprite libraries.
 
@@ -189,3 +201,12 @@ See `docs/asset-sources.md` for open source sprite libraries.
 - [x] Warm branding palette (amber/gold accent, cozy dark purple bg)
 - [x] Modal UI unification (Settings, Pets, Community, Share)
 - [x] Star ratings / voting via GitHub App OAuth + Reactions API
+- [x] Pet 32×32 migration + breed variant picker
+- [x] Pet templates (save/load named combos)
+- [x] Pet zone recoloring (palette extracted server-side, per-zone swatch pickers)
+- [x] Multi-kind community gallery (pets, characters, props, backgrounds)
+- [x] "Use this Pet" community import flow
+- [x] AI sprite integration pipeline (`scripts/integrate-sprite-sheet.mjs` via `proper-pixel-art`)
+- [x] World background system with Suburban theme
+- [x] Daily summary banner overlay
+- [x] Kiosk stats overlay (coding · waiting · idle counts)
