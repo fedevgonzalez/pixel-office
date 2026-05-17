@@ -672,6 +672,111 @@ function computeOpaqueBboxPng(png) {
 }
 
 /**
+ * Detect the 5×3 frame grid in a pet sheet by projecting alpha onto each
+ * axis. Works on any layout where:
+ *   - Rows of frames are separated by transparent gaps
+ *   - Within each row, frames are separated by transparent gaps
+ * Returns a 3×5 array of tight bboxes ({ x, y, w, h }) or null if the
+ * detection didn't resolve to exactly 3 rows × 5 columns (caller falls
+ * back to uniform-grid slicing).
+ *
+ * MIN_PIXELS_PER_LINE filters out lone stray pixels so a 1-px speck in a
+ * gap between rows/columns doesn't merge two bands.
+ */
+function detectPetFrameGrid(png) {
+  const W = png.width, H = png.height;
+  const MIN_PIXELS_PER_ROW = Math.max(2, Math.floor(W * 0.005));
+  const MIN_PIXELS_PER_COL = Math.max(2, Math.floor(H * 0.005));
+
+  // Per-row opaque count
+  const rowCount = new Int32Array(H);
+  for (let y = 0; y < H; y++) {
+    let n = 0;
+    const base = y * W * 4 + 3;
+    for (let x = 0; x < W; x++) {
+      if (png.data[base + x * 4] >= PNG_ALPHA_THRESHOLD) n++;
+    }
+    rowCount[y] = n;
+  }
+  const rowBands = findBands(rowCount, MIN_PIXELS_PER_ROW);
+  if (rowBands.length !== 3) return null;
+
+  const grid = [];
+  for (const rb of rowBands) {
+    // Per-column opaque count, restricted to this row band
+    const colCount = new Int32Array(W);
+    for (let y = rb.lo; y <= rb.hi; y++) {
+      const base = y * W * 4 + 3;
+      for (let x = 0; x < W; x++) {
+        if (png.data[base + x * 4] >= PNG_ALPHA_THRESHOLD) colCount[x]++;
+      }
+    }
+    const colBands = findBands(colCount, MIN_PIXELS_PER_COL);
+    if (colBands.length !== 5) return null;
+    const row = [];
+    for (const cb of colBands) {
+      // Tight bbox inside (rb × cb)
+      let x0 = cb.hi, x1 = cb.lo, y0 = rb.hi, y1 = rb.lo;
+      for (let y = rb.lo; y <= rb.hi; y++) {
+        for (let x = cb.lo; x <= cb.hi; x++) {
+          if (png.data[(y * W + x) * 4 + 3] >= PNG_ALPHA_THRESHOLD) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+        }
+      }
+      row.push({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+    }
+    grid.push(row);
+  }
+  return grid;
+}
+
+function findBands(counts, threshold) {
+  const bands = [];
+  const len = counts.length;
+  let i = 0;
+  while (i < len) {
+    while (i < len && counts[i] < threshold) i++;
+    if (i >= len) break;
+    const lo = i;
+    while (i < len && counts[i] >= threshold) i++;
+    bands.push({ lo, hi: i - 1 });
+  }
+  return bands;
+}
+
+/**
+ * Resample a per-frame bbox from the PNG into the PET_CELL grid, using a
+ * SHARED `scale` (passed in by the caller). All frames of a variant get the
+ * same scale so the pet doesn't visibly grow/shrink between walk frames.
+ * Output is anchored bottom-center inside the PET_CELL × PET_CELL canvas.
+ */
+function resampleFrameBbox(png, bbox, scale, cellSize) {
+  const tw = Math.max(1, Math.round(bbox.w * scale));
+  const th = Math.max(1, Math.round(bbox.h * scale));
+  const inner = pngToSpriteDataResampled(png, bbox.x, bbox.y, bbox.w, bbox.h, tw, th);
+  const offsetX = Math.round((cellSize - tw) / 2);
+  const offsetY = cellSize - th;
+  const out = [];
+  for (let r = 0; r < cellSize; r++) {
+    out.push(new Array(cellSize).fill(''));
+  }
+  for (let r = 0; r < th; r++) {
+    const dst = out[offsetY + r];
+    if (!dst) continue;
+    const src = inner[r];
+    for (let c = 0; c < tw; c++) {
+      const px = src[c];
+      if (px) dst[offsetX + c] = px;
+    }
+  }
+  return out;
+}
+
+/**
  * Quantize sprite cells to a shared palette so the result reads as proper
  * pixel art instead of a noisy raster downsample.
  *
@@ -914,32 +1019,53 @@ async function loadPetSprites() {
       const isNative = png.width === 160 && png.height === 96;
       const directions = { down: [], up: [], right: [] };
       const dirNames = ['down', 'up', 'right'];
-      const colorCounts = new Map();
-      // High-res ChatGPT-style sheets are drawn on a regular 5×3 grid spanning
-      // the full image canvas — each frame has its OWN padding inside its
-      // grid cell. Slicing by the union opaque-bbox would shift the cell
-      // boundaries off the artist's grid (e.g. one frame drawn closer to its
-      // own edge pulls the bbox in and offsets every other cell), producing
-      // animations where the body shifts/cuts between frames. So we slice by
-      // the full image dimensions and let per-cell resample handle padding.
-      // Use exact float positions, round only the integer-pixel sample call,
-      // so the grid stays aligned even when png.width is not divisible by 5.
+      // For high-res ChatGPT-style sheets, auto-detect each frame's tight bbox
+      // by projecting alpha onto each axis (finds 3 row bands × 5 column
+      // bands separated by transparent gaps). This is more robust than
+      // assuming a fixed grid: the AI tools don't always place each frame at
+      // exactly the same position inside its grid cell, and the body sizes
+      // vary, so uniform-grid slicing produced animations where the silhouette
+      // shifted or got cut between frames.
+      // We then resample every frame with a SHARED scale (derived from the
+      // largest bbox across all 15 frames) so the pet stays the same size
+      // across walk frames, and anchor at bottom-center so the feet stay on
+      // the ground.
+      let grid = null;
+      let detectionMethod = 'uniform';
+      if (!isLegacy16 && !isNative) {
+        grid = detectPetFrameGrid(png);
+        if (grid) detectionMethod = 'auto-bbox';
+      }
+      // Pre-compute shared scale (auto-bbox path only)
+      let sharedScale = 1;
+      if (grid) {
+        let maxW = 0, maxH = 0;
+        for (const row of grid) for (const b of row) {
+          if (b.w > maxW) maxW = b.w;
+          if (b.h > maxH) maxH = b.h;
+        }
+        sharedScale = Math.min(PET_CELL / maxW, PET_CELL / maxH);
+      }
+      // Fallback path: slice by full image dims (used for legacy/native and
+      // when auto-detection can't resolve exactly 3×5 bands).
       const srcCellW = isLegacy16 ? 16 : png.width / 5;
       const srcCellH = isLegacy16 ? 16 : png.height / 3;
       for (let d = 0; d < 3; d++) {
         for (let frame = 0; frame < 5; frame++) {
           let sprite;
-          if (isLegacy16) {
+          if (grid) {
+            sprite = resampleFrameBbox(png, grid[d][frame], sharedScale, PET_CELL);
+          } else if (isLegacy16) {
             // 16×16 legacy → scale 3× directly to TILE_SIZE=48.
             sprite = pngToSpriteData(png, frame * 16, d * 16, 16, 16);
             sprite = upscaleSpriteData(sprite, PET_CELL / 16);
           } else if (isNative) {
-            // Legacy native 32-cell → resample 32 → PET_CELL (non-integer but
-            // bbox is centered, only used for old 160×96 bundled sheets).
+            // Legacy native 32-cell → resample 32 → PET_CELL.
             sprite = pngToSpriteDataResampled(
               png, frame * 32, d * 32, 32, 32, PET_CELL, PET_CELL,
             );
           } else {
+            // Uniform-grid fallback when auto-detection fails.
             const sx = Math.round(frame * srcCellW);
             const sy = Math.round(d * srcCellH);
             const sw = Math.round((frame + 1) * srcCellW) - sx;
@@ -964,7 +1090,19 @@ async function loadPetSprites() {
       result[species][variant] = { ...directions, palette };
       if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 3× → ${PET_CELL}×${PET_CELL}`);
       else if (isNative) console.log(`  pet ${filename}: 160×96 native, resampled to ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
-      else console.log(`  pet ${filename}: ${png.width}×${png.height} → cell ${srcCellW.toFixed(1)}×${srcCellH.toFixed(1)} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
+      else if (detectionMethod === 'auto-bbox') {
+        // Report the smallest and largest detected frame bbox so it's obvious
+        // when one frame is much smaller / off-grid (the shared scale is
+        // derived from the max, so the others get padding).
+        let minW = Infinity, minH = Infinity, maxW = 0, maxH = 0;
+        for (const row of grid) for (const b of row) {
+          if (b.w < minW) minW = b.w;
+          if (b.h < minH) minH = b.h;
+          if (b.w > maxW) maxW = b.w;
+          if (b.h > maxH) maxH = b.h;
+        }
+        console.log(`  pet ${filename}: ${png.width}×${png.height} auto-detected 5×3 grid, frame bbox ${minW}–${maxW}×${minH}–${maxH} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
+      } else console.log(`  pet ${filename}: ${png.width}×${png.height} uniform-grid fallback ${srcCellW.toFixed(1)}×${srcCellH.toFixed(1)} → ${PET_CELL}×${PET_CELL}, quantised to ${QUANT_PALETTE_SIZE} colours`);
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);
     }
