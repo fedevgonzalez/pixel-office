@@ -10,10 +10,15 @@
   /* Core backgrounds */
   --pixel-bg: #1f1a24;
   --pixel-surface: rgba(0, 0, 0, 0.25);
+  /* Soft elevated surfaces — used inside modals as cards, swatch tiles, etc. */
+  --pixel-surface-soft: rgba(255, 245, 235, 0.05);
+  --pixel-surface-soft-hover: rgba(255, 245, 235, 0.08);
 
   /* Borders */
   --pixel-border: #5a4a6a;
   --pixel-border-light: #7a6a8a;
+  /* Soft border for low-emphasis dividers and unselected swatch outlines. */
+  --pixel-border-soft: rgba(255, 245, 235, 0.12);
 
   /* Primary accent: warm amber (the "desk lamp" color) */
   --pixel-accent: #e8a84c;
@@ -71,6 +76,12 @@
   /* Kiosk */
   --pixel-kiosk-panel-bg: rgba(20, 14, 24, 0.8);
   --pixel-kiosk-blur: blur(4px);
+
+  /* Modal sizing & backdrop */
+  --pixel-modal-backdrop: rgba(0, 0, 0, 0.65);
+  --pixel-modal-w-sm: 480px;
+  --pixel-modal-w-md: 700px;
+  --pixel-modal-w-lg: 900px;
 
   /* Z-index layers */
   --pixel-modal-backdrop-z: 49;

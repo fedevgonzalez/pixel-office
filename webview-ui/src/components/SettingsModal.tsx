@@ -192,7 +192,7 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
           left: 0,
           width: '100%',
           height: '100%',
-          background: 'rgba(0, 0, 0, 0.65)',
+          background: 'var(--pixel-modal-backdrop)',
           zIndex: 49,
         }}
       />

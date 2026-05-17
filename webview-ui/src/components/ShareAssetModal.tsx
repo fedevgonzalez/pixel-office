@@ -136,7 +136,7 @@ export function ShareAssetModal({
     <div
       style={{
         position: 'fixed', inset: 0, zIndex: 'var(--pixel-modal-nested-z)',
-        background: 'rgba(0, 0, 0, 0.55)',
+        background: 'var(--pixel-modal-backdrop)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}
       onClick={onClose}
@@ -154,17 +154,19 @@ export function ShareAssetModal({
           background: 'var(--pixel-bg)',
           border: '2px solid var(--pixel-border)',
           boxShadow: 'var(--pixel-shadow)',
-          padding: 20,
-          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
           fontFamily: 'var(--pixel-font)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
-          <h2 id="share-asset-title" style={{ margin: 0, fontSize: '24px', color: 'var(--pixel-text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div className="modal-header">
+          <h2 id="share-asset-title" className="modal-header__title">
             {cfg.emoji} Share your {cfg.label.toLowerCase()}
           </h2>
           <button onClick={onClose} aria-label={`Close share ${cfg.label.toLowerCase()} dialog`} className="pixel-close-btn">×</button>
         </div>
+        <div style={{ padding: 20, overflowY: 'auto' }}>
 
         <p style={{ fontSize: 16, color: 'var(--pixel-text-hint)', marginTop: 0, marginBottom: 14 }}>
           Submitting opens a pre-filled GitHub Issue. <strong>Drag-and-drop your {cfg.dimensionHint.split(' (')[0]} PNG</strong> into the issue body before submitting — CI validates dimensions and creates the PR.
@@ -238,6 +240,7 @@ export function ShareAssetModal({
           >
             Open GitHub Issue →
           </button>
+        </div>
         </div>
       </div>
     </div>

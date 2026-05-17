@@ -222,10 +222,10 @@ export function KioskStatusPanel({
             style={{
               fontSize: `${RESTING_COUNT_LABEL_FONT_SIZE}px`,
               color: 'rgba(255, 245, 235, 0.35)',
-              background: 'rgba(255, 245, 235, 0.06)',
-              border: '1px solid rgba(255, 245, 235, 0.12)',
+              background: 'var(--pixel-surface-soft)',
+              border: '1px solid var(--pixel-border-soft)',
               padding: '8px 16px',
-              borderRadius: '999px',
+              borderRadius: 0,
             }}
           >
             {restingCount} on break

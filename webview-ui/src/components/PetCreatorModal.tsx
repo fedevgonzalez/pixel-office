@@ -38,6 +38,31 @@ function prettyVariantName(slug: string): string {
   return slug.split('_').map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(' ')
 }
 
+/** Shared corner tick badge used to mark a selected/customized swatch. */
+function SwatchTick() {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        position: 'absolute',
+        top: -2,
+        right: -2,
+        background: 'var(--pixel-accent)',
+        color: 'var(--pixel-bg)',
+        fontSize: 11,
+        lineHeight: 1,
+        width: 14,
+        height: 14,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      ✓
+    </span>
+  )
+}
+
 /** Arrow-key navigation + roving focus across `role="radio"` children. */
 function radioGroupKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
   const keys = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End']
@@ -264,34 +289,14 @@ function SwatchPicker({
                 fontSize: '13px',
                 border: selected
                   ? '2px solid var(--pixel-accent)'
-                  : '2px solid rgba(255, 245, 235, 0.12)',
+                  : '2px solid var(--pixel-border-soft)',
                 borderRadius: 0,
                 cursor: 'pointer',
                 position: 'relative',
               }}
             >
               {isDefault ? 'Default' : ''}
-              {selected && !isDefault && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    background: 'var(--pixel-accent)',
-                    color: 'var(--pixel-bg)',
-                    fontSize: 11,
-                    lineHeight: 1,
-                    width: 14,
-                    height: 14,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  ✓
-                </span>
-              )}
+              {selected && !isDefault && <SwatchTick />}
             </button>
           )
         })}
@@ -335,7 +340,7 @@ function PersonalityPicker({
               padding: '7px 9px',
               background: isSelected
                 ? 'var(--pixel-active-bg)'
-                : 'rgba(255, 245, 235, 0.05)',
+                : 'var(--pixel-surface-soft)',
               color: isSelected ? 'var(--pixel-accent)' : 'rgba(255, 245, 235, 0.7)',
               border: isSelected
                 ? '2px solid var(--pixel-accent-dim)'
@@ -400,7 +405,7 @@ function PatternPicker({
                 fontSize: '16px',
                 background: isSelected
                   ? 'var(--pixel-active-bg)'
-                  : 'rgba(255, 245, 235, 0.05)',
+                  : 'var(--pixel-surface-soft)',
                 color: isSelected ? 'var(--pixel-accent)' : 'rgba(255, 245, 235, 0.6)',
                 border: isSelected
                   ? '2px solid var(--pixel-accent-dim)'
@@ -493,7 +498,7 @@ function PetForm({
                     width: 44,
                     height: 44,
                     fontSize: '16px',
-                    background: species === opt.value ? 'var(--pixel-active-bg)' : 'rgba(255, 245, 235, 0.05)',
+                    background: species === opt.value ? 'var(--pixel-active-bg)' : 'var(--pixel-surface-soft)',
                     color: species === opt.value ? 'var(--pixel-accent)' : 'rgba(255, 245, 235, 0.6)',
                     border: species === opt.value
                       ? '2px solid var(--pixel-accent-dim)'
@@ -602,7 +607,7 @@ function PetForm({
                     width: 36,
                     height: 36,
                     background: current,
-                    border: variantColors[srcHex] ? '2px solid var(--pixel-accent)' : '2px solid rgba(255, 245, 235, 0.12)',
+                    border: variantColors[srcHex] ? '2px solid var(--pixel-accent)' : '2px solid var(--pixel-border-soft)',
                     cursor: 'pointer',
                     display: 'block',
                   }}
@@ -624,6 +629,7 @@ function PetForm({
                     style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%', height: '100%' }}
                     aria-label={`Recolor ${srcHex}`}
                   />
+                  {variantColors[srcHex] && <SwatchTick />}
                 </label>
               )
             })}
@@ -919,7 +925,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
           left: 0,
           width: '100%',
           height: '100%',
-          background: 'rgba(0, 0, 0, 0.65)',
+          background: 'var(--pixel-modal-backdrop)',
           zIndex: 49,
         }}
       />
@@ -997,7 +1003,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '8px 12px',
-                      borderBottom: '1px solid rgba(255, 245, 235, 0.05)',
+                      borderBottom: '1px solid var(--pixel-surface-soft)',
                       gap: 8,
                     }}
                   >
@@ -1047,7 +1053,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                           style={{
                             padding: '4px 10px',
                             fontSize: '16px',
-                            background: 'rgba(255, 245, 235, 0.05)',
+                            background: 'var(--pixel-surface-soft)',
                             color: 'rgba(255, 245, 235, 0.55)',
                             border: '2px solid rgba(255, 245, 235, 0.1)',
                             borderRadius: 0,
@@ -1229,7 +1235,7 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                       fontSize: '16px',
                       background: 'rgba(255, 245, 235, 0.04)',
                       color: 'var(--pixel-text-hint)',
-                      border: '2px solid rgba(255, 245, 235, 0.12)',
+                      border: '2px solid var(--pixel-border-soft)',
                       borderRadius: 0,
                       cursor: 'pointer',
                       alignSelf: 'flex-start',

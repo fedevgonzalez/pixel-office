@@ -570,7 +570,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           left: 0,
           width: '100%',
           height: '100%',
-          background: 'rgba(0, 0, 0, 0.65)',
+          background: 'var(--pixel-modal-backdrop)',
           zIndex: 49,
         }}
       />
@@ -821,7 +821,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                 <div key={i} className="pixel-agents-pulse" style={{
                   height: 160,
                   background: 'rgba(255, 245, 235, 0.08)',
-                  border: '2px solid rgba(255, 245, 235, 0.12)',
+                  border: '2px solid var(--pixel-border-soft)',
                 }} />
               ))}
             </div>

@@ -153,7 +153,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
         style={{
           position: 'fixed',
           top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0, 0, 0, 0.65)',
+          background: 'var(--pixel-modal-backdrop)',
           zIndex: 51,
         }}
       />

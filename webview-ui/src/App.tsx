@@ -112,7 +112,7 @@ function EditActionBar({ editor, editorState: es }: { editor: ReturnType<typeof 
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <span style={{ fontSize: '22px', color: 'var(--pixel-reset-text)' }}>Reset?</span>
           <button
-            style={{ ...actionBarBtnStyle, background: 'var(--pixel-danger-bg)', color: '#fff' }}
+            style={{ ...actionBarBtnStyle, background: 'var(--pixel-danger-bg)', color: 'var(--pixel-text)' }}
             onClick={() => { setShowResetConfirm(false); editor.handleReset() }}
           >
             Yes
@@ -356,7 +356,7 @@ function App() {
             transform: editor.isDirty ? 'translateX(calc(-50% + 100px))' : 'translateX(-50%)',
             zIndex: 49,
             background: 'var(--pixel-hint-bg)',
-            color: '#fff',
+            color: 'var(--pixel-text)',
             fontSize: '20px',
             padding: '3px 8px',
             borderRadius: 0,
