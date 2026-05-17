@@ -45,6 +45,31 @@ interface UserLike {
 
 type SortMode = 'popular' | 'newest' | 'az'
 
+// Shared shape used by CommunityAssetGrid for pets, characters, etc.
+// The caller composes the human-readable subtitle (e.g. "cat · by alice")
+// and supplies a fallback icon for items without a thumbnail.
+interface CommunityAssetItem {
+  id: string
+  name: string
+  author: string
+  description?: string
+  thumbnailUrl: string | null
+  subtitle: string
+  fallbackIcon: string
+}
+
+interface CommunityAssetGridProps {
+  items: CommunityAssetItem[]
+  loading: boolean
+  error: string | null
+  installingId: string | null
+  installedIds: Set<string>
+  onInstall: (id: string) => void
+  /** Used to build the install button label, e.g. 'Pet' → 'Use this Pet'. */
+  itemLabel: string
+  emptyState: { icon: string; primary: string; hint: string }
+}
+
 const actionBtnBase: React.CSSProperties = {
   padding: '6px 16px',
   fontSize: '20px',
@@ -192,6 +217,49 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   const [installingPetId, setInstallingPetId] = useState<string | null>(null)
   const [installedPetIds, setInstalledPetIds] = useState<Set<string>>(new Set())
 
+  // Community characters manifest — same lazy-fetch pattern as pets. The
+  // server installs each sprite into ~/.pixel-office/community-assets/characters/
+  // and reloads the chars array, broadcasting `characterSpritesLoaded` to all
+  // webviews so the picker refreshes without a rebuild.
+  interface CommunityCharacter {
+    id: string
+    name: string
+    author: string
+    description: string
+    tags: string[]
+    sprite: string
+    thumbnail: string | null
+    createdAt?: string | null
+    votes?: number
+  }
+  const [charsManifest, setCharsManifest] = useState<CommunityCharacter[] | null>(null)
+  const [charsLoading, setCharsLoading] = useState(false)
+  const [charsError, setCharsError] = useState<string | null>(null)
+  const [installingCharId, setInstallingCharId] = useState<string | null>(null)
+  const [installedCharIds, setInstalledCharIds] = useState<Set<string>>(new Set())
+
+  // Community props manifest. The server installs each sprite into
+  // ~/.pixel-office/community-assets/props/ and re-broadcasts
+  // `furnitureAssetsLoaded` (catalog + sprites) so the editor toolbar picks
+  // them up alongside the bundled hardcoded set.
+  interface CommunityProp {
+    id: string
+    name: string
+    author: string
+    description: string
+    tags: string[]
+    category?: string
+    sprite: string
+    thumbnail: string | null
+    createdAt?: string | null
+    votes?: number
+  }
+  const [propsManifest, setPropsManifest] = useState<CommunityProp[] | null>(null)
+  const [propsLoading, setPropsLoading] = useState(false)
+  const [propsError, setPropsError] = useState<string | null>(null)
+  const [installingPropId, setInstallingPropId] = useState<string | null>(null)
+  const [installedPropIds, setInstalledPropIds] = useState<Set<string>>(new Set())
+
   const { user, login, logout, signingIn } = useAuth()
   const [votingId, setVotingId] = useState<string | null>(null)
 
@@ -231,18 +299,43 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           setError('Failed to download layout')
         }
       } else if (msg.type === 'communityAssetInstalled') {
-        // Server finished installing a pet variant; mark its card "Installed".
-        if (msg.kind === 'pet' && msg.id) {
-          setInstalledPetIds((prev) => {
-            const next = new Set(prev)
-            next.add(msg.id as string)
-            return next
-          })
-          setInstallingPetId(null)
+        // Server finished installing an asset; mark its card "Installed".
+        if (msg.id) {
+          if (msg.kind === 'pet') {
+            setInstalledPetIds((prev) => {
+              const next = new Set(prev)
+              next.add(msg.id as string)
+              return next
+            })
+            setInstallingPetId(null)
+          } else if (msg.kind === 'character') {
+            setInstalledCharIds((prev) => {
+              const next = new Set(prev)
+              next.add(msg.id as string)
+              return next
+            })
+            setInstallingCharId(null)
+          } else if (msg.kind === 'prop') {
+            setInstalledPropIds((prev) => {
+              const next = new Set(prev)
+              next.add(msg.id as string)
+              return next
+            })
+            setInstallingPropId(null)
+          }
         }
       } else if (msg.type === 'communityAssetError') {
-        setInstallingPetId(null)
-        setPetsError(msg.error || 'Failed to install asset')
+        // Route the error to whichever kind is currently installing.
+        if (msg.kind === 'character') {
+          setInstallingCharId(null)
+          setCharsError(msg.error || 'Failed to install asset')
+        } else if (msg.kind === 'prop') {
+          setInstallingPropId(null)
+          setPropsError(msg.error || 'Failed to install asset')
+        } else {
+          setInstallingPetId(null)
+          setPetsError(msg.error || 'Failed to install asset')
+        }
       } else if (msg.type === 'galleryImportResult') {
         setImporting(null)
         setConfirmId(null)
@@ -294,6 +387,54 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     setInstallingPetId(pet.id)
     setPetsError(null)
     ws.postMessage({ type: 'installCommunityAsset', kind: 'pet', id: pet.id, species: pet.species })
+  }, [])
+
+  // Lazy-fetch characters manifest the first time the Characters tab opens.
+  useEffect(() => {
+    if (!isOpen || activeKind !== 'characters' || charsManifest !== null || charsLoading) return
+    setCharsLoading(true)
+    setCharsError(null)
+    fetch('https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/sprites/characters.json', { cache: 'no-cache' })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then((data: { characters?: CommunityCharacter[] }) => {
+        setCharsManifest(data.characters || [])
+        setCharsLoading(false)
+      })
+      .catch((err) => {
+        setCharsError(err.message || 'Failed to fetch character gallery')
+        setCharsManifest([])
+        setCharsLoading(false)
+      })
+  }, [isOpen, activeKind, charsManifest, charsLoading])
+
+  const handleInstallCharacter = useCallback((id: string) => {
+    setInstallingCharId(id)
+    setCharsError(null)
+    ws.postMessage({ type: 'installCommunityAsset', kind: 'character', id })
+  }, [])
+
+  // Lazy-fetch props manifest the first time the Props tab opens.
+  useEffect(() => {
+    if (!isOpen || activeKind !== 'props' || propsManifest !== null || propsLoading) return
+    setPropsLoading(true)
+    setPropsError(null)
+    fetch('https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/sprites/props.json', { cache: 'no-cache' })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then((data: { props?: CommunityProp[] }) => {
+        setPropsManifest(data.props || [])
+        setPropsLoading(false)
+      })
+      .catch((err) => {
+        setPropsError(err.message || 'Failed to fetch prop gallery')
+        setPropsManifest([])
+        setPropsLoading(false)
+      })
+  }, [isOpen, activeKind, propsManifest, propsLoading])
+
+  const handleInstallProp = useCallback((id: string) => {
+    setInstallingPropId(id)
+    setPropsError(null)
+    ws.postMessage({ type: 'installCommunityAsset', kind: 'prop', id })
   }, [])
 
   // Fetch user likes and live vote counts when manifest loads and user is authenticated
@@ -563,99 +704,97 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         {/* Content */}
         <div style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}>
           {activeKind === 'pets' && (
-            <div>
-              {petsLoading && (
-                <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-text-hint)', fontSize: 18 }}>
-                  Loading community pets…
-                </div>
-              )}
-              {!petsLoading && petsError && (
-                <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-error)', fontSize: 16 }}>{petsError}</div>
-              )}
-              {!petsLoading && petsManifest && petsManifest.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
-                  <div style={{ fontSize: 28, marginBottom: 12 }}>🐾</div>
-                  <div style={{ fontSize: 20, color: 'var(--pixel-text)', marginBottom: 6 }}>No community pets yet — be the first.</div>
-                  <div style={{ fontSize: 16, color: 'var(--pixel-text-hint)' }}>
-                    Use the 🌐 Share button in the Pets editor to submit yours.
-                  </div>
-                </div>
-              )}
-              {!petsLoading && petsManifest && petsManifest.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, padding: '4px 0' }}>
-                  {petsManifest.map((pet) => {
-                    const installed = installedPetIds.has(pet.id)
-                    const installing = installingPetId === pet.id
-                    const thumbnailUrl = pet.thumbnail
-                      ? `https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/${pet.thumbnail}`
-                      : null
-                    return (
-                      <div key={pet.id} style={{
-                        display: 'flex', flexDirection: 'column', gap: 8,
-                        padding: 10, background: 'var(--pixel-surface)',
-                        border: '2px solid var(--pixel-border)', borderRadius: 0,
-                      }}>
-                        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                          {thumbnailUrl ? (
-                            <img
-                              src={thumbnailUrl}
-                              width={64} height={64}
-                              alt={pet.name}
-                              style={{ imageRendering: 'pixelated', background: 'rgba(0,0,0,0.2)', flexShrink: 0 }}
-                            />
-                          ) : (
-                            <div style={{ width: 64, height: 64, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
-                              {pet.species === 'cat' ? '🐱' : '🐶'}
-                            </div>
-                          )}
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 18, color: 'var(--pixel-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{pet.name}</div>
-                            <div style={{ fontSize: 14, color: 'var(--pixel-text-hint)' }}>
-                              {pet.species} · by {pet.author}
-                            </div>
-                          </div>
-                        </div>
-                        {pet.description && (
-                          <div style={{ fontSize: 14, color: 'var(--pixel-text-dim)', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
-                            {pet.description}
-                          </div>
-                        )}
-                        <button
-                          onClick={() => !installed && !installing && handleInstallPet(pet)}
-                          disabled={installed || installing}
-                          style={{
-                            padding: '8px 12px', fontSize: 16,
-                            background: installed ? 'transparent' : 'var(--pixel-agent-bg)',
-                            color: installed ? 'var(--pixel-text-hint)' : 'var(--pixel-agent-text)',
-                            border: `2px solid ${installed ? 'var(--pixel-border)' : 'var(--pixel-agent-border)'}`,
-                            borderRadius: 0,
-                            cursor: installed || installing ? 'default' : 'pointer',
-                          }}
-                        >
-                          {installed ? '✓ Installed' : installing ? 'Installing…' : 'Use this Pet'}
-                        </button>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
+            <CommunityAssetGrid
+              items={(petsManifest ?? []).map((pet) => ({
+                id: pet.id,
+                name: pet.name,
+                author: pet.author,
+                description: pet.description,
+                thumbnailUrl: pet.thumbnail
+                  ? `https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/${pet.thumbnail}`
+                  : null,
+                subtitle: `${pet.species} · by ${pet.author}`,
+                fallbackIcon: pet.species === 'cat' ? '🐱' : '🐶',
+              }))}
+              loading={petsLoading}
+              error={petsError}
+              installingId={installingPetId}
+              installedIds={installedPetIds}
+              onInstall={(id) => {
+                const pet = petsManifest?.find((p) => p.id === id)
+                if (pet) handleInstallPet(pet)
+              }}
+              itemLabel="Pet"
+              emptyState={{
+                icon: '🐾',
+                primary: 'No community pets yet — be the first.',
+                hint: 'Use the 🌐 Share button in the Pets editor to submit yours.',
+              }}
+            />
           )}
-          {(activeKind === 'characters' || activeKind === 'props' || activeKind === 'backgrounds') && (
+          {activeKind === 'characters' && (
+            <CommunityAssetGrid
+              items={(charsManifest ?? []).map((c) => ({
+                id: c.id,
+                name: c.name,
+                author: c.author,
+                description: c.description,
+                thumbnailUrl: c.thumbnail
+                  ? `https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/${c.thumbnail}`
+                  : null,
+                subtitle: `by ${c.author}`,
+                fallbackIcon: '🧑‍💻',
+              }))}
+              loading={charsLoading}
+              error={charsError}
+              installingId={installingCharId}
+              installedIds={installedCharIds}
+              onInstall={handleInstallCharacter}
+              itemLabel="Character"
+              emptyState={{
+                icon: '🧑‍💻',
+                primary: 'No community characters yet — be the first.',
+                hint: 'Drop a 168×96 sprite sheet into the community repo and open a PR.',
+              }}
+            />
+          )}
+          {activeKind === 'props' && (
+            <CommunityAssetGrid
+              items={(propsManifest ?? []).map((p) => ({
+                id: p.id,
+                name: p.name,
+                author: p.author,
+                description: p.description,
+                thumbnailUrl: p.thumbnail
+                  ? `https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/${p.thumbnail}`
+                  : null,
+                subtitle: `${p.category || 'decor'} · by ${p.author}`,
+                fallbackIcon: '🪴',
+              }))}
+              loading={propsLoading}
+              error={propsError}
+              installingId={installingPropId}
+              installedIds={installedPropIds}
+              onInstall={handleInstallProp}
+              itemLabel="Prop"
+              emptyState={{
+                icon: '🪴',
+                primary: 'No community props yet — be the first.',
+                hint: 'Drop a sprite + metadata.json into sprites/props/ in the community repo.',
+              }}
+            />
+          )}
+          {activeKind === 'backgrounds' && (
             <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>
-                {activeKind === 'characters' ? '🧑‍💻' : activeKind === 'props' ? '🪴' : '🌆'}
-              </div>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>🌆</div>
               <div style={{ fontSize: '20px', color: 'var(--pixel-text)', marginBottom: 6 }}>
-                The community {activeKind} gallery is just getting started.
+                Image-based backgrounds are on the roadmap.
               </div>
-              <div style={{ fontSize: '16px', color: 'var(--pixel-text-hint)', marginBottom: 20 }}>
-                Browsing UI ships once contributions land. Submit yours via the Share button.
+              <div style={{ fontSize: '16px', color: 'var(--pixel-text-hint)', marginBottom: 20, lineHeight: 1.4 }}>
+                Today the world background is a procedural theme generated in code (grass, sidewalk, road, decorations). Installing a community .png needs a new image-tile renderer that also interacts with day/night — coming in a follow-up.
               </div>
               <a
-                href={`https://github.com/fedevgonzalez/pixel-office-community/tree/main/${
-                  activeKind === 'backgrounds' ? 'backgrounds' : `sprites/${activeKind}`
-                }`}
+                href="https://github.com/fedevgonzalez/pixel-office-community/tree/main/backgrounds"
                 target="_blank"
                 rel="noreferrer"
                 style={{
@@ -979,6 +1118,94 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
           </button>
         </div>
       )}
+    </div>
+  )
+}
+
+// ── Shared community-asset grid (pets, characters) ────────────
+
+function CommunityAssetGrid({
+  items,
+  loading,
+  error,
+  installingId,
+  installedIds,
+  onInstall,
+  itemLabel,
+  emptyState,
+}: CommunityAssetGridProps) {
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-text-hint)', fontSize: 18 }}>
+        Loading…
+      </div>
+    )
+  }
+  if (error) {
+    return (
+      <div style={{ textAlign: 'center', padding: 24, color: 'var(--pixel-error)', fontSize: 16 }}>{error}</div>
+    )
+  }
+  if (items.length === 0) {
+    return (
+      <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
+        <div style={{ fontSize: 28, marginBottom: 12 }}>{emptyState.icon}</div>
+        <div style={{ fontSize: 20, color: 'var(--pixel-text)', marginBottom: 6 }}>{emptyState.primary}</div>
+        <div style={{ fontSize: 16, color: 'var(--pixel-text-hint)' }}>{emptyState.hint}</div>
+      </div>
+    )
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, padding: '4px 0' }}>
+      {items.map((item) => {
+        const installed = installedIds.has(item.id)
+        const installing = installingId === item.id
+        return (
+          <div key={item.id} style={{
+            display: 'flex', flexDirection: 'column', gap: 8,
+            padding: 10, background: 'var(--pixel-surface)',
+            border: '2px solid var(--pixel-border)', borderRadius: 0,
+          }}>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+              {item.thumbnailUrl ? (
+                <img
+                  src={item.thumbnailUrl}
+                  width={64} height={64}
+                  alt={item.name}
+                  style={{ imageRendering: 'pixelated', background: 'rgba(0,0,0,0.2)', flexShrink: 0 }}
+                />
+              ) : (
+                <div style={{ width: 64, height: 64, background: 'rgba(0,0,0,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 26 }}>
+                  {item.fallbackIcon}
+                </div>
+              )}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 18, color: 'var(--pixel-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                <div style={{ fontSize: 14, color: 'var(--pixel-text-hint)' }}>{item.subtitle}</div>
+              </div>
+            </div>
+            {item.description && (
+              <div style={{ fontSize: 14, color: 'var(--pixel-text-dim)', lineHeight: 1.3, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>
+                {item.description}
+              </div>
+            )}
+            <button
+              onClick={() => !installed && !installing && onInstall(item.id)}
+              disabled={installed || installing}
+              style={{
+                padding: '8px 12px', fontSize: 16,
+                background: installed ? 'transparent' : 'var(--pixel-agent-bg)',
+                color: installed ? 'var(--pixel-text-hint)' : 'var(--pixel-agent-text)',
+                border: `2px solid ${installed ? 'var(--pixel-border)' : 'var(--pixel-agent-border)'}`,
+                borderRadius: 0,
+                cursor: installed || installing ? 'default' : 'pointer',
+              }}
+            >
+              {installed ? '✓ Installed' : installing ? 'Installing…' : `Use this ${itemLabel}`}
+            </button>
+          </div>
+        )
+      })}
     </div>
   )
 }

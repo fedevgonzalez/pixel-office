@@ -141,7 +141,9 @@ Real-time visual dashboard for Claude Code agents. Standalone web server with ki
 - [ ] In-app upload with auto-generated preview (Phase B)
 - [x] Star ratings via GitHub Reactions (Phase B → done)
 - [ ] "Featured" curated selection per kind
-- [ ] "Use this" import for characters / props / backgrounds (parity with pets)
+- [x] "Use this Character" import (parity with pets, shared `<CommunityAssetGrid>`)
+- [x] "Use this Prop" import — server writes to `~/.pixel-office/community-assets/props/`, `buildDynamicCatalog` appends community entries on top of the hardcoded `FURNITURE_CATALOG` instead of replacing it
+- [ ] **Image-based backgrounds**: today the world background is a procedural theme (`backgroundThemes.ts` — grass/sidewalk/road tiles + decoration spawners). Supporting community .png backgrounds needs a new theme variant (`type: 'image'`) that the renderer draws as a static or tiled surface, plus day/night interpolation over the image (probably an overlay alpha). Until then the Backgrounds tab just links to GitHub.
 
 ### Replay Mode
 - Load old JSONL files and replay sessions as if live

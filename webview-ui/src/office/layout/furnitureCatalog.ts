@@ -86,13 +86,21 @@ let dynamicCategories: FurnitureCategory[] | null = null
 /**
  * Build catalog from loaded assets. Returns true if successful.
  * Once built, all getCatalog* functions use the dynamic catalog.
- * Uses ONLY custom assets (excludes hardcoded furniture when assets are loaded).
+ *
+ * Merges loaded assets ON TOP OF the hardcoded FURNITURE_CATALOG: bundled
+ * hand-drawn furniture is always available, and community-installed props
+ * (delivered via `furnitureAssetsLoaded`) are appended after them. This means
+ * installing one community prop never wipes the bundled set.
+ *
+ * Rotation/state groups are derived from loaded entries only — bundled entries
+ * don't define groupId/orientation/state metadata. Visible catalog excludes
+ * non-front rotation variants and "on" state variants from the loaded entries.
  */
 export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
   if (!assets?.catalog || !assets?.sprites) return false
 
-  // Build all entries (including non-front variants)
-  const allEntries = assets.catalog.map((asset) => {
+  // Loaded entries (bundled exported furniture + community-installed props)
+  const loadedEntries = assets.catalog.map((asset) => {
     const sprite = assets.sprites[asset.id]
     if (!sprite) {
       console.warn(`No sprite data for asset ${asset.id}`)
@@ -112,6 +120,9 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
       ...(asset.canPlaceOnWalls ? { canPlaceOnWalls: true } : {}),
     }
   }).filter((e): e is CatalogEntryWithCategory => e !== null)
+
+  // Combined: bundled hardcoded entries first, then loaded entries.
+  const allEntries: CatalogEntryWithCategory[] = [...FURNITURE_CATALOG, ...loadedEntries]
 
   if (allEntries.length === 0) return false
 
