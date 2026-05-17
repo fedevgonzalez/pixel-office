@@ -248,9 +248,9 @@ export function renderScene(
           // Name label (always in kiosk, hover-only otherwise)
           if (isKioskMode || isHovered) {
             const labelText = chName || 'Agent'
-            const nameY = drawY - 4 * (zoom / 2)
+            const nameY = drawY - 4 * (zoom * TILE_SIZE / 32)
             const nameX = drawX + cached.width / 2
-            const fontSize = Math.max(13, Math.round(RESTING_AGENT_LABEL_FONT_SCALE * zoom / 2))
+            const fontSize = Math.max(13, Math.round(RESTING_AGENT_LABEL_FONT_SCALE * zoom * TILE_SIZE / 32))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
             c.textAlign = 'center'
 
@@ -352,9 +352,9 @@ export function renderScene(
 
           // Name label when selected, hovered, or always in kiosk mode
           if (isSelected || isHovered || isKioskMode) {
-            const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
+            const nameY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom * TILE_SIZE / 32)
             const nameX = petDrawX + petCached.width / 2
-            const fontSize = Math.max(13, Math.round(16 * zoom / 2))
+            const fontSize = Math.max(13, Math.round(16 * zoom * TILE_SIZE / 32))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
             c.textAlign = 'center'
 
@@ -415,10 +415,10 @@ export function renderScene(
       const petDrawX = Math.round(offsetX + pet.x * zoom - petCached.width / 2)
       const petDrawY = Math.round(offsetY + pet.y * zoom - petCached.height)
 
-      const lineFontSize = Math.max(13, Math.round(15 * zoom / 2))
+      const lineFontSize = Math.max(13, Math.round(15 * zoom * TILE_SIZE / 32))
       ctx.font = `${lineFontSize}px "FS Pixel Sans", monospace`
       ctx.textAlign = 'center'
-      const maxWidthPx = Math.max(120, Math.round(160 * zoom / 2))
+      const maxWidthPx = Math.max(120, Math.round(160 * zoom * TILE_SIZE / 32))
       const lines = wrapTextToLines(ctx, pet.speechText, maxWidthPx, 3)
       const lineHeight = Math.round(lineFontSize * 1.25)
       const padH = Math.round(lineFontSize * 0.55)
@@ -431,7 +431,7 @@ export function renderScene(
       const bgW = Math.round(widest + padH * 2)
       const bgH = Math.round(lineHeight * lines.length + padV * 2)
       const cx = petDrawX + petCached.width / 2
-      const baseY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
+      const baseY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom * TILE_SIZE / 32)
       let bgX = Math.round(cx - bgW / 2)
       let bgY = Math.round(baseY - bgH - lineFontSize * 0.6)
       // Keep the bubble inside the viewport: clamp horizontally with 8 px
@@ -813,10 +813,10 @@ export function renderBubbles(
     // Free-text speech bubble (LLM-generated dialog). Drawn above any
     // permission/waiting sprite so it never collides.
     if (ch.speechText) {
-      const lineFontSize = Math.max(13, Math.round(15 * zoom / 2))
+      const lineFontSize = Math.max(13, Math.round(15 * zoom * TILE_SIZE / 32))
       ctx.font = `${lineFontSize}px "FS Pixel Sans", monospace`
       ctx.textAlign = 'center'
-      const maxWidthPx = Math.max(140, Math.round(180 * zoom / 2))
+      const maxWidthPx = Math.max(140, Math.round(180 * zoom * TILE_SIZE / 32))
       const lines = wrapTextToLines(ctx, ch.speechText, maxWidthPx, 3)
       const lineHeight = Math.round(lineFontSize * 1.25)
       const padH = Math.round(lineFontSize * 0.55)
@@ -833,7 +833,7 @@ export function renderBubbles(
       // headroom so it never overlaps the character itself.
       const headY = offsetY + (ch.y + sittingOff - BUBBLE_VERTICAL_OFFSET_PX) * zoom
       const bgX = Math.round(cx - bgW / 2)
-      const bgY = Math.round(headY - bgH - 28 * zoom / 2)
+      const bgY = Math.round(headY - bgH - 28 * zoom * TILE_SIZE / 32)
 
       const t = ch.speechTimer
       const total = ch.speechFullDuration
