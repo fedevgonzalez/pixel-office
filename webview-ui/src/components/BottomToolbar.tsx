@@ -3,6 +3,7 @@ import { SettingsModal } from './SettingsModal.js'
 import { GalleryModal } from './GalleryModal.js'
 import { PetManagerModal } from './PetCreatorModal.js'
 import type { PlacedPet, PetColors, OfficeLayout, WorldBackgroundTheme } from '../office/types.js'
+import type { PetTemplate } from '../hooks/useExtensionMessages.js'
 import type { TimeMode, Hemisphere, DayNightState } from '../office/engine/dayNightCycle.js'
 
 interface BottomToolbarProps {
@@ -14,6 +15,7 @@ interface BottomToolbarProps {
   onAddPet?: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet?: (uid: string) => void
   onEditPet?: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null }) => void
+  petTemplates?: PetTemplate[]
   getLayout: () => OfficeLayout
   dayNight?: {
     state: DayNightState
@@ -61,6 +63,7 @@ export function BottomToolbar({
   onAddPet,
   onDeletePet,
   onEditPet,
+  petTemplates,
   getLayout,
   dayNight,
   backgroundTheme,
@@ -116,6 +119,7 @@ export function BottomToolbar({
           }}
           onDeletePet={onDeletePet}
           onEditPet={onEditPet}
+          templates={petTemplates || []}
         />
       )}
       <div style={{ position: 'relative' }}>

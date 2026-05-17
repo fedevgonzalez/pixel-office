@@ -132,7 +132,7 @@ function App() {
 
   const isEditDirty = useCallback(() => editor.isEditMode && editor.isDirty, [editor.isEditMode, editor.isDirty])
 
-  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
+  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const dayNight = useDayNight()
 
@@ -324,6 +324,7 @@ function App() {
           onAddPet={handleAddPet}
           onDeletePet={handleDeletePet}
           onEditPet={handleEditPet}
+          petTemplates={petTemplates}
           getLayout={() => getOfficeState().getLayout()}
           dayNight={dayNight}
           backgroundTheme={getOfficeState().getLayout().background?.theme}

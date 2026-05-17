@@ -41,6 +41,23 @@ export interface WorkspaceFolder {
   path: string
 }
 
+export interface PetTemplate {
+  id: string
+  name: string
+  species: 'cat' | 'dog'
+  variant?: string
+  petColors?: {
+    body?: string
+    eyes?: string
+    nose?: string
+    pattern?: string
+    patternColor?: string
+  }
+  personality?: string
+  createdAt?: string
+  updatedAt?: string
+}
+
 export interface ExtensionMessageState {
   agents: number[]
   selectedAgent: number | null
@@ -51,6 +68,7 @@ export interface ExtensionMessageState {
   layoutReady: boolean
   loadedAssets?: { catalog: FurnitureAsset[]; sprites: Record<string, string[][]> }
   workspaceFolders: WorkspaceFolder[]
+  petTemplates: PetTemplate[]
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -76,6 +94,7 @@ export function useExtensionMessages(
   const [layoutReady, setLayoutReady] = useState(false)
   const [loadedAssets, setLoadedAssets] = useState<{ catalog: FurnitureAsset[]; sprites: Record<string, string[][]> } | undefined>()
   const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([])
+  const [petTemplates, setPetTemplates] = useState<PetTemplate[]>([])
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
   const layoutReadyRef = useRef(false)
@@ -355,6 +374,9 @@ export function useExtensionMessages(
         const variantCount = Object.values(pets).reduce((sum, v) => sum + Object.keys(v).length, 0)
         console.log(`[Webview] Received ${variantCount} pet sprite variant(s) across ${Object.keys(pets).length} species`)
         setLoadedPetVariants(pets)
+      } else if (msg.type === 'petTemplatesLoaded') {
+        const templates = (msg.templates as PetTemplate[]) || []
+        setPetTemplates(templates)
       } else if (msg.type === 'floorTilesLoaded') {
         const sprites = msg.sprites as string[][][]
         console.log(`[Webview] Received ${sprites.length} floor tile patterns`)
@@ -386,5 +408,5 @@ export function useExtensionMessages(
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 
-  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders }
+  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates }
 }

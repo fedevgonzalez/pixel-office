@@ -17,6 +17,8 @@ import {
   PET_TUXEDO_DEFAULT_COLOR,
 } from '../constants.js'
 import { getPetSprites, colorPetSprite, listPetVariants } from '../office/sprites/petSprites.js'
+import { ws } from '../wsClient.js'
+import type { PetTemplate } from '../hooks/useExtensionMessages.js'
 
 interface PetManagerModalProps {
   isOpen: boolean
@@ -25,6 +27,7 @@ interface PetManagerModalProps {
   onCreatePet: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet: (uid: string) => void
   onEditPet: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null }) => void
+  templates: PetTemplate[]
 }
 
 const NO_VARIANT = '' as const
@@ -543,7 +546,7 @@ function PetForm({
 
 const emptyPetColors: PetColors = {}
 
-export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePet, onEditPet }: PetManagerModalProps) {
+export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePet, onEditPet, templates }: PetManagerModalProps) {
   const dialogRef = useModalFocus(isOpen)
   const [view, setView] = useState<'list' | 'create' | 'edit'>('list')
   const [editingUid, setEditingUid] = useState<string | null>(null)
@@ -553,6 +556,10 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const [petColors, setPetColors] = useState<PetColors>(emptyPetColors)
   const [personality, setPersonality] = useState<PetPersonality>(PetPersonalityConst.CHILL)
   const [variant, setVariant] = useState<string>(NO_VARIANT)
+  // Template UI state
+  const [savingTemplate, setSavingTemplate] = useState(false)
+  const [templateNameInput, setTemplateNameInput] = useState('')
+  const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
   useEffect(() => {
     if (!isOpen) return
@@ -580,6 +587,9 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       setSpecies('cat')
       setPersonality(PetPersonalityConst.CHILL)
       setVariant(NO_VARIANT)
+      setSavingTemplate(false)
+      setTemplateNameInput('')
+      setSelectedTemplateId('')
     }
   }, [isOpen])
 
@@ -587,6 +597,41 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   useEffect(() => {
     setVariant(NO_VARIANT)
   }, [species])
+
+  const templatesForSpecies = templates.filter((t) => t.species === species)
+
+  const handleApplyTemplate = (id: string) => {
+    setSelectedTemplateId(id)
+    const tpl = templates.find((t) => t.id === id)
+    if (!tpl) return
+    setSpecies(tpl.species)
+    setVariant(tpl.variant || NO_VARIANT)
+    setPetColors((tpl.petColors as PetColors) || {})
+    setPersonality(((tpl.personality as PetPersonality) || PetPersonalityConst.CHILL))
+  }
+
+  const handleSaveCurrentAsTemplate = () => {
+    const trimmed = templateNameInput.trim()
+    if (!trimmed) return
+    const colorsSet = !!(petColors.body || petColors.eyes || petColors.nose || (petColors.pattern && petColors.pattern !== 'solid'))
+    const id = `tmpl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    ws.postMessage({
+      type: 'savePetTemplate',
+      template: {
+        id, name: trimmed, species, variant: variant || undefined,
+        petColors: !variant && colorsSet ? petColors : undefined,
+        personality,
+      },
+    })
+    setSavingTemplate(false)
+    setTemplateNameInput('')
+  }
+
+  const handleDeleteSelectedTemplate = () => {
+    if (!selectedTemplateId) return
+    ws.postMessage({ type: 'deletePetTemplate', id: selectedTemplateId })
+    setSelectedTemplateId('')
+  }
 
   if (!isOpen) return null
 
@@ -908,6 +953,109 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
         {view === 'create' && (
           <>
             <div style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+              {/* Templates row — load preset / save current */}
+              <div style={{ ...sectionStyle, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={sectionLabelStyle}>Templates</div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => {
+                      const id = e.target.value
+                      if (id) handleApplyTemplate(id)
+                      else setSelectedTemplateId('')
+                    }}
+                    style={{ ...inputStyle, flex: 1, cursor: 'pointer' }}
+                    disabled={templatesForSpecies.length === 0}
+                  >
+                    <option value="">
+                      {templatesForSpecies.length === 0
+                        ? `No saved ${species} templates yet`
+                        : 'Load a saved template…'}
+                    </option>
+                    {templatesForSpecies.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  {selectedTemplateId && (
+                    <button
+                      onClick={handleDeleteSelectedTemplate}
+                      aria-label="Delete selected template"
+                      title="Delete this template"
+                      style={{
+                        padding: '8px 12px',
+                        fontSize: '20px',
+                        background: 'rgba(200, 50, 50, 0.08)',
+                        color: 'rgba(220, 80, 80, 0.8)',
+                        border: '2px solid rgba(200, 50, 50, 0.2)',
+                        borderRadius: 0,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      ×
+                    </button>
+                  )}
+                </div>
+                {savingTemplate ? (
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder="Template name (e.g. Pepe — orange tabby)"
+                      value={templateNameInput}
+                      onChange={(e) => setTemplateNameInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCurrentAsTemplate() }}
+                      maxLength={40}
+                      style={{ ...inputStyle, flex: 1 }}
+                    />
+                    <button
+                      onClick={handleSaveCurrentAsTemplate}
+                      disabled={!templateNameInput.trim()}
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '18px',
+                        background: 'var(--pixel-agent-bg)',
+                        color: 'var(--pixel-agent-text)',
+                        border: '2px solid var(--pixel-agent-border)',
+                        borderRadius: 0,
+                        cursor: templateNameInput.trim() ? 'pointer' : 'not-allowed',
+                        opacity: templateNameInput.trim() ? 1 : 0.5,
+                      }}
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => { setSavingTemplate(false); setTemplateNameInput('') }}
+                      style={{
+                        padding: '8px 14px',
+                        fontSize: '18px',
+                        background: 'transparent',
+                        color: 'var(--pixel-text-hint)',
+                        border: '2px solid var(--pixel-border)',
+                        borderRadius: 0,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setSavingTemplate(true)}
+                    style={{
+                      padding: '8px 12px',
+                      fontSize: '16px',
+                      background: 'rgba(255, 245, 235, 0.04)',
+                      color: 'var(--pixel-text-hint)',
+                      border: '2px solid rgba(255, 245, 235, 0.12)',
+                      borderRadius: 0,
+                      cursor: 'pointer',
+                      alignSelf: 'flex-start',
+                    }}
+                  >
+                    + Save current as template
+                  </button>
+                )}
+              </div>
               <PetForm
                 species={species} setSpecies={setSpecies}
                 name={name} setName={setName}

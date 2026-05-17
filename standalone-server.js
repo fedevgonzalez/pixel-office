@@ -728,6 +728,7 @@ function loadDefaultLayout() {
 const LAYOUT_DIR = path.join(os.homedir(), '.pixel-office');
 const LAYOUT_FILE = path.join(LAYOUT_DIR, 'layout.json');
 const SETTINGS_FILE = path.join(LAYOUT_DIR, 'settings.json');
+const PET_TEMPLATES_FILE = path.join(LAYOUT_DIR, 'pet-templates.json');
 
 function loadLayout() {
   if (!fs.existsSync(LAYOUT_FILE)) return null;
@@ -750,6 +751,26 @@ function saveLayout(layout) {
 function loadSettings() {
   if (!fs.existsSync(SETTINGS_FILE)) return { soundEnabled: true };
   try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8')); } catch { return { soundEnabled: true }; }
+}
+
+function loadPetTemplates() {
+  if (!fs.existsSync(PET_TEMPLATES_FILE)) return { version: 1, templates: [] };
+  try {
+    const data = JSON.parse(fs.readFileSync(PET_TEMPLATES_FILE, 'utf-8'));
+    if (!data || !Array.isArray(data.templates)) return { version: 1, templates: [] };
+    return data;
+  } catch { return { version: 1, templates: [] }; }
+}
+
+function savePetTemplates(data) {
+  try {
+    if (!fs.existsSync(LAYOUT_DIR)) fs.mkdirSync(LAYOUT_DIR, { recursive: true });
+    const tmp = PET_TEMPLATES_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(data, null, 2), 'utf-8');
+    fs.renameSync(tmp, PET_TEMPLATES_FILE);
+  } catch (e) {
+    console.error('Failed to save pet templates:', e.message);
+  }
 }
 
 function saveSettings(settings) {
@@ -1009,6 +1030,11 @@ async function handleClientMessage(ws, msg) {
       console.log(`  petSprites: ${pets ? `sent (${variantCount} variant${variantCount === 1 ? '' : 's'})` : 'skipped'}`);
     } catch (e) { console.error('  petSprites error:', e.message); }
     try {
+      const tpl = loadPetTemplates();
+      ws.send(JSON.stringify({ type: 'petTemplatesLoaded', templates: tpl.templates || [] }));
+      console.log(`  petTemplates: sent (${(tpl.templates || []).length})`);
+    } catch (e) { console.error('  petTemplates error:', e.message); }
+    try {
       const floors = await loadFloorTiles();
       if (floors) ws.send(JSON.stringify({ type: 'floorTilesLoaded', sprites: floors }));
       console.log(`  floorTiles: ${floors ? 'sent' : 'skipped (no floors.png)'}`);
@@ -1091,6 +1117,32 @@ async function handleClientMessage(ws, msg) {
     for (const client of wsClients) {
       if (client !== ws) {
         try { client.send(JSON.stringify({ type: 'settingsLoaded', ...merged })); } catch {}
+      }
+    }
+  } else if (msg.type === 'savePetTemplate') {
+    // Upsert by id; client always supplies an id (new or existing)
+    const tpl = msg.template;
+    if (tpl && tpl.id && tpl.name) {
+      const data = loadPetTemplates();
+      const idx = data.templates.findIndex((t) => t.id === tpl.id);
+      const stored = { ...tpl, updatedAt: new Date().toISOString() };
+      if (idx >= 0) data.templates[idx] = stored;
+      else data.templates.push({ ...stored, createdAt: stored.updatedAt });
+      savePetTemplates(data);
+      // Broadcast to every connected webview (including sender, so its list refreshes)
+      const payload = JSON.stringify({ type: 'petTemplatesLoaded', templates: data.templates });
+      for (const client of wsClients) {
+        try { client.send(payload); } catch {}
+      }
+    }
+  } else if (msg.type === 'deletePetTemplate') {
+    if (msg.id) {
+      const data = loadPetTemplates();
+      data.templates = data.templates.filter((t) => t.id !== msg.id);
+      savePetTemplates(data);
+      const payload = JSON.stringify({ type: 'petTemplatesLoaded', templates: data.templates });
+      for (const client of wsClients) {
+        try { client.send(payload); } catch {}
       }
     }
   } else if (msg.type === 'closeAgent') {
