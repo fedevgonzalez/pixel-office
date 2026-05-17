@@ -647,6 +647,30 @@ function upscaleSpriteData(sprite, factor) {
   return out;
 }
 
+/**
+ * Find the smallest axis-aligned rect that covers every non-transparent pixel
+ * in the PNG. Used so oversize/AI-generated spritesheets that come with heavy
+ * transparent padding (e.g. ChatGPT's 1536×1024 output where the dogs occupy
+ * the middle ~1000×700) can still be sliced into 5×3 cells aligned to the
+ * actual content instead of the padded image edges.
+ */
+function computeOpaqueBboxPng(png) {
+  let minX = png.width, maxX = -1, minY = png.height, maxY = -1;
+  for (let y = 0; y < png.height; y++) {
+    for (let x = 0; x < png.width; x++) {
+      const a = png.data[(y * png.width + x) * 4 + 3];
+      if (a >= PNG_ALPHA_THRESHOLD) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX < 0) return null;
+  return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
+}
+
 function pngToSpriteData(png, x, y, w, h) {
   const sprite = [];
   for (let row = 0; row < h; row++) {
@@ -794,18 +818,30 @@ async function loadPetSprites() {
       // Three loading paths:
       //   - Legacy 80×48: 16×16 cells, upscale 2× to 32×32 logical
       //   - Native 160×96: 32×32 cells, pixel-perfect 1:1
-      //   - Oversize (any larger 5×3 grid, e.g. ChatGPT's 1536×1024):
-      //     resample by nearest-from-center per logical pixel. Each cell logical
-      //     size stays 32×32 so the renderer sees a uniform sprite shape.
+      //   - Anything else: detect the opaque-content bbox (so transparent
+      //     padding from AI-generated sheets like ChatGPT's 1536×1024 is
+      //     trimmed) and slice the bbox into 5×3 cells, resampling each cell
+      //     to 32×32. The bbox-trim step means the grid is aligned to the
+      //     drawn content, not the raw image edges.
       const isLegacy16 = png.width === 80 && png.height === 48;
       const isNative = png.width === 160 && png.height === 96;
-      const isOversize = !isLegacy16 && !isNative && png.width % 5 === 0 && png.height % 3 === 0;
       const directions = { down: [], up: [], right: [] };
       const dirNames = ['down', 'up', 'right'];
       const colorCounts = new Map();
+      // For oversize sheets, derive the active region from the opaque bbox.
+      // Falls back to the full image if the bbox detection fails.
+      let activeX = 0, activeY = 0, activeW = png.width, activeH = png.height;
+      let trimmed = false;
+      if (!isLegacy16 && !isNative) {
+        const bb = computeOpaqueBboxPng(png);
+        if (bb && (bb.x > 0 || bb.y > 0 || bb.w < png.width || bb.h < png.height)) {
+          activeX = bb.x; activeY = bb.y; activeW = bb.w; activeH = bb.h;
+          trimmed = true;
+        }
+      }
       // Source cell dimensions in raster pixels
-      const srcCellW = isLegacy16 ? 16 : Math.round(png.width / 5);
-      const srcCellH = isLegacy16 ? 16 : Math.round(png.height / 3);
+      const srcCellW = isLegacy16 ? 16 : Math.round(activeW / 5);
+      const srcCellH = isLegacy16 ? 16 : Math.round(activeH / 3);
       for (let d = 0; d < 3; d++) {
         for (let frame = 0; frame < 5; frame++) {
           let sprite;
@@ -815,10 +851,10 @@ async function loadPetSprites() {
           } else if (isNative) {
             sprite = pngToSpriteData(png, frame * 32, d * 32, 32, 32);
           } else {
-            // Oversize (or non-standard ratio that still divides cleanly): resample
             sprite = pngToSpriteDataResampled(
               png,
-              frame * srcCellW, d * srcCellH,
+              activeX + frame * srcCellW,
+              activeY + d * srcCellH,
               srcCellW, srcCellH,
               32, 32,
             );
@@ -839,8 +875,9 @@ async function loadPetSprites() {
       if (!result[species]) result[species] = {};
       result[species][variant] = { ...directions, palette };
       if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 2× → 32×32`);
-      else if (isOversize) console.log(`  pet ${filename}: ${png.width}×${png.height} oversize, resampled cell ${srcCellW}×${srcCellH} → 32×32`);
-      else if (!isNative) console.log(`  pet ${filename}: non-standard ${png.width}×${png.height}, attempting resample`);
+      else if (isNative) console.log(`  pet ${filename}: 160×96 native 32×32 cells`);
+      else if (trimmed) console.log(`  pet ${filename}: ${png.width}×${png.height} trimmed to ${activeW}×${activeH} bbox, cell ${srcCellW}×${srcCellH} → 32×32`);
+      else console.log(`  pet ${filename}: ${png.width}×${png.height} resampled cell ${srcCellW}×${srcCellH} → 32×32`);
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);
     }
