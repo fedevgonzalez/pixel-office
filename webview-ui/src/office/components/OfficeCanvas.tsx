@@ -405,9 +405,22 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
       },
     })
 
+    // Periodic pet-states snapshot to the server. The narration bridge reads
+    // /api/layout (which exposes this) to skip generating speech for pets that
+    // are asleep. 5 s cadence is plenty — pet states change on the order of
+    // tens of seconds and this is just to avoid waste, not for animation.
+    const petStatesInterval = setInterval(() => {
+      const states: Record<string, string> = {}
+      for (const p of officeState.pets.values()) {
+        states[p.uid] = p.state
+      }
+      ws.postMessage({ type: 'petStatesSnapshot', states })
+    }, 5000)
+
     return () => {
       stop()
       observer.disconnect()
+      clearInterval(petStatesInterval)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps -- editorState/isEditMode/zoom/dayNight read via refs to avoid game loop restart on every keystroke
   }, [officeState, resizeCanvas])

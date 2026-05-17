@@ -207,6 +207,12 @@ const permissionTimers = new Map();
 const knownFiles = new Set();
 const skippedFiles = new Map(); // file -> mtimeMs when skipped
 let wsClients = [];
+// Cache of per-pet runtime state (walk/idle/sit/sleep/play) sent by the
+// client periodically via `petStatesSnapshot`. Exposed in /api/layout so the
+// narration bridge can skip pets that are asleep without subscribing to
+// per-transition events.
+const petRuntimeStates = new Map(); // uid → state string
+let petRuntimeStatesUpdatedAt = 0;
 const clientLastPong = new Map(); // ws -> timestamp of last pong
 const WS_PING_INTERVAL_MS = 15000;
 const WS_PONG_STALE_MS = 30000;
@@ -1471,6 +1477,20 @@ async function handleClientMessage(ws, msg) {
         try { ws.send(JSON.stringify({ type: 'communityAssetError', kind, id, error: `kind '${kind}' not yet supported` })); } catch {}
       }
     })();
+  } else if (msg.type === 'petStatesSnapshot') {
+    // Periodic snapshot from the client of every pet's current runtime state
+    // (walk / idle / sit / sleep / play). Cached so /api/layout consumers
+    // (e.g. the narration bridge) can skip pets that are asleep without
+    // having to subscribe to per-transition events.
+    if (msg.states && typeof msg.states === 'object') {
+      petRuntimeStates.clear();
+      for (const [uid, state] of Object.entries(msg.states)) {
+        if (typeof uid === 'string' && typeof state === 'string') {
+          petRuntimeStates.set(uid, state);
+        }
+      }
+      petRuntimeStatesUpdatedAt = Date.now();
+    }
   } else if (msg.type === 'closeAgent') {
     removeAgent(msg.id, 'closed by user');
   } else if (msg.type === 'fetchGalleryManifest') {
@@ -1864,8 +1884,14 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'No layout' }));
       return;
     }
+    // Decorate the layout with current runtime pet states (if a recent snapshot
+    // exists) so consumers like the narration bridge can skip sleeping pets.
+    let response = layout;
+    if (petRuntimeStates.size > 0 && Date.now() - petRuntimeStatesUpdatedAt < 60_000) {
+      response = { ...layout, petStates: Object.fromEntries(petRuntimeStates) };
+    }
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify(layout));
+    res.end(JSON.stringify(response));
     return;
   }
 
