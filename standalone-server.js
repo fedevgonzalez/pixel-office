@@ -2338,7 +2338,7 @@ const wss = new WebSocket.Server({ server });
 // Types that external broadcasters are allowed to inject. Anything else is
 // dropped to prevent a malicious or buggy bridge from injecting layout
 // edits, agent state, etc. Extend as new event types stabilize.
-const BROADCAST_ALLOWED_TYPES = new Set(['agentToolStatusRefined', 'petSpeak', 'petReactionBubble', 'agentSpeak', 'petWalkToAgent', 'dailySummary']);
+const BROADCAST_ALLOWED_TYPES = new Set(['petSpeak', 'petReactionBubble', 'agentSpeak', 'petWalkToAgent', 'dailySummary']);
 const broadcasterClients = new Set();
 
 wss.on('connection', (ws, req) => {

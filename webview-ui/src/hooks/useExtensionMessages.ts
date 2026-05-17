@@ -234,18 +234,6 @@ export function useExtensionMessages(
         const bubbleType = msg.bubbleType as 'heart' | 'happy'
         const durationSec = (msg.durationSec as number) || 3
         os.setPetReactionBubble(petId, bubbleType, durationSec)
-      } else if (msg.type === 'agentToolStatusRefined') {
-        const id = msg.id as number
-        const toolId = msg.toolId as string
-        const status = msg.status as string
-        setAgentTools((prev) => {
-          const list = prev[id]
-          if (!list) return prev
-          return {
-            ...prev,
-            [id]: list.map((t) => (t.toolId === toolId ? { ...t, status } : t)),
-          }
-        })
       } else if (msg.type === 'agentToolDone') {
         const id = msg.id as number
         const toolId = msg.toolId as string
