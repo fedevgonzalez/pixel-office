@@ -661,6 +661,40 @@ function pngToSpriteData(png, x, y, w, h) {
   return sprite;
 }
 
+/**
+ * Extract a source rect from `png` and resample it to an `outW × outH` SpriteData
+ * by nearest-from-center sampling: each output pixel takes the color of the
+ * source pixel at the center of its corresponding source block.
+ *
+ * When srcW === outW && srcH === outH this is equivalent to `pngToSpriteData`
+ * (pixel-perfect). When the source rect is larger (e.g. ChatGPT renders pixel
+ * art at 9.6× the logical grid), this preserves the most representative color
+ * of each logical pixel without blending neighbors.
+ */
+function pngToSpriteDataResampled(png, srcX, srcY, srcW, srcH, outW, outH) {
+  const sprite = [];
+  const scaleX = srcW / outW;
+  const scaleY = srcH / outH;
+  for (let row = 0; row < outH; row++) {
+    const line = [];
+    const sy = srcY + Math.floor((row + 0.5) * scaleY);
+    for (let col = 0; col < outW; col++) {
+      const sx = srcX + Math.floor((col + 0.5) * scaleX);
+      const idx = (sy * png.width + sx) * 4;
+      const a = png.data[idx + 3];
+      if (a < PNG_ALPHA_THRESHOLD) { line.push(''); }
+      else {
+        const r = png.data[idx];
+        const g = png.data[idx + 1];
+        const b = png.data[idx + 2];
+        line.push('#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1));
+      }
+    }
+    sprite.push(line);
+  }
+  return sprite;
+}
+
 // Community-installed character sprites live here (downloaded via "Use this
 // Character" from the gallery). Bundled chars keep their stable numeric
 // indices; community chars are appended after them sorted by id, so existing
@@ -751,15 +785,38 @@ async function loadPetSprites() {
     const [, species, variant] = m;
     try {
       const png = await loadPng(filePath);
+      // Three loading paths:
+      //   - Legacy 80×48: 16×16 cells, upscale 2× to 32×32 logical
+      //   - Native 160×96: 32×32 cells, pixel-perfect 1:1
+      //   - Oversize (any larger 5×3 grid, e.g. ChatGPT's 1536×1024):
+      //     resample by nearest-from-center per logical pixel. Each cell logical
+      //     size stays 32×32 so the renderer sees a uniform sprite shape.
       const isLegacy16 = png.width === 80 && png.height === 48;
-      const cell = isLegacy16 ? 16 : 32;
+      const isNative = png.width === 160 && png.height === 96;
+      const isOversize = !isLegacy16 && !isNative && png.width % 5 === 0 && png.height % 3 === 0;
       const directions = { down: [], up: [], right: [] };
       const dirNames = ['down', 'up', 'right'];
       const colorCounts = new Map();
+      // Source cell dimensions in raster pixels
+      const srcCellW = isLegacy16 ? 16 : Math.round(png.width / 5);
+      const srcCellH = isLegacy16 ? 16 : Math.round(png.height / 3);
       for (let d = 0; d < 3; d++) {
         for (let frame = 0; frame < 5; frame++) {
-          let sprite = pngToSpriteData(png, frame * cell, d * cell, cell, cell);
-          if (isLegacy16) sprite = upscaleSpriteData(sprite, 2);
+          let sprite;
+          if (isLegacy16) {
+            sprite = pngToSpriteData(png, frame * 16, d * 16, 16, 16);
+            sprite = upscaleSpriteData(sprite, 2);
+          } else if (isNative) {
+            sprite = pngToSpriteData(png, frame * 32, d * 32, 32, 32);
+          } else {
+            // Oversize (or non-standard ratio that still divides cleanly): resample
+            sprite = pngToSpriteDataResampled(
+              png,
+              frame * srcCellW, d * srcCellH,
+              srcCellW, srcCellH,
+              32, 32,
+            );
+          }
           for (const row of sprite) {
             for (const px of row) {
               if (!px) continue;
@@ -776,6 +833,8 @@ async function loadPetSprites() {
       if (!result[species]) result[species] = {};
       result[species][variant] = { ...directions, palette };
       if (isLegacy16) console.log(`  pet ${filename}: 16×16 legacy upscaled 2× → 32×32`);
+      else if (isOversize) console.log(`  pet ${filename}: ${png.width}×${png.height} oversize, resampled cell ${srcCellW}×${srcCellH} → 32×32`);
+      else if (!isNative) console.log(`  pet ${filename}: non-standard ${png.width}×${png.height}, attempting resample`);
     } catch (e) {
       console.error(`  pet sprite ${filename} failed:`, e.message);
     }

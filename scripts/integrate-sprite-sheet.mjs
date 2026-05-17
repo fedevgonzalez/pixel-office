@@ -11,8 +11,11 @@
 //      `uvx` (part of `uv`). Install with:  brew install uv
 //   2. Find sprite bounding boxes by scanning for non-transparent regions in
 //      the cleaned image, then cluster them into the expected rows × cols.
-//   3. Nearest-neighbor downscale each sprite into a target cell (16×32 chars,
-//      16×16 pets) and compose into the final sheet.
+//   3. Nearest-neighbor downscale each sprite into a target cell (24×32 chars,
+//      32×32 pets) and compose into the final sheet. The detector tolerates
+//      ChatGPT's non-uniform layout (frames spaced unevenly with variable
+//      padding) by using transparent gaps as separators rather than assuming
+//      a strict uniform 1/cols × 1/rows grid.
 //
 // **Best results:** generate the source PNGs with ChatGPT image gen. Gemini
 // bakes the transparency-checker pattern into the file as opaque pixels and
@@ -30,8 +33,13 @@ if (!inputPath || !type || !outName) {
   process.exit(1)
 }
 
+// Target cell dimensions per asset type.
+// - char 24×32: bumped from 16×32 to allow visible accessories (glasses, ties).
+//   Legacy 16-wide sheets are still accepted by the runtime loader.
+// - pet 32×32: bumped from 16×16 so different species look proportionally
+//   different (kitten ~20×20, shepherd ~30×28) within the same cell.
 const TARGETS = {
-  char: { cols: 7, rows: 3, cellW: 16, cellH: 32 },
+  char: { cols: 7, rows: 3, cellW: 24, cellH: 32 },
   pet:  { cols: 5, rows: 3, cellW: 32, cellH: 32 },
 }
 const target = TARGETS[type]
