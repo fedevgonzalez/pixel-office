@@ -62,17 +62,6 @@ const sectionLabelStyle: React.CSSProperties = {
   fontWeight: 'bold',
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px 10px',
-  fontSize: '20px',
-  background: 'rgba(0, 0, 0, 0.35)',
-  color: 'rgba(255, 245, 235, 0.9)',
-  border: '2px solid var(--pixel-border)',
-  borderRadius: 0,
-  boxSizing: 'border-box',
-}
-
 const sectionStyle: React.CSSProperties = {
   padding: '10px 12px',
   borderBottom: '1px solid rgba(255, 245, 235, 0.06)',
@@ -492,7 +481,7 @@ function PetForm({
               onChange={(e) => setName(e.target.value)}
               placeholder={species === 'cat' ? 'Kitty' : 'Buddy'}
               maxLength={PET_MAX_NAME_LENGTH}
-              style={inputStyle}
+              className="pixel-input"
             />
           </div>
 
@@ -510,11 +499,8 @@ function PetForm({
               <select
                 value={variant}
                 onChange={(e) => setVariant(e.target.value)}
-                style={{
-                  ...inputStyle,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
+                className="pixel-input"
+                style={{ cursor: 'pointer', fontFamily: 'inherit' }}
               >
                 <option value={NO_VARIANT}>Default (customizable colors)</option>
                 {availableVariants.map((v) => (
@@ -609,7 +595,7 @@ function PetForm({
           onChange={(e) => setVoiceStyle(e.target.value)}
           placeholder="e.g. snobby, gossipy, deadpan"
           maxLength={60}
-          style={inputStyle}
+          className="pixel-input"
         />
         <label htmlFor="pet-backstory" style={{ ...sectionLabelStyle, marginTop: 8 }}>Backstory (optional)</label>
         <textarea
@@ -619,7 +605,8 @@ function PetForm({
           placeholder="A line or two about who this pet is — coloured the narrator's voice."
           maxLength={400}
           rows={2}
-          style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }}
+          className="pixel-input"
+          style={{ fontFamily: 'inherit', resize: 'vertical' }}
         />
       </div>
 
@@ -884,33 +871,19 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '6px 12px',
-            borderBottom: '1px solid var(--pixel-border)',
-            flexShrink: 0,
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div className="modal-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
             {view !== 'list' && (
               <button
                 onClick={() => setView('list')}
                 aria-label="Back to pet list"
                 className="pixel-close-btn"
-                style={{
-                  borderRadius: 0,
-                  fontSize: '20px',
-                  padding: '2px 8px 2px 4px',
-                  lineHeight: 1,
-                }}
+                style={{ fontSize: '20px' }}
               >
                 &#8592;
               </button>
             )}
-            <span id="pet-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>
+            <span id="pet-modal-title" className="modal-header__title">
               {headerTitle}
             </span>
           </div>
@@ -918,7 +891,6 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
             onClick={onClose}
             aria-label="Close pet manager"
             className="pixel-close-btn"
-            style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
           >
             &#215;
           </button>
@@ -928,23 +900,11 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
         {view === 'list' && (
           <>
             {pets.length === 0 ? (
-              <div style={{ padding: '28px 16px', textAlign: 'center' }}>
-                {/* Empty state */}
-                <div style={{
-                  fontSize: '28px',
-                  marginBottom: 12,
-                  opacity: 0.3,
-                  userSelect: 'none',
-                  color: 'var(--pixel-text-dim)',
-                  letterSpacing: '0.15em',
-                }}>
-                  [ no pets ]
-                </div>
-                <div style={{ fontSize: '20px', color: 'rgba(255, 245, 235, 0.6)', marginBottom: 6 }}>
-                  No pets yet
-                </div>
-                <div style={{ fontSize: '15px', color: 'rgba(255, 245, 235, 0.3)', lineHeight: 1.5 }}>
-                  Add a cat or dog to keep<br />your agents company!
+              <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--pixel-text-dim)' }}>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>🐾</div>
+                <div style={{ fontSize: 20, color: 'var(--pixel-text)', marginBottom: 6 }}>No pets yet</div>
+                <div style={{ fontSize: 16, color: 'var(--pixel-text-hint)', lineHeight: 1.4 }}>
+                  Add a cat or dog to keep your agents company.
                 </div>
               </div>
             ) : (
@@ -1105,7 +1065,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                       if (id) handleApplyTemplate(id)
                       else setSelectedTemplateId('')
                     }}
-                    style={{ ...inputStyle, flex: 1, cursor: 'pointer' }}
+                    className="pixel-input"
+                    style={{ flex: 1, cursor: 'pointer' }}
                     disabled={templatesForSpecies.length === 0}
                   >
                     <option value="">
@@ -1146,7 +1107,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                       onChange={(e) => setTemplateNameInput(e.target.value)}
                       onKeyDown={(e) => { if (e.key === 'Enter') handleSaveCurrentAsTemplate() }}
                       maxLength={40}
-                      style={{ ...inputStyle, flex: 1 }}
+                      className="pixel-input"
+                      style={{ flex: 1 }}
                     />
                     <button
                       onClick={handleSaveCurrentAsTemplate}

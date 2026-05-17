@@ -39,14 +39,6 @@ const modal: React.CSSProperties = {
   boxSizing: 'border-box' as const,
 }
 
-const header: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: '6px 12px',
-  borderBottom: '1px solid var(--pixel-border)',
-}
-
 // Row used for toggle items
 const row: React.CSSProperties = {
   display: 'flex',
@@ -215,15 +207,12 @@ export function SettingsModal({ isOpen, onClose, isDebugMode, onToggleDebugMode,
         style={modal}
       >
         {/* Header */}
-        <div style={header}>
-          <span id="settings-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>
-            Settings
-          </span>
+        <div className="modal-header">
+          <span id="settings-modal-title" className="modal-header__title">Settings</span>
           <button
             onClick={onClose}
             aria-label="Close settings"
             className="pixel-close-btn"
-            style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
           >
             ×
           </button>

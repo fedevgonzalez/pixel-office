@@ -45,17 +45,6 @@ const KIND_CONFIG: Record<ShareAssetKind, {
   background: { label: 'Background', emoji: '🌆', submissionLabel: 'background-submission', dimensionHint: '1280 × 800 px backdrop (or any clean 4× multiple)',           suggestedTags: ['indoor', 'outdoor', 'cozy', 'modern', 'cyberpunk', 'forest', 'cafe'] },
 }
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '6px 8px',
-  fontSize: '20px',
-  color: 'var(--pixel-text)',
-  background: 'rgba(0, 0, 0, 0.3)',
-  border: '2px solid var(--pixel-border)',
-  borderRadius: 0,
-  boxSizing: 'border-box',
-}
-
 const labelStyle: React.CSSProperties = {
   fontSize: '20px',
   color: 'var(--pixel-text-dim)',
@@ -168,11 +157,11 @@ export function ShareAssetModal({
           fontFamily: 'var(--pixel-font)',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <h2 id="share-asset-title" style={{ margin: 0, fontSize: '28px', color: 'var(--pixel-text)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
+          <h2 id="share-asset-title" style={{ margin: 0, fontSize: '24px', color: 'var(--pixel-text)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {cfg.emoji} Share your {cfg.label.toLowerCase()}
           </h2>
-          <button onClick={onClose} className="pixel-close-btn" style={{ fontSize: 24, padding: '0 8px' }}>×</button>
+          <button onClick={onClose} aria-label={`Close share ${cfg.label.toLowerCase()} dialog`} className="pixel-close-btn">×</button>
         </div>
 
         <p style={{ fontSize: 16, color: 'var(--pixel-text-hint)', marginTop: 0, marginBottom: 14 }}>
@@ -181,17 +170,17 @@ export function ShareAssetModal({
 
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle} htmlFor="share-asset-name">Name *</label>
-          <input id="share-asset-name" type="text" value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} maxLength={40} autoFocus />
+          <input id="share-asset-name" type="text" value={name} onChange={(e) => setName(e.target.value)} className="pixel-input" maxLength={40} autoFocus />
         </div>
 
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle} htmlFor="share-asset-author">Author (your GitHub handle)</label>
-          <input id="share-asset-author" type="text" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="anonymous" style={inputStyle} maxLength={40} />
+          <input id="share-asset-author" type="text" value={author} onChange={(e) => setAuthor(e.target.value)} placeholder="anonymous" className="pixel-input" maxLength={40} />
         </div>
 
         <div style={{ marginBottom: 12 }}>
           <label style={labelStyle} htmlFor="share-asset-desc">Description</label>
-          <input id="share-asset-desc" type="text" value={description} onChange={(e) => setDescription(e.target.value)} style={inputStyle} maxLength={200} />
+          <input id="share-asset-desc" type="text" value={description} onChange={(e) => setDescription(e.target.value)} className="pixel-input" maxLength={200} />
         </div>
 
         {kind === 'pet' && (
@@ -218,7 +207,7 @@ export function ShareAssetModal({
         {kind === 'prop' && (
           <div style={{ marginBottom: 12 }}>
             <label style={labelStyle} htmlFor="share-asset-cat">Category</label>
-            <select id="share-asset-cat" value={category} onChange={(e) => setCategory(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+            <select id="share-asset-cat" value={category} onChange={(e) => setCategory(e.target.value)} className="pixel-input" style={{ cursor: 'pointer' }}>
               {['plant', 'lamp', 'furniture', 'electronics', 'decor'].map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -226,7 +215,7 @@ export function ShareAssetModal({
 
         <div style={{ marginBottom: 14 }}>
           <label style={labelStyle} htmlFor="share-asset-tags">Tags (comma-separated)</label>
-          <input id="share-asset-tags" type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} style={inputStyle} maxLength={200} placeholder="cat, calico, warm" />
+          <input id="share-asset-tags" type="text" value={tagsInput} onChange={(e) => setTagsInput(e.target.value)} className="pixel-input" maxLength={200} placeholder="cat, calico, warm" />
           <div style={{ fontSize: 14, color: 'var(--pixel-text-hint)', marginTop: 4 }}>
             Suggested: {cfg.suggestedTags.join(', ')}
           </div>

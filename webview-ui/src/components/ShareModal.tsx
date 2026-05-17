@@ -13,17 +13,6 @@ const ISSUE_URL_BASE = `https://github.com/${GALLERY_REPO}/issues/new`
 const SUGGESTED_TAGS = ['small', 'large', 'cozy', 'modern', 'starter', 'team', 'solo', 'focus', 'creative', 'plants', 'books', 'meeting']
 const URL_BODY_LIMIT = 7500
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '6px 8px',
-  fontSize: '20px',
-  color: 'var(--pixel-text)',
-  background: 'rgba(0, 0, 0, 0.3)',
-  border: '2px solid var(--pixel-border)',
-  borderRadius: 0,
-  boxSizing: 'border-box',
-}
-
 const labelStyle: React.CSSProperties = {
   fontSize: '20px',
   color: 'var(--pixel-text-dim)',
@@ -188,22 +177,12 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '6px 12px',
-            borderBottom: '1px solid var(--pixel-border)',
-            flexShrink: 0,
-          }}
-        >
-          <span id="share-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Share Your Layout</span>
+        <div className="modal-header">
+          <span id="share-modal-title" className="modal-header__title">Share Your Layout</span>
           <button
             onClick={onClose}
             aria-label="Close share dialog"
             className="pixel-close-btn"
-            style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
           >
             &#215;
           </button>
@@ -245,7 +224,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
               onChange={(e) => setName(e.target.value)}
               placeholder="My Cozy Office"
               maxLength={50}
-              style={inputStyle}
+              className="pixel-input"
             />
           </div>
 
@@ -259,7 +238,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
               onChange={(e) => setAuthor(e.target.value)}
               placeholder="your-username"
               maxLength={40}
-              style={inputStyle}
+              className="pixel-input"
             />
           </div>
 
@@ -273,7 +252,8 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
               placeholder="A warm little office for 4 agents with a break room"
               maxLength={200}
               rows={2}
-              style={{ ...inputStyle, resize: 'vertical', minHeight: 48 }}
+              className="pixel-input"
+              style={{ resize: 'vertical', minHeight: 48 }}
             />
           </div>
 
@@ -307,7 +287,7 @@ export function ShareModal({ isOpen, onClose, getLayout }: ShareModalProps) {
               onChange={(e) => setTagInput(e.target.value)}
               onKeyDown={handleTagKeyDown}
               placeholder="Type a tag and press Enter"
-              style={inputStyle}
+              className="pixel-input"
             />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
               {SUGGESTED_TAGS.filter((t) => !tags.includes(t)).slice(0, 8).map((tag) => (

@@ -590,23 +590,14 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         }}
       >
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '6px 12px',
-            borderBottom: '1px solid var(--pixel-border)',
-            flexShrink: 0,
-          }}
-        >
-          <span id="gallery-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Community Gallery</span>
+        <div className="modal-header">
+          <span id="gallery-modal-title" className="modal-header__title">Community Gallery</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {user.authenticated ? (
               <button
                 onClick={logout}
                 className="pixel-btn"
-                style={{ padding: '4px 8px', fontSize: '16px', background: 'transparent', color: 'var(--pixel-text-dim)', border: '2px solid transparent', borderRadius: 0, cursor: 'pointer' }}
+                style={{ padding: '4px 8px', fontSize: '16px', background: 'transparent', color: 'var(--pixel-text-dim)', border: '2px solid transparent', borderRadius: 0 }}
                 title={`Signed in as ${user.login}`}
               >
                 {user.login}
@@ -618,7 +609,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
                   disabled={signingIn}
                   aria-busy={signingIn}
                   className="pixel-btn"
-                  style={{ padding: '4px 8px', fontSize: '16px', background: 'var(--pixel-active-bg)', color: signingIn ? 'var(--pixel-text-dim)' : 'var(--pixel-accent)', border: '2px solid var(--pixel-accent-dim)', borderRadius: 0, cursor: signingIn ? 'default' : 'pointer' }}
+                  style={{ padding: '4px 8px', fontSize: '16px', background: 'var(--pixel-active-bg)', color: signingIn ? 'var(--pixel-text-dim)' : 'var(--pixel-accent)', border: '2px solid var(--pixel-accent-dim)', borderRadius: 0 }}
                 >
                   <span className={signingIn ? 'pixel-agents-pulse' : undefined}>
                     {signingIn ? 'Waiting for GitHub...' : 'Sign in to vote'}
@@ -630,7 +621,6 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
               onClick={onClose}
               aria-label="Close gallery"
               className="pixel-close-btn"
-              style={{ borderRadius: 0, fontSize: '24px', padding: '4px 8px', lineHeight: 1 }}
             >
               &#215;
             </button>
@@ -839,15 +829,11 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           {activeKind === 'layouts' && manifest && !loading && !error && (
             <>
               {sortedLayouts.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '32px 16px' }}>
-                  <div style={{ fontSize: '28px', marginBottom: 10, opacity: 0.3, userSelect: 'none', color: 'var(--pixel-text-dim)', letterSpacing: '0.15em' }}>
-                    [ empty ]
-                  </div>
-                  <div style={{ fontSize: '22px', color: 'var(--pixel-text)', marginBottom: 6 }}>
-                    No community layouts yet
-                  </div>
-                  <div style={{ fontSize: '16px', color: 'var(--pixel-text-dim)', lineHeight: 1.5, marginBottom: 12 }}>
-                    Be the first to share your office design!
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
+                  <div style={{ fontSize: 28, marginBottom: 12 }}>🏢</div>
+                  <div style={{ fontSize: 20, color: 'var(--pixel-text)', marginBottom: 6 }}>No community layouts yet — be the first.</div>
+                  <div style={{ fontSize: 16, color: 'var(--pixel-text-hint)', marginBottom: 16 }}>
+                    Share your office design and it'll appear here after a quick PR review.
                   </div>
                   <button
                     onClick={() => setIsShareOpen(true)}
@@ -1114,7 +1100,7 @@ function GalleryCard({ layout, screenshotUrl, isImporting, isConfirming, onConfi
               cursor: isImporting ? 'default' : 'pointer',
             }}
           >
-            <span className={isImporting ? 'pixel-agents-pulse' : undefined} aria-live="polite">{isImporting ? 'Importing...' : 'Use This Layout'}</span>
+            <span className={isImporting ? 'pixel-agents-pulse' : undefined} aria-live="polite">{isImporting ? 'Importing…' : 'Use this Layout'}</span>
           </button>
         </div>
       )}

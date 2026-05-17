@@ -31,7 +31,8 @@
   /* Text: warm cream whites */
   --pixel-text: rgba(255, 245, 235, 0.9);
   --pixel-text-dim: rgba(255, 245, 235, 0.7);
-  --pixel-text-hint: rgba(255, 245, 235, 0.55);
+  /* Bumped from 0.55 → 0.65 so hint text clears WCAG AA at this size. */
+  --pixel-text-hint: rgba(255, 245, 235, 0.65);
 
   /* Buttons */
   --pixel-btn-bg: rgba(255, 245, 235, 0.08);
@@ -48,7 +49,7 @@
   --pixel-agent-text: rgba(200, 255, 220, 0.95);
 
   /* Close button */
-  --pixel-close-text: rgba(255, 245, 235, 0.5);
+  --pixel-close-text: rgba(255, 245, 235, 0.75);
   --pixel-close-hover: #d44;
 
   /* Hints & confirmations */
@@ -157,15 +158,83 @@ a:focus-visible,
 }
 
 .pixel-close-btn {
+  font-family: 'FS Pixel Sans', sans-serif;
   color: var(--pixel-close-text);
   background: transparent;
   border: none;
   cursor: pointer;
+  /* WCAG 2.5.5 minimum target size — keeps the X tappable on small screens. */
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 24px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pixel-close-btn:hover {
-  color: var(--pixel-text);
+  color: var(--pixel-close-hover);
   background: var(--pixel-btn-hover-bg);
+}
+
+/* Shared modal header: consistent height, padding, divider across every modal. */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--pixel-border);
+  flex-shrink: 0;
+  min-height: 44px;
+  gap: 8px;
+}
+
+.modal-header__title {
+  font-size: 24px;
+  color: var(--pixel-text);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Shared input style — used by ShareModal, ShareAssetModal, PetCreatorModal. */
+.pixel-input {
+  font-family: 'FS Pixel Sans', sans-serif;
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 20px;
+  color: var(--pixel-text);
+  background: rgba(0, 0, 0, 0.3);
+  border: 2px solid var(--pixel-border);
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+.pixel-input:hover:not(:disabled) {
+  border-color: var(--pixel-border-light);
+}
+
+.pixel-input:focus-visible {
+  outline: 2px solid var(--pixel-accent);
+  outline-offset: 1px;
+}
+
+/* Disabled affordance applied to any button (whether using .pixel-btn or
+   inline styles). Inline `cursor: pointer` rules win over .pixel-btn:disabled
+   in many places, so this targets all `button[disabled]` directly. */
+button:disabled,
+button[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: var(--pixel-btn-disabled-opacity);
+}
+
+/* Buttons in a busy state (aria-busy) keep their normal look but cursor hints
+   that interaction won't take effect. Used for "Importing…" / "Installing…". */
+button[aria-busy='true'] {
+  cursor: progress;
 }
 
 /* Gallery card hover */
