@@ -297,44 +297,26 @@ function cropResample(s: SpriteData, bbox: Bbox, targetW: number, targetH: numbe
   return out
 }
 
-/** Clean 2:1 nearest-neighbor downsample. Use it when the resample ratio MUST
- *  be integer (e.g. dog walk animations are noisy when 32 → odd target). */
-function downsampleSprite2x(s: SpriteData): SpriteData {
-  const out: SpriteData = []
-  for (let r = 0; r < s.length; r += 2) {
-    const row: string[] = []
-    for (let c = 0; c < s[r].length; c += 2) row.push(s[r][c])
-    out.push(row)
-  }
-  return out
-}
-
 function normalizeVariant(species: string, data: LoadedPetData): LoadedPetData {
-  if (species === 'cat') {
-    // Cats: per-variant content-bbox crop + non-integer resample to a uniform
-    // 14×12 cell so a black shorthair (fills its 32 cell) reads the same size
-    // as a gray tabby (heavy padding). The non-integer resample sometimes
-    // drops 1-pixel details across walk frames, but cat walks tend to keep
-    // the silhouette stable so the artefact isn't visible in practice.
-    const bbox = computeVariantBbox(data)
-    if (!bbox) return data
-    const tw = 14, th = 12
-    return {
-      down: data.down.map((f) => cropResample(f, bbox, tw, th)),
-      up: data.up.map((f) => cropResample(f, bbox, tw, th)),
-      right: data.right.map((f) => cropResample(f, bbox, tw, th)),
-      palette: data.palette,
-    }
-  }
-  // Dogs: clean 2:1 downsample (32 → 16) — integer ratio means every walk
-  // frame keeps the same sample pattern, so a shepherd's legs don't pop in
-  // and out between walk1 and walk2. Breed sizing falls out of the artist's
-  // content density: a shepherd that fills the cell stays larger than a
-  // corgi that doesn't.
+  // The server now resamples every variant to TILE_SIZE × TILE_SIZE (48×48
+  // after the upscale to higher world resolution). That's already native
+  // size for dogs — no downsample needed; the artist's content density
+  // determines apparent breed size.
+  if (species !== 'cat') return data
+
+  // Cats: per-variant content-bbox crop + resample to a uniform CAT_W × CAT_H
+  // (slightly less than tile so cats read smaller than dogs / agents). A
+  // black shorthair that fills its 48 cell ends up the same screen size as
+  // a gray tabby that doesn't.
+  const bbox = computeVariantBbox(data)
+  if (!bbox) return data
+  // 42×36 = 7/8 × 3/4 of TILE_SIZE — matches the old 14×12 ratio at the new
+  // world resolution. Both >32 so spriteCache won't apply legacy upscale.
+  const CAT_W = 42, CAT_H = 36
   return {
-    down: data.down.map(downsampleSprite2x),
-    up: data.up.map(downsampleSprite2x),
-    right: data.right.map(downsampleSprite2x),
+    down: data.down.map((f) => cropResample(f, bbox, CAT_W, CAT_H)),
+    up: data.up.map((f) => cropResample(f, bbox, CAT_W, CAT_H)),
+    right: data.right.map((f) => cropResample(f, bbox, CAT_W, CAT_H)),
     palette: data.palette,
   }
 }

@@ -806,8 +806,10 @@ async function loadPetSprites() {
   // Result: { [species]: { [variant]: { down: [...5], up: [...5], right: [...5] } } }
   // File naming: <species>_<variant>.png, e.g. dog_dachshund.png, cat_calico.png.
   // Default sheet: 5×3 grid of 32×32 frames. Legacy 80×48 sheets are upscaled 2×.
-  // When a community-installed variant has the same id as a bundled one, the
-  // installed one wins (last-write semantics in the loop).
+  // High-res ChatGPT-style sheets are bbox-trimmed then resampled to PET_CELL.
+  // PET_CELL must match the client's TILE_SIZE so pet sprites render 1:1
+  // at native tile size without further downsample / upscale.
+  const PET_CELL = 48;
   const result = {};
   for (const { filePath, filename } of sources) {
     const m = filename.match(/^([a-z]+)_([a-z0-9_-]+)\.png$/i);
@@ -846,17 +848,22 @@ async function loadPetSprites() {
         for (let frame = 0; frame < 5; frame++) {
           let sprite;
           if (isLegacy16) {
+            // 16×16 legacy → scale 3× directly to TILE_SIZE=48.
             sprite = pngToSpriteData(png, frame * 16, d * 16, 16, 16);
-            sprite = upscaleSpriteData(sprite, 2);
+            sprite = upscaleSpriteData(sprite, PET_CELL / 16);
           } else if (isNative) {
-            sprite = pngToSpriteData(png, frame * 32, d * 32, 32, 32);
+            // Legacy native 32-cell → resample 32 → PET_CELL (non-integer but
+            // bbox is centered, only used for old 160×96 bundled sheets).
+            sprite = pngToSpriteDataResampled(
+              png, frame * 32, d * 32, 32, 32, PET_CELL, PET_CELL,
+            );
           } else {
             sprite = pngToSpriteDataResampled(
               png,
               activeX + frame * srcCellW,
               activeY + d * srcCellH,
               srcCellW, srcCellH,
-              32, 32,
+              PET_CELL, PET_CELL,
             );
           }
           for (const row of sprite) {

@@ -1,6 +1,19 @@
 import type { SpriteData } from '../types.js'
+import { TILE_SIZE } from '../../constants.js'
 
 const zoomCaches = new Map<number, WeakMap<SpriteData, HTMLCanvasElement>>()
+
+// Legacy sprites authored when TILE_SIZE was 16 (procedural characters 24x32,
+// furniture 16x24/32x32, hand-coded pets 16x16). Anything where BOTH dims are
+// <= LEGACY_MAX_DIM is treated as legacy and nearest-neighbor upscaled by an
+// integer factor so it visually fills the current TILE_SIZE. Sprites authored
+// at the new TILE_SIZE (variant pets, future regenerated assets) skip this.
+const LEGACY_MAX_DIM = 32
+const LEGACY_SCALE = Math.max(1, Math.floor(TILE_SIZE / 16))
+
+function isLegacySprite(rows: number, cols: number): boolean {
+  return LEGACY_SCALE > 1 && rows <= LEGACY_MAX_DIM && cols <= LEGACY_MAX_DIM
+}
 
 // ── Outline sprite generation ─────────────────────────────────
 
@@ -57,9 +70,12 @@ export function getCachedSprite(sprite: SpriteData, zoom: number): HTMLCanvasEle
 
   const rows = sprite.length
   const cols = sprite[0].length
+  // Auto-upscale legacy 16-cell sprites so they visually fill TILE_SIZE.
+  const scale = isLegacySprite(rows, cols) ? LEGACY_SCALE : 1
+  const pixelSize = zoom * scale
   const canvas = document.createElement('canvas')
-  canvas.width = cols * zoom
-  canvas.height = rows * zoom
+  canvas.width = cols * pixelSize
+  canvas.height = rows * pixelSize
   const ctx = canvas.getContext('2d')!
   ctx.imageSmoothingEnabled = false
 
@@ -68,7 +84,7 @@ export function getCachedSprite(sprite: SpriteData, zoom: number): HTMLCanvasEle
       const color = sprite[r][c]
       if (color === '') continue
       ctx.fillStyle = color
-      ctx.fillRect(c * zoom, r * zoom, zoom, zoom)
+      ctx.fillRect(c * pixelSize, r * pixelSize, pixelSize, pixelSize)
     }
   }
 

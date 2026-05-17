@@ -1,7 +1,12 @@
 import type { FloorColor } from './office/types.js'
 
 // ── Grid & Layout ────────────────────────────────────────────
-export const TILE_SIZE = 16
+// Logical world pixels per tile. Bumped from 16 → 48 so high-res
+// ChatGPT-generated sprites can render with much more detail. Legacy 16-cell
+// procedurals (anything <= 32 in both dims) are nearest-neighbor upscaled at
+// the sprite cache layer until each is regenerated; new assets author at 48
+// (or multiples like 48×96 for chars/2-tile furniture).
+export const TILE_SIZE = 48
 export const DEFAULT_COLS = 20
 export const DEFAULT_ROWS = 11
 export const MAX_COLS = 64
