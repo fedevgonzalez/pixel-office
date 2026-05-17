@@ -8,6 +8,7 @@ const http = require('http');
 const https = require('https');
 const os = require('os');
 const { PNG } = require('pngjs');
+const { classifyTool } = require('./lib/claudeClient');
 
 // Load .env file if present (for GITHUB_TOKEN etc.)
 const envFile = path.join(__dirname, '.env');
@@ -301,6 +302,28 @@ function formatToolStatus(toolName, input) {
   }
 }
 
+// High-volume tools whose default label is already informative, and that
+// would otherwise saturate claude-service (MAX_CONCURRENT_QUERIES is small).
+// Anything not in this set goes through the refinement pipeline.
+const SKIP_REFINEMENT_FOR = new Set([
+  'Read', 'Glob', 'Grep', 'WebFetch', 'WebSearch', 'AskUserQuestion',
+]);
+
+// Fire-and-forget refinement of an agentToolStart status via claude-service.
+// The synchronous formatToolStatus() already produced a label; this just
+// upgrades it to a narrated Spanish version when Claude responds in time.
+// Skipped for replay events; tolerates the agent disappearing mid-flight.
+function refineToolStatus(agentId, toolId, toolName, input) {
+  if (SKIP_REFINEMENT_FOR.has(toolName)) return;
+  classifyTool(toolName, input).then((refined) => {
+    if (!refined) return;
+    const agent = agents.get(agentId);
+    if (!agent || !agent.activeToolIds.has(toolId)) return; // tool already finished
+    agent.activeToolStatuses.set(toolId, refined);
+    broadcast({ type: 'agentToolStatusRefined', id: agentId, toolId, status: refined });
+  }).catch(() => {});
+}
+
 // --- Timer management ---
 function cancelTimer(map, id) {
   const t = map.get(id);
@@ -409,7 +432,10 @@ function processLine(agentId, line) {
             agent.activeToolStatuses.set(block.id, status);
             agent.activeToolNames.set(block.id, toolName);
             if (!isPermissionExempt(toolName)) hasNonExempt = true;
-            if (!replaying) broadcast({ type: 'agentToolStart', id: agentId, toolId: block.id, status });
+            if (!replaying) {
+              broadcast({ type: 'agentToolStart', id: agentId, toolId: block.id, status });
+              refineToolStatus(agentId, block.id, toolName, block.input || {});
+            }
           }
         }
         if (hasNonExempt && !replaying) startPermissionTimer(agentId);

@@ -190,6 +190,18 @@ export function useExtensionMessages(
             return [...prev, { id: subId, parentAgentId: id, parentToolId: toolId, label }]
           })
         }
+      } else if (msg.type === 'agentToolStatusRefined') {
+        const id = msg.id as number
+        const toolId = msg.toolId as string
+        const status = msg.status as string
+        setAgentTools((prev) => {
+          const list = prev[id]
+          if (!list) return prev
+          return {
+            ...prev,
+            [id]: list.map((t) => (t.toolId === toolId ? { ...t, status } : t)),
+          }
+        })
       } else if (msg.type === 'agentToolDone') {
         const id = msg.id as number
         const toolId = msg.toolId as string
