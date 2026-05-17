@@ -1,5 +1,5 @@
 import { PetState, Direction, TILE_SIZE, PetPersonality } from '../types.js'
-import type { Pet, PlacedPet, SpriteData, TileType as TileTypeVal, PetPersonality as PetPersonalityType } from '../types.js'
+import type { Pet, PlacedPet, SpriteData, TileType as TileTypeVal, PetPersonality as PetPersonalityType, PetBubble } from '../types.js'
 import { findPath } from '../layout/tileMap.js'
 import { getPetSprites, colorPetSprite, listPetVariants } from '../sprites/petSprites.js'
 import {
@@ -361,6 +361,14 @@ function transitionToNewBehavior(
 }
 
 /** Trigger a reaction bubble on a pet (heart for cats, happy for dogs) */
+/** Show a specific reaction bubble (heart/happy) above a pet for a given
+ *  number of seconds. Used by remote events so the caller can override the
+ *  species default. */
+export function setPetReactionBubble(pet: Pet, type: PetBubble, durationSec: number): void {
+  pet.reactionBubble = type
+  pet.reactionTimer = durationSec
+}
+
 export function triggerPetReaction(pet: Pet): void {
   pet.reactionBubble = pet.species === 'cat' ? 'heart' : 'happy'
   pet.reactionTimer = PET_REACTION_DURATION_SEC

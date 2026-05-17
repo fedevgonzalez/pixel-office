@@ -214,6 +214,11 @@ export function useExtensionMessages(
         const text = msg.text as string
         const durationSec = (msg.durationSec as number) || 8
         os.setPetSpeech(petId, text, durationSec)
+      } else if (msg.type === 'petReactionBubble') {
+        const petId = msg.petId as string
+        const bubbleType = msg.bubbleType as 'heart' | 'happy'
+        const durationSec = (msg.durationSec as number) || 3
+        os.setPetReactionBubble(petId, bubbleType, durationSec)
       } else if (msg.type === 'agentToolStatusRefined') {
         const id = msg.id as number
         const toolId = msg.toolId as string
