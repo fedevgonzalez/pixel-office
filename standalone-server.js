@@ -8,7 +8,7 @@ const http = require('http');
 const https = require('https');
 const os = require('os');
 const { PNG } = require('pngjs');
-const { classifyTool } = require('./lib/claudeClient');
+const { classifyTool, petSpeak } = require('./lib/claudeClient');
 
 // Load .env file if present (for GITHUB_TOKEN etc.)
 const envFile = path.join(__dirname, '.env');
@@ -1601,4 +1601,62 @@ server.listen(PORT, '0.0.0.0', () => {
   }
   // Watch layout file for cross-tab sync
   watchLayoutFile();
+  // Periodic LLM-narrated pet utterances
+  schedulePetSpeak();
 });
+
+// --- Pet speak loop ---
+// Every ~90 s (±30 s jitter), pick a random pet from the active layout and
+// ask claude-service to produce an in-character one-liner. Skip when no
+// viewer is connected so the kiosk being asleep doesn't burn quota.
+
+const PET_SPEAK_BASE_MS = 90_000;
+const PET_SPEAK_JITTER_MS = 30_000;
+const PET_SPEAK_DURATION_SEC = 10;
+
+function hasViewerClients() {
+  for (const client of wss.clients) {
+    if (!reporterClients.has(client) && client.readyState === WebSocket.OPEN) return true;
+  }
+  return false;
+}
+
+function collectRecentActivity(maxLines) {
+  const lines = [];
+  for (const agent of agents.values()) {
+    for (const status of agent.activeToolStatuses.values()) {
+      if (status) lines.push('- ' + status);
+      if (lines.length >= maxLines) return lines.join('\n');
+    }
+  }
+  return lines.join('\n');
+}
+
+function schedulePetSpeak() {
+  const delay = PET_SPEAK_BASE_MS + (Math.random() * 2 - 1) * PET_SPEAK_JITTER_MS;
+  setTimeout(runPetSpeakTick, Math.max(15_000, delay));
+}
+
+async function runPetSpeakTick() {
+  try {
+    if (!hasViewerClients()) return;
+    const layout = loadLayout();
+    const pets = layout && Array.isArray(layout.pets) ? layout.pets : [];
+    if (!pets.length) return;
+    const pet = pets[Math.floor(Math.random() * pets.length)];
+    if (!pet || !pet.uid || !pet.name || !pet.species) return;
+    const text = await petSpeak({
+      petName: pet.name,
+      species: pet.species,
+      personality: pet.personality,
+      recentActivity: collectRecentActivity(5) || undefined,
+    });
+    if (text) {
+      broadcast({ type: 'petSpeak', petId: pet.uid, text, durationSec: PET_SPEAK_DURATION_SEC });
+    }
+  } catch {
+    // Network errors fall through; the next tick will try again.
+  } finally {
+    schedulePetSpeak();
+  }
+}

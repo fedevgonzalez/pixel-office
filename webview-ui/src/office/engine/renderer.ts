@@ -59,6 +59,31 @@ import {
 
 // ── Render functions ────────────────────────────────────────────
 
+/** Greedy word wrap into at most `maxLines` lines that fit `maxWidthPx`.
+ *  Caller must have already set ctx.font. Long words are not broken. */
+function wrapTextToLines(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  maxWidthPx: number,
+  maxLines: number,
+): string[] {
+  const words = text.split(/\s+/).filter(Boolean)
+  const lines: string[] = []
+  let current = ''
+  for (const w of words) {
+    const candidate = current ? current + ' ' + w : w
+    if (ctx.measureText(candidate).width <= maxWidthPx) {
+      current = candidate
+      continue
+    }
+    if (current) lines.push(current)
+    if (lines.length >= maxLines) { lines[maxLines - 1] = (lines[maxLines - 1] || '') + '…'; return lines }
+    current = w
+  }
+  if (current) lines.push(current)
+  return lines.slice(0, maxLines)
+}
+
 export function renderTileGrid(
   ctx: CanvasRenderingContext2D,
   tileMap: TileTypeVal[][],
@@ -297,6 +322,55 @@ export function renderScene(
             const alpha = pet.reactionTimer < 0.5 ? pet.reactionTimer / 0.5 : 1
             c.globalAlpha = alpha
             c.drawImage(bubbleCached, bx, by)
+            c.globalAlpha = 1
+          }
+
+          // Speech bubble (LLM-generated). Drawn above the reaction bubble
+          // and the name label so it doesn't overlap.
+          if (pet.speechText) {
+            const lineFontSize = Math.max(13, Math.round(15 * zoom / 2))
+            c.font = `${lineFontSize}px "FS Pixel Sans", monospace`
+            c.textAlign = 'center'
+            const maxWidthPx = Math.max(120, Math.round(160 * zoom / 2))
+            const lines = wrapTextToLines(c, pet.speechText, maxWidthPx, 3)
+            const lineHeight = Math.round(lineFontSize * 1.25)
+            const padH = Math.round(lineFontSize * 0.55)
+            const padV = Math.round(lineFontSize * 0.4)
+            let widest = 0
+            for (const ln of lines) {
+              const w = c.measureText(ln).width
+              if (w > widest) widest = w
+            }
+            const bgW = Math.round(widest + padH * 2)
+            const bgH = Math.round(lineHeight * lines.length + padV * 2)
+            const cx = petDrawX + petCached.width / 2
+            const baseY = petDrawY - PET_NAME_LABEL_Y_OFFSET * (zoom / 2)
+            const bgX = Math.round(cx - bgW / 2)
+            const bgY = Math.round(baseY - bgH - lineFontSize * 0.6)
+
+            // Fade in 0.25 s, out in last 0.5 s
+            const t = pet.speechTimer
+            const total = pet.speechFullDuration
+            const fadeIn = Math.min(1, (total - t) / 0.25)
+            const fadeOut = t < 0.5 ? t / 0.5 : 1
+            const alpha = Math.min(fadeIn, fadeOut)
+
+            c.globalAlpha = 0.85 * alpha
+            c.fillStyle = 'rgba(31, 26, 36, 0.9)'
+            c.fillRect(bgX, bgY, bgW, bgH)
+            c.globalAlpha = 0.5 * alpha
+            c.strokeStyle = 'rgba(232, 168, 76, 0.6)'
+            c.lineWidth = 1
+            c.strokeRect(bgX + 0.5, bgY + 0.5, bgW - 1, bgH - 1)
+
+            c.globalAlpha = alpha
+            c.fillStyle = 'rgba(255, 245, 235, 0.95)'
+            c.textBaseline = 'middle'
+            for (let i = 0; i < lines.length; i++) {
+              const ly = bgY + padV + lineHeight * i + Math.round(lineHeight / 2)
+              c.fillText(lines[i], cx, ly)
+            }
+            c.textBaseline = 'alphabetic'
             c.globalAlpha = 1
           }
 

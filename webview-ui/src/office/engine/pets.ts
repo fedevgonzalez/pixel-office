@@ -120,7 +120,17 @@ export function createPet(placed: PlacedPet): Pet {
     reactionTimer: 0,
     isPerkedUp: false,
     perkTimer: 0,
+    speechText: null,
+    speechTimer: 0,
+    speechFullDuration: 0,
   }
+}
+
+/** Show a speech bubble above the pet for `durationSec` seconds. */
+export function setPetSpeech(pet: Pet, text: string, durationSec: number): void {
+  pet.speechText = text
+  pet.speechTimer = durationSec
+  pet.speechFullDuration = durationSec
 }
 
 export function updatePet(
@@ -165,6 +175,16 @@ export function updatePet(
     if (pet.perkTimer <= 0) {
       pet.isPerkedUp = false
       pet.perkTimer = 0
+    }
+  }
+
+  // Tick speech bubble
+  if (pet.speechText) {
+    pet.speechTimer -= dt
+    if (pet.speechTimer <= 0) {
+      pet.speechText = null
+      pet.speechTimer = 0
+      pet.speechFullDuration = 0
     }
   }
 

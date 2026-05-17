@@ -246,6 +246,12 @@ export interface Pet {
   isPerkedUp: boolean
   /** Countdown timer for perk state */
   perkTimer: number
+  /** Current speech bubble text, or null if none showing */
+  speechText: string | null
+  /** Countdown timer for speech bubble (seconds remaining) */
+  speechTimer: number
+  /** Original duration of the current speech bubble, for fade-out alpha */
+  speechFullDuration: number
 }
 
 export const WorldBackgroundTheme = {

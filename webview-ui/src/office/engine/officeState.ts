@@ -17,7 +17,7 @@ import {
 } from '../../constants.js'
 import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Pet, FloorColor, PetColors } from '../types.js'
 import { createCharacter, updateCharacter } from './characters.js'
-import { createPet, updatePet, triggerPetReaction, perkUpPet, walkPetToTile as petWalkToTile } from './pets.js'
+import { createPet, updatePet, triggerPetReaction, perkUpPet, walkPetToTile as petWalkToTile, setPetSpeech } from './pets.js'
 import { matrixEffectSeeds } from './matrixEffect.js'
 import { isWalkable, getWalkableTiles, findPath } from '../layout/tileMap.js'
 import {
@@ -867,6 +867,12 @@ export class OfficeState {
   triggerPetReaction(uid: string): void {
     const pet = this.pets.get(uid)
     if (pet) triggerPetReaction(pet)
+  }
+
+  /** Show a speech bubble above a pet for `durationSec` seconds */
+  setPetSpeech(uid: string, text: string, durationSec: number): void {
+    const pet = this.pets.get(uid)
+    if (pet) setPetSpeech(pet, text, durationSec)
   }
 
   /** Send a pet to walk toward a tile */

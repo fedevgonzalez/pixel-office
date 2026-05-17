@@ -190,6 +190,11 @@ export function useExtensionMessages(
             return [...prev, { id: subId, parentAgentId: id, parentToolId: toolId, label }]
           })
         }
+      } else if (msg.type === 'petSpeak') {
+        const petId = msg.petId as string
+        const text = msg.text as string
+        const durationSec = (msg.durationSec as number) || 8
+        os.setPetSpeech(petId, text, durationSec)
       } else if (msg.type === 'agentToolStatusRefined') {
         const id = msg.id as number
         const toolId = msg.toolId as string
