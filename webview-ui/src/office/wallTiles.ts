@@ -12,6 +12,7 @@
 import type { SpriteData, TileType as TileTypeVal, FloorColor, FurnitureInstance } from './types.js'
 import { TileType, TILE_SIZE } from './types.js'
 import { getColorizedSprite } from './colorize.js'
+import { getSpriteRenderSize } from './sprites/spriteCache.js'
 
 /** 16 wall sprites indexed by bitmask (0-15) */
 let wallSprites: SpriteData[] | null = null
@@ -50,8 +51,10 @@ export function getWallSprite(
   const sprite = wallSprites[mask]
   if (!sprite) return null
 
-  // Anchor sprite at bottom of tile — tall sprites extend upward
-  return { sprite, offsetY: TILE_SIZE - sprite.length }
+  // Anchor sprite at bottom of tile — tall sprites extend upward.
+  // Use rendered height (post legacy auto-upscale) so the anchor stays correct
+  // when sprites authored at TILE_SIZE=16 are upscaled 3× to fill TILE_SIZE=48.
+  return { sprite, offsetY: TILE_SIZE - getSpriteRenderSize(sprite).height }
 }
 
 /**
@@ -83,7 +86,8 @@ export function getColorizedWallSprite(
   const cacheKey = `wall-${mask}-${color.h}-${color.s}-${color.b}-${color.c}`
   const colorized = getColorizedSprite(cacheKey, sprite, { ...color, colorize: true })
 
-  return { sprite: colorized, offsetY: TILE_SIZE - sprite.length }
+  // See getWallSprite for why we use rendered height instead of raw length.
+  return { sprite: colorized, offsetY: TILE_SIZE - getSpriteRenderSize(colorized).height }
 }
 
 /**

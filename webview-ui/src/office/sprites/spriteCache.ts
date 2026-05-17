@@ -15,6 +15,19 @@ function isLegacySprite(rows: number, cols: number): boolean {
   return LEGACY_SCALE > 1 && rows <= LEGACY_MAX_DIM && cols <= LEGACY_MAX_DIM
 }
 
+/**
+ * Effective render size of a sprite in logical (zoom=1) pixels, accounting
+ * for the legacy auto-upscale. Code that anchors a sprite to a tile (walls,
+ * tall furniture) must use these dimensions — NOT sprite.length/[0].length —
+ * to compute the correct draw offset.
+ */
+export function getSpriteRenderSize(sprite: SpriteData): { width: number; height: number } {
+  const rows = sprite.length
+  const cols = sprite[0]?.length ?? 0
+  const scale = isLegacySprite(rows, cols) ? LEGACY_SCALE : 1
+  return { width: cols * scale, height: rows * scale }
+}
+
 // ── Outline sprite generation ─────────────────────────────────
 
 const outlineCache = new WeakMap<SpriteData, SpriteData>()
