@@ -45,23 +45,40 @@ const TARGETS = {
 const target = TARGETS[type]
 if (!target) { console.error(`unknown type: ${type}`); process.exit(1) }
 
-// ── 1. Clean with proper-pixel-art ───────────────────────────
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ppa-'))
-const cleaned = path.join(tmpDir, 'cleaned.png')
-console.log(`→ cleaning with proper-pixel-art…`)
-try {
-  execFileSync('uvx', [
-    '--from', 'proper-pixel-art', 'ppa',
-    inputPath, '-o', cleaned,
-    '-c', '8', '-s', '1', '-t',
-  ], { stdio: ['ignore', 'inherit', 'inherit'] })
-} catch (e) {
-  console.error('ppa failed. Is `uv` installed?  brew install uv')
-  process.exit(1)
-}
+// ── 1. Conditionally clean with proper-pixel-art ─────────────
+// If the source already has true alpha (ChatGPT renders with alpha 0 outside
+// each sprite), skip ppa entirely — it tends to introduce internal padding
+// inside the cell margins that confuses the gap detector. Only fall back to
+// ppa when the source has an opaque background (e.g. checker, grey vignette).
+const rawSrc = PNG.sync.read(fs.readFileSync(inputPath))
+const cornerAlpha = (x, y) => rawSrc.data[(y * rawSrc.width + x) * 4 + 3]
+const cornersTransparent =
+  cornerAlpha(0, 0) === 0 &&
+  cornerAlpha(rawSrc.width - 1, 0) === 0 &&
+  cornerAlpha(0, rawSrc.height - 1) === 0 &&
+  cornerAlpha(rawSrc.width - 1, rawSrc.height - 1) === 0
 
-const src = PNG.sync.read(fs.readFileSync(cleaned))
-console.log(`  cleaned to ${src.width} × ${src.height}`)
+let src
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ppa-'))
+if (cornersTransparent) {
+  console.log(`→ source has true alpha — skipping proper-pixel-art`)
+  src = rawSrc
+} else {
+  console.log(`→ source has opaque background — cleaning with proper-pixel-art…`)
+  const cleaned = path.join(tmpDir, 'cleaned.png')
+  try {
+    execFileSync('uvx', [
+      '--from', 'proper-pixel-art', 'ppa',
+      inputPath, '-o', cleaned,
+      '-c', '8', '-s', '1', '-t',
+    ], { stdio: ['ignore', 'inherit', 'inherit'] })
+  } catch (e) {
+    console.error('ppa failed. Is `uv` installed?  brew install uv')
+    process.exit(1)
+  }
+  src = PNG.sync.read(fs.readFileSync(cleaned))
+  console.log(`  cleaned to ${src.width} × ${src.height}`)
+}
 
 const idx = (x, y) => (y * src.width + x) * 4
 const alphaAt = (x, y) => src.data[idx(x, y) + 3]
