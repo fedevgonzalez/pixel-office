@@ -168,6 +168,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   const [confirmId, setConfirmId] = useState<string | null>(null)
   const [isShareOpen, setIsShareOpen] = useState(false)
   const [sortMode, setSortMode] = useState<SortMode>('popular')
+  const [activeKind, setActiveKind] = useState<'layouts' | 'pets' | 'characters' | 'props' | 'backgrounds'>('layouts')
   const [userLikes, setUserLikes] = useState<Record<number, UserLike>>({})
 
   const { user, login, logout, signingIn } = useAuth()
@@ -398,7 +399,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
             flexShrink: 0,
           }}
         >
-          <span id="gallery-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Community Layouts</span>
+          <span id="gallery-modal-title" style={{ fontSize: '24px', color: 'var(--pixel-text)' }}>Community Gallery</span>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {user.authenticated ? (
               <button
@@ -435,8 +436,47 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
           </div>
         </div>
 
-        {/* Sort bar */}
-        {manifest && manifest.layouts.length > 0 && (
+        {/* Kind tabs — each maps to a different community asset type. Today only
+            "layouts" is fully wired; other kinds show a "coming soon" placeholder
+            with a Share button so contributors can seed the gallery. */}
+        <div
+          role="tablist"
+          aria-label="Asset kind"
+          style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--pixel-border)', flexShrink: 0 }}
+        >
+          {(
+            [
+              { id: 'layouts',     label: '🏢 Layouts' },
+              { id: 'pets',        label: '🐾 Pets' },
+              { id: 'characters',  label: '🧑‍💻 Characters' },
+              { id: 'props',       label: '🪴 Props' },
+              { id: 'backgrounds', label: '🌆 Backgrounds' },
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab.id}
+              role="tab"
+              aria-selected={activeKind === tab.id}
+              onClick={() => setActiveKind(tab.id)}
+              style={{
+                flex: 1,
+                padding: '8px 4px',
+                fontSize: '16px',
+                background: activeKind === tab.id ? 'var(--pixel-active-bg)' : 'transparent',
+                color: activeKind === tab.id ? 'var(--pixel-accent)' : 'var(--pixel-text-dim)',
+                border: 'none',
+                borderBottom: activeKind === tab.id ? '2px solid var(--pixel-accent)' : '2px solid transparent',
+                borderRadius: 0,
+                cursor: 'pointer',
+              }}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort bar — layouts only for now */}
+        {activeKind === 'layouts' && manifest && manifest.layouts.length > 0 && (
           <div style={{ padding: '8px 16px 0', flexShrink: 0, display: 'flex', gap: 16, alignItems: 'center' }}>
             <span style={{ fontSize: '16px', color: 'var(--pixel-text-hint)' }}>Sort:</span>
             {(['popular', 'newest', 'az'] as const).map((mode) => (
@@ -462,7 +502,35 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
 
         {/* Content */}
         <div style={{ overflow: 'auto', flex: 1, padding: '12px 16px' }}>
-          {loading && (
+          {activeKind !== 'layouts' && (
+            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
+              <div style={{ fontSize: 28, marginBottom: 12 }}>
+                {activeKind === 'pets' ? '🐾' : activeKind === 'characters' ? '🧑‍💻' : activeKind === 'props' ? '🪴' : '🌆'}
+              </div>
+              <div style={{ fontSize: '20px', color: 'var(--pixel-text)', marginBottom: 6 }}>
+                The community {activeKind} gallery is just getting started.
+              </div>
+              <div style={{ fontSize: '16px', color: 'var(--pixel-text-hint)', marginBottom: 20 }}>
+                Submit yours via the <strong>Share</strong> button in the relevant editor
+                (Pets editor for pet variants, etc.) and it'll appear here after review.
+              </div>
+              <a
+                href={`https://github.com/fedevgonzalez/pixel-office-community/tree/main/${
+                  activeKind === 'backgrounds' ? 'backgrounds' : `sprites/${activeKind}`
+                }`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'inline-block', padding: '8px 14px', fontSize: 16,
+                  background: 'var(--pixel-btn-bg)', color: 'var(--pixel-text)',
+                  border: '2px solid var(--pixel-border)', borderRadius: 0, textDecoration: 'none',
+                }}
+              >
+                Browse contributions on GitHub →
+              </a>
+            </div>
+          )}
+          {activeKind === 'layouts' && loading && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, padding: '4px 0' }}>
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div key={i} className="pixel-agents-pulse" style={{
@@ -474,7 +542,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
             </div>
           )}
 
-          {error && !loading && (
+          {activeKind === 'layouts' && error && !loading && (
             <div style={{ textAlign: 'center', padding: '40px 0' }}>
               <p style={{ fontSize: '22px', color: 'var(--pixel-error)', marginBottom: 12 }}>{error}</p>
               <button
@@ -491,7 +559,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
             </div>
           )}
 
-          {manifest && !loading && !error && (
+          {activeKind === 'layouts' && manifest && !loading && !error && (
             <>
               {sortedLayouts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 16px' }}>

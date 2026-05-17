@@ -8,7 +8,7 @@ interface ShareModalProps {
   getLayout: () => OfficeLayout
 }
 
-const GALLERY_REPO = 'fedevgonzalez/pixel-office-layouts'
+const GALLERY_REPO = 'fedevgonzalez/pixel-office-community'
 const ISSUE_URL_BASE = `https://github.com/${GALLERY_REPO}/issues/new`
 const SUGGESTED_TAGS = ['small', 'large', 'cozy', 'modern', 'starter', 'team', 'solo', 'focus', 'creative', 'plants', 'books', 'meeting']
 const URL_BODY_LIMIT = 7500

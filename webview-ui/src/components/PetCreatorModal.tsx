@@ -19,6 +19,7 @@ import {
 import { getPetSprites, colorPetSprite, listPetVariants } from '../office/sprites/petSprites.js'
 import { ws } from '../wsClient.js'
 import type { PetTemplate } from '../hooks/useExtensionMessages.js'
+import { ShareAssetModal } from './ShareAssetModal.js'
 
 interface PetManagerModalProps {
   isOpen: boolean
@@ -26,7 +27,7 @@ interface PetManagerModalProps {
   pets: PlacedPet[]
   onCreatePet: (pet: Omit<PlacedPet, 'uid' | 'col' | 'row'>) => void
   onDeletePet: (uid: string) => void
-  onEditPet: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null }) => void
+  onEditPet: (uid: string, updates: { name?: string; petColors?: PetColors; personality?: string; variant?: string | null; backstory?: string | null; voiceStyle?: string | null }) => void
   templates: PetTemplate[]
 }
 
@@ -103,9 +104,12 @@ function drawPetToCanvas(
   ctx.clearRect(0, 0, canvasSize, canvasSize)
   ctx.imageSmoothingEnabled = false
 
-  const spriteSize = 16
-  const offsetX = Math.floor((canvasSize - spriteSize * scale) / 2)
-  const offsetY = Math.floor((canvasSize - spriteSize * scale) / 2)
+  // Sprite dimensions are read from the data so 16×16 procedural sprites and
+  // 32×32 PNG variants both render correctly in the preview.
+  const spriteH = sprite.length
+  const spriteW = sprite[0]?.length ?? 0
+  const offsetX = Math.floor((canvasSize - spriteW * scale) / 2)
+  const offsetY = Math.floor((canvasSize - spriteH * scale) / 2)
 
   for (let row = 0; row < sprite.length; row++) {
     for (let col = 0; col < sprite[row].length; col++) {
@@ -397,6 +401,10 @@ function PetForm({
   setPersonality,
   variant,
   setVariant,
+  backstory,
+  setBackstory,
+  voiceStyle,
+  setVoiceStyle,
   showSpeciesSelector,
 }: {
   species: PetSpecies
@@ -409,6 +417,10 @@ function PetForm({
   setPersonality: (p: PetPersonality) => void
   variant: string
   setVariant: (v: string) => void
+  backstory: string
+  setBackstory: (s: string) => void
+  voiceStyle: string
+  setVoiceStyle: (s: string) => void
   showSpeciesSelector: boolean
 }) {
   const availableVariants = listPetVariants(species)
@@ -513,6 +525,30 @@ function PetForm({
         </div>
       </div>
 
+      {/* Voice — optional narration hints used by external bridges */}
+      <div style={sectionStyle}>
+        <label htmlFor="pet-voice-style" style={sectionLabelStyle}>Voice style (optional)</label>
+        <input
+          id="pet-voice-style"
+          type="text"
+          value={voiceStyle}
+          onChange={(e) => setVoiceStyle(e.target.value)}
+          placeholder="e.g. snobby, gossipy, deadpan"
+          maxLength={60}
+          style={inputStyle}
+        />
+        <label htmlFor="pet-backstory" style={{ ...sectionLabelStyle, marginTop: 8 }}>Backstory (optional)</label>
+        <textarea
+          id="pet-backstory"
+          value={backstory}
+          onChange={(e) => setBackstory(e.target.value)}
+          placeholder="A line or two about who this pet is — coloured the narrator's voice."
+          maxLength={400}
+          rows={2}
+          style={{ ...inputStyle, fontFamily: 'inherit', resize: 'vertical' }}
+        />
+      </div>
+
       {/* Body colors */}
       <div style={{ ...sectionStyle, opacity: variant ? 0.4 : 1, pointerEvents: variant ? 'none' : 'auto' }}>
         <SwatchPicker
@@ -556,10 +592,13 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
   const [petColors, setPetColors] = useState<PetColors>(emptyPetColors)
   const [personality, setPersonality] = useState<PetPersonality>(PetPersonalityConst.CHILL)
   const [variant, setVariant] = useState<string>(NO_VARIANT)
+  const [backstory, setBackstory] = useState<string>('')
+  const [voiceStyle, setVoiceStyle] = useState<string>('')
   // Template UI state
   const [savingTemplate, setSavingTemplate] = useState(false)
   const [templateNameInput, setTemplateNameInput] = useState('')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
+  const [shareOpen, setShareOpen] = useState(false)
 
   useEffect(() => {
     if (!isOpen) return
@@ -648,12 +687,16 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       petColors: !variant && hasPetColors ? petColors : undefined,
       personality,
       variant: variant || undefined,
+      backstory: backstory.trim() || undefined,
+      voiceStyle: voiceStyle.trim() || undefined,
     })
     setView('list')
     setName('')
     setPetColors(emptyPetColors)
     setPersonality(PetPersonalityConst.CHILL)
     setVariant(NO_VARIANT)
+    setBackstory('')
+    setVoiceStyle('')
   }
 
   const handleStartEdit = (pet: PlacedPet) => {
@@ -663,6 +706,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
     setSpecies(pet.species)
     setPersonality((pet.personality as PetPersonality) || PetPersonalityConst.CHILL)
     setVariant(pet.variant || NO_VARIANT)
+    setBackstory(pet.backstory || '')
+    setVoiceStyle(pet.voiceStyle || '')
     setView('edit')
   }
 
@@ -677,6 +722,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
       // null sentinel = clear variant (default sprite); undefined = leave as-is.
       // We always intend to overwrite, so use null when empty.
       variant: variant || null,
+      backstory: backstory.trim() || null,
+      voiceStyle: voiceStyle.trim() || null,
     })
     setView('list')
     setEditingUid(null)
@@ -1062,6 +1109,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 petColors={petColors} setPetColors={setPetColors}
                 personality={personality} setPersonality={setPersonality}
                 variant={variant} setVariant={setVariant}
+                backstory={backstory} setBackstory={setBackstory}
+                voiceStyle={voiceStyle} setVoiceStyle={setVoiceStyle}
                 showSpeciesSelector={true}
               />
             </div>
@@ -1071,27 +1120,50 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
               background: 'rgba(0,0,0,0.15)',
               flexShrink: 0,
             }}>
-              <button
-                onClick={handleCreate}
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  fontSize: '20px',
-                  background: 'var(--pixel-agent-bg)',
-                  color: 'var(--pixel-agent-text)',
-                  border: '2px solid var(--pixel-agent-border)',
-                  borderRadius: 0,
-                  cursor: 'pointer',
-
-                  fontWeight: 'bold',
-                }}
-              >
-                Place in Office
-              </button>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  onClick={handleCreate}
+                  style={{
+                    flex: 1,
+                    padding: '10px 14px',
+                    fontSize: '20px',
+                    background: 'var(--pixel-agent-bg)',
+                    color: 'var(--pixel-agent-text)',
+                    border: '2px solid var(--pixel-agent-border)',
+                    borderRadius: 0,
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                  }}
+                >
+                  Place in Office
+                </button>
+                <button
+                  onClick={() => setShareOpen(true)}
+                  title="Share this pet design to the community gallery"
+                  style={{
+                    padding: '10px 14px',
+                    fontSize: '20px',
+                    background: 'transparent',
+                    color: 'var(--pixel-text-dim)',
+                    border: '2px solid var(--pixel-border)',
+                    borderRadius: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  🌐 Share
+                </button>
+              </div>
               <div style={{ fontSize: '13px', color: 'var(--pixel-text-hint)', marginTop: 5, textAlign: 'center' }}>
                 Pet will appear on a random walkable tile
               </div>
             </div>
+            <ShareAssetModal
+              isOpen={shareOpen}
+              onClose={() => setShareOpen(false)}
+              kind="pet"
+              defaultName={name}
+              defaultSpecies={species}
+            />
           </>
         )}
 
@@ -1105,6 +1177,8 @@ export function PetManagerModal({ isOpen, onClose, pets, onCreatePet, onDeletePe
                 petColors={petColors} setPetColors={setPetColors}
                 personality={personality} setPersonality={setPersonality}
                 variant={variant} setVariant={setVariant}
+                backstory={backstory} setBackstory={setBackstory}
+                voiceStyle={voiceStyle} setVoiceStyle={setVoiceStyle}
                 showSpeciesSelector={false}
               />
             </div>
