@@ -32,7 +32,7 @@ if (!inputPath || !type || !outName) {
 
 const TARGETS = {
   char: { cols: 7, rows: 3, cellW: 16, cellH: 32 },
-  pet:  { cols: 5, rows: 3, cellW: 16, cellH: 16 },
+  pet:  { cols: 5, rows: 3, cellW: 32, cellH: 32 },
 }
 const target = TARGETS[type]
 if (!target) { console.error(`unknown type: ${type}`); process.exit(1) }

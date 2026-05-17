@@ -243,6 +243,36 @@ export const DOG_SPRITES: PetSpriteSet = {
   ],
 }
 
+/**
+ * Nearest-neighbor upscale of a SpriteData by integer factor.
+ * Used to lift the hand-coded 16×16 cat/dog arrays into the 32×32 runtime
+ * format so they coexist with server-loaded 32×32 PNG variants without
+ * re-drawing thirty sprite arrays by hand. Blockier than a true 32×32
+ * redraw — replace per-species when artist-quality assets are available.
+ */
+function upscaleSprite(s: SpriteData, factor = 2): SpriteData {
+  if (factor <= 1) return s
+  const out: SpriteData = []
+  for (const row of s) {
+    const upRow: string[] = []
+    for (const cell of row) for (let i = 0; i < factor; i++) upRow.push(cell)
+    for (let i = 0; i < factor; i++) out.push(upRow.slice())
+  }
+  return out
+}
+
+function upscaleSpriteSet(set: PetSpriteSet, factor = 2): PetSpriteSet {
+  return {
+    frames: set.frames.map((dirRow) => dirRow.map((f) => upscaleSprite(f, factor))),
+  }
+}
+
+// Lift the 16×16 hand-coded sprites to 32×32 so the entire pet rendering path
+// (engine, renderer, preview, integrator) operates on a single uniform cell
+// size. PNG variants from server are already authored at 32×32 natively.
+const CAT_SPRITES_32: PetSpriteSet = upscaleSpriteSet(CAT_SPRITES, 2)
+const DOG_SPRITES_32: PetSpriteSet = upscaleSpriteSet(DOG_SPRITES, 2)
+
 // Server-loaded variant sprites, keyed [species][variant]. Populated from the
 // `petSpritesLoaded` WS message. When a pet has a `variant` set and that
 // species+variant exists here, it overrides the hardcoded sprite.
@@ -280,9 +310,9 @@ export function getPetSprites(species: string, variant?: string | null): PetSpri
     }
   }
   switch (species) {
-    case 'dog': return DOG_SPRITES
+    case 'dog': return DOG_SPRITES_32
     case 'cat':
-    default: return CAT_SPRITES
+    default: return CAT_SPRITES_32
   }
 }
 
@@ -370,21 +400,24 @@ function isBodyPixel(px: string, species: string): 'light' | 'mid' | 'dark' | nu
   return null
 }
 
-/** Determine if a pixel position should use the secondary (pattern) color */
+/** Determine if a pixel position should use the secondary (pattern) color.
+ * Thresholds assume a 32-px sprite (the runtime baseline). For the upscaled
+ * 16→32 hardcoded sprites the chest bands and split lines still read clean
+ * at this size; pattern reads on 32×32 PNG variants are also tuned here. */
 function shouldUseSecondary(row: number, col: number, pattern: string): boolean {
   switch (pattern) {
     case 'striped':
-      // Horizontal bands, 2px wide
-      return Math.floor(row / 2) % 2 === 1
+      // Horizontal bands, 4 px wide on the 32 px sprite
+      return Math.floor(row / 4) % 2 === 1
     case 'spotted':
       // Scattered spots using pseudo-random hash
       return ((row * 7 + col * 13) % 9) < 2
     case 'bicolor':
-      // Left/right split
-      return col >= 8
+      // Left/right split at midline of 32-px sprite
+      return col >= 16
     case 'tuxedo':
-      // Center chest area (front view appearance)
-      return col >= 5 && col <= 10 && row >= 4
+      // Center chest area (front view appearance) on 32-px sprite
+      return col >= 10 && col <= 20 && row >= 8
     default:
       return false
   }

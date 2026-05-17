@@ -667,8 +667,9 @@ async function loadPetSprites() {
   const dir = path.join(assetsDir, 'pets');
   if (!fs.existsSync(dir)) return null;
   // File naming: <species>_<variant>.png, e.g. dog_dachshund.png, cat_calico.png.
-  // Each file is a 5×3 grid of 16×16 frames (walk1, walk2, idle, sleep1, sleep2)
-  // across 3 directions (down, up, right).
+  // Default sheet: 5×3 grid of 32×32 frames (walk1, walk2, idle, sleep1, sleep2)
+  // across 3 directions (down, up, right). Total dims 160×96.
+  // Legacy: 80×48 sheets (16×16 cells) are detected by dims and upscaled 2×.
   const entries = fs.readdirSync(dir).filter((f) => f.endsWith('.png'));
   if (entries.length === 0) return null;
   // Result: { [species]: { [variant]: { down: [...5], up: [...5], right: [...5] } } }
@@ -679,15 +680,20 @@ async function loadPetSprites() {
     const [, species, variant] = m;
     try {
       const png = await loadPng(path.join(dir, f));
+      const isLegacy16 = png.width === 80 && png.height === 48;
+      const cell = isLegacy16 ? 16 : 32;
       const directions = { down: [], up: [], right: [] };
       const dirNames = ['down', 'up', 'right'];
       for (let d = 0; d < 3; d++) {
         for (let frame = 0; frame < 5; frame++) {
-          directions[dirNames[d]].push(pngToSpriteData(png, frame * 16, d * 16, 16, 16));
+          let sprite = pngToSpriteData(png, frame * cell, d * cell, cell, cell);
+          if (isLegacy16) sprite = upscaleSpriteData(sprite, 2);
+          directions[dirNames[d]].push(sprite);
         }
       }
       if (!result[species]) result[species] = {};
       result[species][variant] = directions;
+      if (isLegacy16) console.log(`  pet ${f}: 16×16 legacy upscaled 2× → 32×32`);
     } catch (e) {
       console.error(`  pet sprite ${f} failed:`, e.message);
     }
