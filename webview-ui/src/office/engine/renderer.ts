@@ -855,6 +855,62 @@ export interface SelectionRenderState {
   hoveredPetId?: string | null
 }
 
+function renderDailySummaryBanner(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  ds: { text: string; timer: number; fullDuration: number },
+): void {
+  const fadeIn = Math.min(1, (ds.fullDuration - ds.timer) / 0.6)
+  const fadeOut = ds.timer < 1.0 ? ds.timer / 1.0 : 1
+  const alpha = Math.min(fadeIn, fadeOut)
+  if (alpha <= 0) return
+
+  // Pick a font size that scales with viewport but caps so it stays legible
+  // on small kiosks and doesn't dominate giant screens.
+  const fontSize = Math.max(20, Math.min(32, Math.round(canvasHeight * 0.035)))
+  ctx.font = `${fontSize}px "FS Pixel Sans", monospace`
+  ctx.textAlign = 'center'
+
+  const maxWidthPx = Math.round(canvasWidth * 0.7)
+  const lines = wrapTextToLines(ctx, ds.text, maxWidthPx, 6)
+  const lineHeight = Math.round(fontSize * 1.4)
+  const padH = Math.round(fontSize * 1.2)
+  const padV = Math.round(fontSize * 0.9)
+  let widest = 0
+  for (const ln of lines) {
+    const w = ctx.measureText(ln).width
+    if (w > widest) widest = w
+  }
+  const bgW = Math.round(widest + padH * 2)
+  const bgH = Math.round(lineHeight * lines.length + padV * 2)
+  const bgX = Math.round((canvasWidth - bgW) / 2)
+  const bgY = Math.round((canvasHeight - bgH) / 2)
+
+  // Dim the rest of the canvas so the banner reads as the focus.
+  ctx.globalAlpha = 0.5 * alpha
+  ctx.fillStyle = '#0d0a12'
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+
+  ctx.globalAlpha = 0.92 * alpha
+  ctx.fillStyle = 'rgba(31, 26, 36, 0.95)'
+  ctx.fillRect(bgX, bgY, bgW, bgH)
+  ctx.globalAlpha = 0.7 * alpha
+  ctx.strokeStyle = 'rgba(232, 168, 76, 0.75)'
+  ctx.lineWidth = 2
+  ctx.strokeRect(bgX + 1, bgY + 1, bgW - 2, bgH - 2)
+
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = 'rgba(255, 245, 235, 0.97)'
+  ctx.textBaseline = 'middle'
+  for (let i = 0; i < lines.length; i++) {
+    const ly = bgY + padV + lineHeight * i + Math.round(lineHeight / 2)
+    ctx.fillText(lines[i], canvasWidth / 2, ly)
+  }
+  ctx.textBaseline = 'alphabetic'
+  ctx.globalAlpha = 1
+}
+
 export function renderFrame(
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
@@ -876,6 +932,7 @@ export function renderFrame(
   placedFurniture?: PlacedFurniture[],
   backgroundTheme?: WorldBackgroundTheme,
   zones?: Array<ZoneTypeVal | null>,
+  dailySummary?: { text: string; timer: number; fullDuration: number },
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -958,6 +1015,12 @@ export function renderFrame(
       editor.deleteButtonBounds = null
       editor.rotateButtonBounds = null
     }
+  }
+
+  // End-of-day banner — top z, never hidden by anything else (except in
+  // screenshot mode where we suppress all overlays).
+  if (dailySummary && dailySummary.text && !hideBubbles) {
+    renderDailySummaryBanner(ctx, canvasWidth, canvasHeight, dailySummary)
   }
 
   return { offsetX, offsetY }
