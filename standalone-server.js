@@ -672,6 +672,42 @@ function computeOpaqueBboxPng(png) {
 }
 
 /**
+ * Chroma-key out a flat magenta background (#FF00FF ± tolerance) from a pet
+ * PNG buffer, in-place. Pets are spec'd (see pets/PROMPTS.md) to fall back to
+ * a bright magenta fill when the generator can't produce true alpha; without
+ * this step the loader would treat that fill as part of the pet, inflating
+ * every frame's bbox and shrinking the entire roster.
+ *
+ * Tolerance is loose enough to catch slight AI dithering (e.g. #FE01FE) but
+ * tight enough to leave pink-nose details alone. We only apply the key when
+ * a meaningful fraction of pixels match — guards against eating sprite
+ * detail in PNGs that already use real alpha.
+ *
+ * Returns true if keying was applied.
+ */
+const PET_MAGENTA_KEY_MIN_FRACTION = 0.08; // ≥8% magenta pixels → it's a background
+function isPetMagentaPixel(r, g, b) {
+  return r > 230 && g < 60 && b > 230 && r + b > 470;
+}
+function chromaKeyPetMagenta(png) {
+  const data = png.data;
+  const totalPixels = data.length / 4;
+  let magentaCount = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] < PNG_ALPHA_THRESHOLD) continue;
+    if (isPetMagentaPixel(data[i], data[i + 1], data[i + 2])) magentaCount++;
+  }
+  if (magentaCount === 0) return false;
+  if (magentaCount / totalPixels < PET_MAGENTA_KEY_MIN_FRACTION) return false;
+  for (let i = 0; i < data.length; i += 4) {
+    if (isPetMagentaPixel(data[i], data[i + 1], data[i + 2])) {
+      data[i + 3] = 0;
+    }
+  }
+  return true;
+}
+
+/**
  * Detect the 5×3 frame grid in a pet sheet by projecting alpha onto each
  * axis. Works on any layout where:
  *   - Rows of frames are separated by transparent gaps
@@ -1155,6 +1191,10 @@ async function loadPetSprites() {
       const variantConfig = loadPetVariantConfig(filePath);
       const isLegacy16 = png.width === 80 && png.height === 48;
       const isNative = png.width === 160 && png.height === 96;
+      // Strip magenta background (if any) before grid detection / bbox
+      // measurement — the spec promises this safety net for AI generators
+      // that can't emit true alpha. No-op when the PNG already has alpha.
+      if (!isLegacy16 && !isNative) chromaKeyPetMagenta(png);
       let grid = null;
       if (!isLegacy16 && !isNative) {
         grid = detectPetFrameGrid(png);
