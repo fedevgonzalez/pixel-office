@@ -362,6 +362,11 @@ export const AUTO_ON_SIDE_DEPTH = 2
 // the same half-width (24 ≈ 48/2) is correct for both.
 export const CHARACTER_HIT_HALF_WIDTH = 24
 export const CHARACTER_HIT_HEIGHT = 72
-export const TOOL_OVERLAY_VERTICAL_OFFSET = 32
+// World pixels above the character's feet where the tool/name overlay anchors.
+// Sprites are ~72 world-px tall (16×24 at zoom 3), so anchoring at 80 puts the
+// anchor just above the head and the label (which renders bottom-up via
+// translateY(-100%)) sits cleanly over the head instead of covering it.
+export const TOOL_OVERLAY_VERTICAL_OFFSET = 80
 export const PULSE_ANIMATION_DURATION_SEC = 1.5
-export const TOOL_OVERLAY_LABEL_Y_OFFSET = 24
+// Small CSS-px gap between the anchor point (just above head) and the label.
+export const TOOL_OVERLAY_LABEL_Y_OFFSET = 8

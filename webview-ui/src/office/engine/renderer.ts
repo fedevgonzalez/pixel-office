@@ -245,10 +245,11 @@ export function renderScene(
           c.drawImage(cached, drawX, drawY)
           c.globalAlpha = 1
 
-          // Name label (always in kiosk, hover-only otherwise)
+          // Name label (always in kiosk, hover-only otherwise). Positioned so
+          // the bottom of the pill sits a small gap above the sprite — never
+          // overlaps the head.
           if (isKioskMode || isHovered) {
             const labelText = chName || 'Agent'
-            const nameY = drawY - 4 * (zoom * TILE_SIZE / 32)
             const nameX = drawX + cached.width / 2
             const fontSize = Math.max(13, Math.round(RESTING_AGENT_LABEL_FONT_SCALE * zoom * TILE_SIZE / 32))
             c.font = `${fontSize}px "FS Pixel Sans", monospace`
@@ -259,8 +260,10 @@ export function renderScene(
             const padV = Math.round(fontSize * 0.25)
             const bgW = nameMetrics.width + padH * 2
             const bgH = fontSize + padV * 2
+            const gap = Math.max(4, Math.round(fontSize * 0.35))
             const bgX = nameX - bgW / 2
-            const bgY = nameY - bgH / 2
+            const bgY = drawY - gap - bgH
+            const nameY = bgY + bgH / 2
 
             c.globalAlpha = RESTING_AGENT_LABEL_BG_ALPHA
             c.fillStyle = 'rgba(31, 26, 36, 0.9)'

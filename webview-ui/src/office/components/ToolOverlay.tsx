@@ -223,7 +223,10 @@ export function ToolOverlay({
               position: 'absolute',
               left: screenX,
               top: screenY - TOOL_OVERLAY_LABEL_Y_OFFSET,
-              transform: 'translateX(-50%)',
+              // translateY(-100%) anchors the label by its bottom edge, so it
+              // sits ABOVE the anchor point (just above the head) instead of
+              // hanging down over the sprite.
+              transform: 'translate(-50%, -100%)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
