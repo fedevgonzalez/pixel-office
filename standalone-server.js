@@ -770,6 +770,57 @@ function detectPetFrameGrid(png) {
   return grid;
 }
 
+/**
+ * Detect 7 tile bboxes in a floor sheet PNG that has padded / framed layouts.
+ *
+ * AI image generators (ChatGPT, etc.) interpret "tile sheet" as a poster of
+ * separate framed tile samples on a near-white background, not the tight 7:1
+ * strip we ask for. This function chroma-keys near-white pixels as background,
+ * projects the remaining content onto the X axis to find 7 column bands, then
+ * returns one tight bbox per band.
+ *
+ * Returns null if exactly 7 bands cannot be found (caller falls back to
+ * uniform width/7 slicing).
+ */
+function detectFloorCellBboxes(png) {
+  const W = png.width, H = png.height;
+  const isContent = (x, y) => {
+    const idx = (y * W + x) * 4;
+    const r = png.data[idx], g = png.data[idx + 1], b = png.data[idx + 2], a = png.data[idx + 3];
+    if (a < PNG_ALPHA_THRESHOLD) return false;          // transparent → bg
+    if (r > 235 && g > 235 && b > 235) return false;    // near-white → bg
+    return true;
+  };
+
+  const MIN_PER_COL = Math.max(3, Math.floor(H * 0.02));
+  const colCount = new Int32Array(W);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (isContent(x, y)) colCount[x]++;
+    }
+  }
+  const colBands = findBands(colCount, MIN_PER_COL);
+  if (colBands.length !== 7) return null;
+
+  const bboxes = [];
+  for (const cb of colBands) {
+    let x0 = cb.hi, x1 = cb.lo, y0 = H, y1 = 0;
+    for (let y = 0; y < H; y++) {
+      for (let x = cb.lo; x <= cb.hi; x++) {
+        if (isContent(x, y)) {
+          if (x < x0) x0 = x;
+          if (x > x1) x1 = x;
+          if (y < y0) y0 = y;
+          if (y > y1) y1 = y;
+        }
+      }
+    }
+    if (x0 > x1 || y0 > y1) return null; // empty band — bail
+    bboxes.push({ x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 });
+  }
+  return bboxes;
+}
+
 function findBands(counts, threshold) {
   const bands = [];
   const len = counts.length;
@@ -1391,10 +1442,24 @@ async function loadFloorTiles() {
   const file = path.join(assetsDir, 'floors.png');
   if (!fs.existsSync(file)) return null;
   const png = await loadPng(file);
-  // Detect cell size from sheet width assuming exactly 7 cells: 112 (16×16
-  // legacy) or 336 (48×48 native). Any other width is treated as a single
-  // strip of (width/7) wide cells, square — supports future bumps without
-  // a code change.
+
+  // For sheets whose aspect is far off the expected ~7:1, try to detect 7
+  // padded cell bboxes (AI generators tend to lay tiles out as separate
+  // framed samples). When detection succeeds, each bbox is resampled to
+  // 48×48 so the final palette is uniform regardless of source resolution.
+  const aspect = png.width / png.height;
+  if (aspect < 5.5 || aspect > 8.5) {
+    const bboxes = detectFloorCellBboxes(png);
+    if (bboxes && bboxes.length === 7) {
+      console.log(`  floors.png: detected 7 cells in ${png.width}×${png.height} padded canvas → resampling each to 48×48`);
+      return bboxes.map((b) => pngToSpriteDataResampled(png, b.x, b.y, b.w, b.h, 48, 48));
+    }
+    console.warn(`  floors.png: aspect ${aspect.toFixed(2)}:1 is far from 7:1 and bbox detection failed; falling back to uniform width/7 slicing (result may be off)`);
+  }
+
+  // Default tight-strip path: 7 equal-width cells across the full height.
+  // Covers the legacy 112×16 / 336×48 native layouts and any other tight
+  // 7:1 strip the user hand-authored.
   const cellW = Math.round(png.width / 7);
   const cellH = png.height; // floors are always 1 tile tall
   const sprites = [];
