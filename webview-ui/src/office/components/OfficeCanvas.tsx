@@ -37,9 +37,15 @@ interface OfficeCanvasProps {
   onZoomChange: (zoom: number) => void
   panRef: React.MutableRefObject<{ x: number; y: number }>
   dayNight?: DayNightState
+  /**
+   * Kiosk camera target. When the list is non-empty, the camera frames those
+   * agents (used for permission-wait alerts). When empty or undefined, the
+   * camera shows the full office — pets, props, and idle agents stay visible.
+   */
+  kioskFocusAgentIds?: number[]
 }
 
-export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef, dayNight }: OfficeCanvasProps) {
+export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef, dayNight, kioskFocusAgentIds }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const offsetRef = useRef({ x: 0, y: 0 })
@@ -69,6 +75,9 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
   const kioskLastSyncRef = useRef(0)
   // Kiosk smoothed target bbox (for gradual transitions between active/idle sets)
   const kioskTargetBboxRef = useRef<{ minX: number; minY: number; maxX: number; maxY: number } | null>(null)
+  // Kiosk focus IDs: read in render callback without restarting the game loop
+  const kioskFocusAgentIdsRef = useRef<number[] | undefined>(kioskFocusAgentIds)
+  kioskFocusAgentIdsRef.current = kioskFocusAgentIds
   // Mouse move throttle (avoid expensive hit-testing on every pixel)
   const lastMouseMoveRef = useRef(0)
   // Clamp pan so the map edge can't go past a margin inside the viewport
@@ -227,21 +236,25 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           }
         }
 
-        // Kiosk auto-frame: smooth zoom and pan to keep characters visible
-        // When 1+ agents are active → frame on active agents only.
-        // When ALL agents are idle → show the full office map (zoom out to fit).
-        // The existing lerp/smoothing handles transitions automatically — only the target changes.
+        // Kiosk auto-frame: by default show the full office (pets, props, idle
+        // agents all stay visible — the sidepanel narrates per-agent activity).
+        // Only zoom in when an agent needs user attention (permission pending),
+        // so the camera draws the eye exactly when something must be acted on.
         let effectiveZoom = curZoom
         if (isKioskMode && officeState.characters.size > 0) {
-          const allChars = Array.from(officeState.characters.values())
-          const activeChars = allChars.filter(ch => ch.isActive)
+          const focusIds = kioskFocusAgentIdsRef.current
+          const focusChars = focusIds && focusIds.length > 0
+            ? focusIds
+                .map((id) => officeState.characters.get(id))
+                .filter((ch): ch is NonNullable<typeof ch> => ch != null)
+            : []
 
           let rawMinX: number, rawMinY: number, rawMaxX: number, rawMaxY: number
 
-          if (activeChars.length > 0) {
-            // Frame on active agents only
+          if (focusChars.length > 0) {
+            // Frame on agents that need user attention
             rawMinX = Infinity; rawMinY = Infinity; rawMaxX = -Infinity; rawMaxY = -Infinity
-            for (const ch of activeChars) {
+            for (const ch of focusChars) {
               rawMinX = Math.min(rawMinX, ch.x - KIOSK_CHAR_BBOX_HALF_WIDTH)
               rawMinY = Math.min(rawMinY, ch.y - KIOSK_CHAR_BBOX_TOP)
               rawMaxX = Math.max(rawMaxX, ch.x + KIOSK_CHAR_BBOX_HALF_WIDTH)
@@ -249,12 +262,12 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             }
 
             // Padding: fixed base + viewport-proportional (adapts to large screens)
-            const basePad = activeChars.length === 1 ? KIOSK_PAD_SINGLE : KIOSK_PAD_MULTI
+            const basePad = focusChars.length === 1 ? KIOSK_PAD_SINGLE : KIOSK_PAD_MULTI
             const viewportPad = Math.min(w, h) * KIOSK_PAD_VIEWPORT_FRACTION / (kioskZoomRef.current || 1)
             const pad = basePad + viewportPad
             rawMinX -= pad; rawMinY -= pad; rawMaxX += pad; rawMaxY += pad
           } else {
-            // All agents idle → show the full office map with a small tile padding
+            // Default: show the full office map with a small tile padding
             const layout = officeState.getLayout()
             const padPx = KIOSK_FULL_OFFICE_PAD_TILES * TILE_SIZE
             rawMinX = -padPx

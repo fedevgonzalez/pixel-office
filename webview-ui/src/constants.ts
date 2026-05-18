@@ -98,24 +98,27 @@ export const KIOSK_PAD_VIEWPORT_FRACTION = 0.05
 // Minimum bbox size to prevent extreme zoom (world pixels).
 export const KIOSK_BBOX_MIN = 192
 // Zoom lerp thresholds (adaptive speed: fast approach, slow settle)
+// Tuned slow on purpose — kiosk camera moves are rare (only on permission alerts),
+// so we trade reaction time for a calm, cinematic glide.
 export const KIOSK_ZOOM_LERP_FAST_THRESHOLD = 2
-export const KIOSK_ZOOM_LERP_FAST = 0.04
+export const KIOSK_ZOOM_LERP_FAST = 0.025
 export const KIOSK_ZOOM_LERP_MID_THRESHOLD = 0.5
-export const KIOSK_ZOOM_LERP_MID = 0.035
-export const KIOSK_ZOOM_LERP_SLOW = 0.025
+export const KIOSK_ZOOM_LERP_MID = 0.02
+export const KIOSK_ZOOM_LERP_SLOW = 0.014
 // Pan lerp thresholds (adaptive speed like zoom)
 export const KIOSK_PAN_LERP_FAST_THRESHOLD = 200
-export const KIOSK_PAN_LERP_FAST = 0.05
+export const KIOSK_PAN_LERP_FAST = 0.03
 export const KIOSK_PAN_LERP_MID_THRESHOLD = 50
-export const KIOSK_PAN_LERP_MID = 0.04
-export const KIOSK_PAN_LERP_SLOW = 0.03
+export const KIOSK_PAN_LERP_MID = 0.024
+export const KIOSK_PAN_LERP_SLOW = 0.018
 // Deadzone: ignore target changes smaller than this (world pixels) to prevent jitter
 export const KIOSK_DEADZONE_PX = 3
 // Target smoothing: lerp factor for bbox target itself (smooths active↔idle transitions)
-// Slow value (0.03) means a large bbox shift takes ~3s to complete, giving a cinematic glide
-export const KIOSK_TARGET_SMOOTHING = 0.03
-// Full-office view: padding (in tiles) added around the map bounds when all agents are idle
-export const KIOSK_FULL_OFFICE_PAD_TILES = 1
+// Slow value gives a cinematic glide when the focus set changes.
+export const KIOSK_TARGET_SMOOTHING = 0.02
+// Full-office view: padding (in tiles) added around the map bounds (default kiosk view).
+// Generous padding so the office breathes — pets and props don't kiss the screen edge.
+export const KIOSK_FULL_OFFICE_PAD_TILES = 2
 // React state sync interval (ms) and threshold
 export const KIOSK_SYNC_INTERVAL_MS = 100
 export const KIOSK_SYNC_THRESHOLD = 0.05

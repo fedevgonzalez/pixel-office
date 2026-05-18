@@ -5,7 +5,6 @@ import {
   KIOSK_CLOCK_UPDATE_MS,
   KIOSK_CLOCK_OPACITY,
   KIOSK_CLOCK_MARGIN,
-  KIOSK_STATUS_PANEL_WIDTH,
 } from '../constants.js'
 
 interface KioskClockProps {
@@ -66,10 +65,10 @@ export function KioskClock({ dayNight }: KioskClockProps) {
       style={{
         position: 'absolute',
         bottom: KIOSK_CLOCK_MARGIN,
-        right: KIOSK_STATUS_PANEL_WIDTH + KIOSK_CLOCK_MARGIN,
+        left: KIOSK_CLOCK_MARGIN,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'flex-end',
+        alignItems: 'flex-start',
         gap: 4,
         pointerEvents: 'none',
         userSelect: 'none',

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { OfficeState } from './office/engine/officeState.js'
 import { OfficeCanvas } from './office/components/OfficeCanvas.js'
 import { ToolOverlay } from './office/components/ToolOverlay.js'
@@ -143,6 +143,22 @@ function App() {
   const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates, dailySummaryActive } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const dayNight = useDayNight()
+
+  // Kiosk camera focus: only zoom in on agents that need user attention
+  // (pending permission). Otherwise the camera shows the full office so pets,
+  // props, and idle agents stay visible — the sidepanel narrates activity.
+  const kioskFocusAgentIds = useMemo<number[] | undefined>(() => {
+    if (!isKioskMode) return undefined
+    const ids: number[] = []
+    for (const key of Object.keys(agentTools)) {
+      const id = Number(key)
+      const tools = agentTools[id]
+      if (tools && tools.some((t) => t.permissionWait && !t.done)) {
+        ids.push(id)
+      }
+    }
+    return ids
+  }, [agentTools])
 
   const [isDebugMode, setIsDebugMode] = useState(false)
   const [petVersion, setPetVersion] = useState(0)
@@ -313,6 +329,7 @@ function App() {
         onZoomChange={editor.handleZoomChange}
         panRef={editor.panRef}
         dayNight={dayNight.state}
+        kioskFocusAgentIds={kioskFocusAgentIds}
       />
 
       {!isKioskMode && !isScreenshotMode && <ZoomControls zoom={editor.zoom} onZoomChange={editor.handleZoomChange} />}
