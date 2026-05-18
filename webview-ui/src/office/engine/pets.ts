@@ -143,6 +143,10 @@ export function updatePet(
   activeAgentPositions?: Array<{ col: number; row: number }>,
   officeIdleTime?: number,
   doorTiles?: Set<string>,
+  /** Other pets' tiles (incl. this pet). Used to keep pets from stacking on
+   *  the same tile or directly below another pet (where the lower pet's body
+   *  would cover the upper pet's feet). */
+  otherPetTiles?: Array<{ uid: string; col: number; row: number }>,
 ): void {
   // Bounds check: if pet is outside the grid, relocate to a walkable tile
   const rows = tileMap.length
@@ -201,6 +205,24 @@ export function updatePet(
 
   pet.frameTimer += dt
 
+  // If the pet is resting on a tile that conflicts with another pet, shorten
+  // its remaining static timer so it transitions (and walks away) soon, without
+  // making every overlapping pet move on the same frame.
+  if (
+    otherPetTiles &&
+    (pet.state === PetState.IDLE || pet.state === PetState.SIT || pet.state === PetState.SLEEP)
+  ) {
+    let conflict = false
+    for (const t of otherPetTiles) {
+      if (t.uid === pet.uid) continue
+      if (t.col === pet.tileCol && t.row === pet.tileRow) { conflict = true; break }
+      if (t.col === pet.tileCol && t.row + 1 === pet.tileRow) { conflict = true; break }
+    }
+    if (conflict && pet.behaviorTimer > 3) {
+      pet.behaviorTimer = randomRange(0.5, 3)
+    }
+  }
+
   switch (pet.state) {
     case PetState.IDLE:
     case PetState.SIT: {
@@ -208,7 +230,7 @@ export function updatePet(
       pet.frame = 0 // idle frame
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
       }
       break
     }
@@ -221,7 +243,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
       }
       break
     }
@@ -235,7 +257,7 @@ export function updatePet(
 
       if (pet.path.length === 0) {
         // Arrived — pick new behavior
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
         break
       }
 
@@ -274,7 +296,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
       }
       break
     }
@@ -288,8 +310,27 @@ function transitionToNewBehavior(
   blockedTiles: Set<string>,
   activeAgentPositions?: Array<{ col: number; row: number }>,
   doorTiles?: Set<string>,
+  otherPetTiles?: Array<{ uid: string; col: number; row: number }>,
 ): void {
   const behavior = pickBehavior(pet.species, pet.personality)
+
+  // Tiles forbidden as wander destinations: other pets' tiles AND the tile
+  // directly below each (same column, row+1) — so the lower pet's body can't
+  // cover the upper pet's feet. The current pet's own contribution is skipped
+  // so it can still move to its own neighborhood.
+  const forbidden = new Set<string>()
+  if (otherPetTiles) {
+    for (const t of otherPetTiles) {
+      if (t.uid === pet.uid) continue
+      forbidden.add(`${t.col},${t.row}`)
+      forbidden.add(`${t.col},${t.row + 1}`)
+    }
+  }
+
+  // If this pet is currently sitting on a forbidden tile (overlap with another
+  // pet), force a WALK so it relocates instead of resting in place.
+  const onForbidden = forbidden.has(`${pet.tileCol},${pet.tileRow}`)
+  if (onForbidden) behavior.state = PetState.WALK
 
   if (behavior.state === PetState.WALK) {
     // Dogs may follow active agents instead of wandering randomly
@@ -307,6 +348,7 @@ function transitionToNewBehavior(
       if (bestAgent) {
         // Walk to a tile adjacent to the agent (not on top of them)
         const adjacent = walkableTiles.filter((t) => {
+          if (forbidden.has(`${t.col},${t.row}`)) return false
           const d = Math.abs(t.col - bestAgent.col) + Math.abs(t.row - bestAgent.row)
           return d === 1 || d === 2
         })
@@ -328,6 +370,7 @@ function transitionToNewBehavior(
     // Default wander: pick a random walkable tile and pathfind to it
     const movesTarget = randomInt(PET_WANDER_MOVES_MIN, PET_WANDER_MOVES_MAX)
     const candidates = walkableTiles.filter((t) => {
+      if (forbidden.has(`${t.col},${t.row}`)) return false
       const dist = Math.abs(t.col - pet.tileCol) + Math.abs(t.row - pet.tileRow)
       return dist > 0 && dist <= movesTarget * 2
     })

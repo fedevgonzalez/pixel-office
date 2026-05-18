@@ -1022,9 +1022,13 @@ export class OfficeState {
       }
     }
 
-    // Update pets
+    // Update pets. Snapshot every pet's tile so each one can avoid stacking on
+    // top of (or directly below) the others when picking a wander target.
+    const petTiles = Array.from(this.pets.values()).map((p) => ({
+      uid: p.uid, col: p.tileCol, row: p.tileRow,
+    }))
     for (const pet of this.pets.values()) {
-      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles)
+      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles, petTiles)
     }
   }
 
