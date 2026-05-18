@@ -940,11 +940,10 @@ function renderDailySummaryBanner(
   const bgX = Math.round((canvasWidth - bgW) / 2)
   const bgY = Math.round((canvasHeight - bgH) / 2)
 
-  // Dim the rest of the canvas so the banner reads as the focus. Fully
-  // opaque at peak alpha so canvas-side speech bubbles and pet name
-  // labels disappear entirely (faint colours still leak at 92%). Fade in
-  // and out follows the banner's own alpha animation.
-  ctx.globalAlpha = alpha
+  // Dim the rest of the canvas so the banner reads as the focus but the
+  // office stays faintly visible behind it (user preference). Canvas-side
+  // labels/bubbles will leak through at this opacity — that's intentional.
+  ctx.globalAlpha = 0.55 * alpha
   ctx.fillStyle = '#0d0a12'
   ctx.fillRect(0, 0, canvasWidth, canvasHeight)
 

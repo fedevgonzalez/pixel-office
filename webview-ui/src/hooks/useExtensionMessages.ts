@@ -229,7 +229,7 @@ export function useExtensionMessages(
         os.setCharacterSpeech(agentId, text, durationSec)
       } else if (msg.type === 'dailySummary') {
         const text = msg.text as string
-        const durationSec = (msg.durationSec as number) || 30
+        const durationSec = (msg.durationSec as number) || 300
         os.setDailySummary(text, durationSec)
         setDailySummaryActive(true)
         if (dailySummaryTimerRef.current) clearTimeout(dailySummaryTimerRef.current)
