@@ -140,7 +140,7 @@ function App() {
 
   const isEditDirty = useCallback(() => editor.isEditMode && editor.isDirty, [editor.isEditMode, editor.isDirty])
 
-  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
+  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates, dailySummaryActive } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const dayNight = useDayNight()
 
@@ -424,7 +424,7 @@ function App() {
         </div>
       )}
 
-      {!isScreenshotMode && (
+      {!isScreenshotMode && !dailySummaryActive && (
         <ToolOverlay
           officeState={officeState}
           agents={agents}
@@ -438,7 +438,7 @@ function App() {
         />
       )}
 
-      {isKioskMode && !isScreenshotMode && (
+      {isKioskMode && !isScreenshotMode && !dailySummaryActive && (
         <KioskStatusPanel
           officeState={officeState}
           agents={agents}
@@ -448,7 +448,7 @@ function App() {
         />
       )}
 
-      {isKioskMode && !isScreenshotMode && (
+      {isKioskMode && !isScreenshotMode && !dailySummaryActive && (
         <KioskStatsOverlay
           officeState={officeState}
           agents={agents}
@@ -489,7 +489,7 @@ function App() {
         </div>
       )}
 
-      {isKioskMode && !isScreenshotMode && (
+      {isKioskMode && !isScreenshotMode && !dailySummaryActive && (
         <KioskClock dayNight={dayNight.state} />
       )}
 

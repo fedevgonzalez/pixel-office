@@ -70,6 +70,10 @@ export interface ExtensionMessageState {
   loadedAssets?: { catalog: FurnitureAsset[]; sprites: Record<string, string[][]> }
   workspaceFolders: WorkspaceFolder[]
   petTemplates: PetTemplate[]
+  /** True while the daily-summary banner is being shown — used to gate
+   *  React overlays (kiosk panels, tool labels, toolbars) so they don't
+   *  cover the banner. */
+  dailySummaryActive: boolean
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -96,6 +100,8 @@ export function useExtensionMessages(
   const [loadedAssets, setLoadedAssets] = useState<{ catalog: FurnitureAsset[]; sprites: Record<string, string[][]> } | undefined>()
   const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([])
   const [petTemplates, setPetTemplates] = useState<PetTemplate[]>([])
+  const [dailySummaryActive, setDailySummaryActive] = useState(false)
+  const dailySummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
   const layoutReadyRef = useRef(false)
@@ -225,6 +231,12 @@ export function useExtensionMessages(
         const text = msg.text as string
         const durationSec = (msg.durationSec as number) || 30
         os.setDailySummary(text, durationSec)
+        setDailySummaryActive(true)
+        if (dailySummaryTimerRef.current) clearTimeout(dailySummaryTimerRef.current)
+        dailySummaryTimerRef.current = setTimeout(() => {
+          setDailySummaryActive(false)
+          dailySummaryTimerRef.current = null
+        }, durationSec * 1000)
       } else if (msg.type === 'petWalkToAgent') {
         const petId = msg.petId as string
         const agentId = msg.agentId as number
@@ -416,5 +428,5 @@ export function useExtensionMessages(
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 
-  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates }
+  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive }
 }
