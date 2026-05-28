@@ -83,6 +83,22 @@ export interface ToolActivity {
   permissionWait?: boolean
 }
 
+/**
+ * Generic usage source displayed in the kiosk bottom-right panel. Pixel-office
+ * doesn't know which tool a source represents — the local daemon composes the
+ * label and primary/secondary strings. Keep this in sync with sanitizeUsageSource
+ * in standalone-server.js.
+ */
+export interface UsageSource {
+  id: string
+  label: string
+  primary: string
+  secondary?: string
+  percent?: number
+  color?: string
+  updatedAt: number
+}
+
 export const FurnitureType = {
   // Original hand-drawn sprites (kept for backward compat)
   DESK: 'desk',
@@ -123,6 +139,8 @@ export interface FurnitureCatalogEntry {
   orientation?: string
   /** Whether this item can be placed on top of desk/table surfaces */
   canPlaceOnSurfaces?: boolean
+  /** Whether this item acts as a surface that others (with canPlaceOnSurfaces) can be stacked onto. */
+  providesSurface?: boolean
   /** Number of tile rows from the top of the footprint that are "background" (allow placement, still block walking). Default 0. */
   backgroundTiles?: number
   /** Whether this item can be placed on wall tiles */
@@ -300,6 +318,8 @@ export interface OfficeLayout {
   furniture: PlacedFurniture[]
   /** Per-tile color settings, parallel to tiles array. null = wall/no color */
   tileColors?: Array<FloorColor | null>
+  /** Per-tile floor theme id, parallel to tiles array. null = non-floor or unpainted. */
+  tileThemes?: Array<string | null>
   /** Per-tile zone designations, parallel to tiles array. null = no zone */
   zones?: Array<ZoneType | null>
   /** Pets placed in the office */

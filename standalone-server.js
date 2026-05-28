@@ -94,6 +94,42 @@ function githubApiRequest(method, apiPath, token, body) {
   });
 }
 
+function isLoopbackRequest(req) {
+  const addr = (req.socket && req.socket.remoteAddress) || '';
+  return addr === '127.0.0.1' || addr === '::1' || addr === '::ffff:127.0.0.1';
+}
+
+// Usage writes are allowed from loopback unconditionally (typical local-daemon
+// case). Non-loopback callers must present PIXEL_OFFICE_USAGE_TOKEN; if the env
+// var isn't set, remote writes are rejected.
+function authorizeUsageWrite(req) {
+  if (isLoopbackRequest(req)) return true;
+  const expected = process.env.PIXEL_OFFICE_USAGE_TOKEN;
+  if (!expected) return false;
+  const got = req.headers['x-pixel-office-usage-token'];
+  return typeof got === 'string' && got === expected;
+}
+
+function sanitizeUsageSource(s) {
+  if (!s || typeof s !== 'object') return null;
+  const id = typeof s.id === 'string' ? s.id.slice(0, 64) : null;
+  const label = typeof s.label === 'string' ? s.label.slice(0, 64) : null;
+  const primary = typeof s.primary === 'string' ? s.primary.slice(0, 64) : null;
+  if (!id || !label || !primary) return null;
+  const out = { id, label, primary };
+  if (typeof s.secondary === 'string') out.secondary = s.secondary.slice(0, 96);
+  if (typeof s.percent === 'number' && Number.isFinite(s.percent)) {
+    out.percent = Math.max(0, Math.min(1, s.percent));
+  }
+  if (typeof s.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(s.color)) out.color = s.color;
+  return out;
+}
+
+function getActiveUsageSources() {
+  const now = Date.now();
+  return usageSources.filter((s) => now - s.updatedAt < USAGE_STALE_MS);
+}
+
 // Local community-repo path for development (fallback used when GitHub is
 // unreachable or the repo is private). Checks the new pixel-office-community
 // path first, then falls back to the historical pixel-office-layouts path
@@ -213,6 +249,16 @@ let wsClients = [];
 // per-transition events.
 const petRuntimeStates = new Map(); // uid → state string
 let petRuntimeStatesUpdatedAt = 0;
+// Usage panel state — populated by external local daemons via POST /api/usage.
+// Pixel-office stays generic: sources are opaque records the daemon defines
+// (e.g. "claude 5h", "codex session", "gemini quota"). Sources older than
+// USAGE_STALE_MS are filtered out so a crashed daemon doesn't leave stale data
+// on the kiosk forever.
+const USAGE_STALE_MS = 5 * 60 * 1000;
+const USAGE_MAX_SOURCES = 8;
+const USAGE_MAX_BODY_BYTES = 16 * 1024;
+let usageSources = []; // [{ id, label, primary, secondary?, percent?, color?, updatedAt }]
+let usageUpdatedAt = 0;
 const clientLastPong = new Map(); // ws -> timestamp of last pong
 const WS_PING_INTERVAL_MS = 15000;
 const WS_PONG_STALE_MS = 30000;
@@ -1824,6 +1870,13 @@ async function handleClientMessage(ws, msg) {
     const settings = loadSettings();
     ws.send(JSON.stringify({ type: 'settingsLoaded', ...settings }));
 
+    // Send current usage snapshot so a freshly opened kiosk tab shows the
+    // panel immediately instead of waiting for the next daemon POST.
+    const usageList = getActiveUsageSources();
+    if (usageList.length > 0) {
+      ws.send(JSON.stringify({ type: 'usageUpdate', sources: usageList, updatedAt: usageUpdatedAt }));
+    }
+
     // Send existing agents BEFORE layout (webview buffers them until layoutLoaded)
     const agentIds = [...agents.keys()].sort((a, b) => a - b);
     const folderNames = {};
@@ -2426,6 +2479,69 @@ const server = http.createServer(async (req, res) => {
     }
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify(response));
+    return;
+  }
+
+  // API: usage panel — generic surface for any local daemon to push tool quotas
+  // (e.g. Claude 5h limit, Codex session tokens, Gemini quota). Pixel-office is
+  // intentionally agnostic about which tool a source represents; the daemon
+  // composes the strings. Loopback callers don't need a token; remote callers
+  // must present `x-pixel-office-usage-token` matching PIXEL_OFFICE_USAGE_TOKEN.
+  if (urlPath === '/api/usage' && req.method === 'GET') {
+    const body = JSON.stringify({ sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(body);
+    return;
+  }
+  if (urlPath === '/api/usage' && (req.method === 'POST' || req.method === 'PUT')) {
+    if (!authorizeUsageWrite(req)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
+    let body = '';
+    let aborted = false;
+    req.on('data', (c) => {
+      body += c;
+      if (body.length > USAGE_MAX_BODY_BYTES) { aborted = true; req.destroy(); }
+    });
+    req.on('end', () => {
+      if (aborted) return;
+      try {
+        const parsed = JSON.parse(body || '{}');
+        const incoming = Array.isArray(parsed.sources) ? parsed.sources : [];
+        const now = Date.now();
+        const sanitized = [];
+        for (const raw of incoming) {
+          const s = sanitizeUsageSource(raw);
+          if (!s) continue;
+          s.updatedAt = now;
+          sanitized.push(s);
+          if (sanitized.length >= USAGE_MAX_SOURCES) break;
+        }
+        usageSources = sanitized;
+        usageUpdatedAt = now;
+        broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
+        res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        res.end(JSON.stringify({ ok: true, count: sanitized.length }));
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'bad json' }));
+      }
+    });
+    return;
+  }
+  if (urlPath === '/api/usage' && req.method === 'DELETE') {
+    if (!authorizeUsageWrite(req)) {
+      res.writeHead(401, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
+    usageSources = [];
+    usageUpdatedAt = Date.now();
+    broadcast({ type: 'usageUpdate', sources: [], updatedAt: usageUpdatedAt });
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ ok: true }));
     return;
   }
 

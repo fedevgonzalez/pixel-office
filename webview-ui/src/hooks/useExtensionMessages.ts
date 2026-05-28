@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import type { OfficeState } from '../office/engine/officeState.js'
-import type { OfficeLayout, ToolActivity } from '../office/types.js'
+import type { OfficeLayout, ToolActivity, UsageSource } from '../office/types.js'
 import { extractToolName } from '../office/toolUtils.js'
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js'
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js'
-import { setFloorSprites } from '../office/floorTiles.js'
+import { setFloorSprites, setFloorThemes, type FloorTheme } from '../office/floorTiles.js'
 import { setWallSprites } from '../office/wallTiles.js'
 import { setCharacterTemplates } from '../office/sprites/spriteData.js'
 import { setLoadedPetVariants } from '../office/sprites/petSprites.js'
@@ -74,6 +74,9 @@ export interface ExtensionMessageState {
    *  React overlays (kiosk panels, tool labels, toolbars) so they don't
    *  cover the banner. */
   dailySummaryActive: boolean
+  /** Generic usage panel data pushed by an external local daemon via
+   *  POST /api/usage. Empty when no daemon is running. */
+  usageSources: UsageSource[]
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -102,6 +105,7 @@ export function useExtensionMessages(
   const [petTemplates, setPetTemplates] = useState<PetTemplate[]>([])
   const [dailySummaryActive, setDailySummaryActive] = useState(false)
   const dailySummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const [usageSources, setUsageSources] = useState<UsageSource[]>([])
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
   const layoutReadyRef = useRef(false)
@@ -398,9 +402,17 @@ export function useExtensionMessages(
         const templates = (msg.templates as PetTemplate[]) || []
         setPetTemplates(templates)
       } else if (msg.type === 'floorTilesLoaded') {
-        const sprites = msg.sprites as string[][][]
-        console.log(`[Webview] Received ${sprites.length} floor tile patterns`)
-        setFloorSprites(sprites)
+        // New payload: { themes: [{id, sprites}] }
+        // Legacy payload: { sprites: [...] } — treated as the "default" theme.
+        if (Array.isArray(msg.themes)) {
+          const themes = msg.themes as FloorTheme[]
+          console.log(`[Webview] Received ${themes.length} floor theme(s): ${themes.map((t) => t.id).join(', ')}`)
+          setFloorThemes(themes)
+        } else if (Array.isArray(msg.sprites)) {
+          const sprites = msg.sprites as string[][][]
+          console.log(`[Webview] Received ${sprites.length} floor tile patterns (legacy payload)`)
+          setFloorSprites(sprites)
+        }
       } else if (msg.type === 'wallTilesLoaded') {
         const sprites = msg.sprites as string[][][]
         console.log(`[Webview] Received ${sprites.length} wall tile sprites`)
@@ -410,6 +422,9 @@ export function useExtensionMessages(
         setWorkspaceFolders(folders)
       } else if (msg.type === 'settingsLoaded') {
         if (typeof msg.soundEnabled === 'boolean') setSoundEnabled(msg.soundEnabled)
+      } else if (msg.type === 'usageUpdate') {
+        const sources = Array.isArray(msg.sources) ? (msg.sources as UsageSource[]) : []
+        setUsageSources(sources)
       } else if (msg.type === 'furnitureAssetsLoaded') {
         try {
           const catalog = msg.catalog as FurnitureAsset[]
@@ -428,5 +443,5 @@ export function useExtensionMessages(
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 
-  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive }
+  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive, usageSources }
 }
