@@ -125,6 +125,11 @@ export const KIOSK_SYNC_THRESHOLD = 0.05
 // Status panel
 export const KIOSK_STATUS_PANEL_UPDATE_MS = 2000
 export const KIOSK_STATUS_PANEL_WIDTH = 440
+/** How long an agent's "just finished" green pulse stays on the sidebar after
+ *  the turn ends. Stops earlier if the agent becomes active again. */
+export const KIOSK_FINISHED_HIGHLIGHT_MS = 30_000
+/** Green used for the "just finished" highlight (border, dot, pulse). */
+export const KIOSK_FINISHED_COLOR = '#7dd3a6'
 
 // ── Zoom ─────────────────────────────────────────────────────
 export const ZOOM_MIN = 1

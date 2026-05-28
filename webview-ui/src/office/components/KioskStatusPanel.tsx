@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react'
 import type { ToolActivity } from '../types.js'
 import type { OfficeState } from '../engine/officeState.js'
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js'
-import { KIOSK_STATUS_PANEL_UPDATE_MS, KIOSK_STATUS_PANEL_WIDTH, RESTING_COUNT_LABEL_FONT_SIZE } from '../../constants.js'
+import {
+  KIOSK_STATUS_PANEL_UPDATE_MS,
+  KIOSK_STATUS_PANEL_WIDTH,
+  RESTING_COUNT_LABEL_FONT_SIZE,
+  KIOSK_FINISHED_COLOR,
+} from '../../constants.js'
 
 interface KioskStatusPanelProps {
   officeState: OfficeState
@@ -10,6 +15,7 @@ interface KioskStatusPanelProps {
   agentTools: Record<number, ToolActivity[]>
   subagentTools: Record<number, Record<string, ToolActivity[]>>
   subagentCharacters: SubagentCharacter[]
+  agentFinishedAt: Record<number, number>
 }
 
 function getAgentStatus(
@@ -58,6 +64,7 @@ export function KioskStatusPanel({
   agentTools,
   subagentTools,
   subagentCharacters,
+  agentFinishedAt,
 }: KioskStatusPanelProps) {
   // Force periodic re-render to pick up officeState mutations (imperative state)
   // Using a longer interval since status changes propagate via props too
@@ -68,8 +75,9 @@ export function KioskStatusPanel({
   }, [])
 
   // Build entries: main agents first, then sub-agents grouped under parents
-  const entries: { id: number; name: string; status: string; hasPermission: boolean; isRunning: boolean; isSub: boolean }[] = []
+  const entries: { id: number; name: string; status: string; hasPermission: boolean; isRunning: boolean; isSub: boolean; justFinished: boolean }[] = []
   let restingCount = 0
+  const nowMs = Date.now()
 
   for (const agentId of agents) {
     const ch = officeState.characters.get(agentId)
@@ -82,6 +90,8 @@ export function KioskStatusPanel({
     }
 
     const { text, hasPermission, isRunning } = getAgentStatus(agentId, agentTools, ch.isActive)
+    const finishedDeadline = agentFinishedAt[agentId] ?? 0
+    const justFinished = finishedDeadline > nowMs && !isRunning && !hasPermission
     entries.push({
       id: agentId,
       name: ch.folderName || `Agent ${agentId}`,
@@ -89,6 +99,7 @@ export function KioskStatusPanel({
       hasPermission,
       isRunning,
       isSub: false,
+      justFinished,
     })
 
     // Sub-agents under this parent
@@ -105,13 +116,15 @@ export function KioskStatusPanel({
         hasPermission: subInfo.hasPermission,
         isRunning: subInfo.isRunning,
         isSub: true,
+        justFinished: false,
       })
     }
   }
 
-  // Sort: needs approval first, then running, then idle
+  // Sort: needs approval first, then running, then just-finished (so the user
+  // notices the green flash without scrolling), then plain idle.
   entries.sort((a, b) => {
-    const priority = (e: typeof a) => e.hasPermission ? 0 : e.isRunning ? 1 : 2
+    const priority = (e: typeof a) => e.hasPermission ? 0 : e.isRunning ? 1 : e.justFinished ? 2 : 3
     return priority(a) - priority(b)
   })
 
@@ -141,10 +154,19 @@ export function KioskStatusPanel({
     >
       {entries.map((e) => {
         const isIdle = e.status === 'Idle'
+        // justFinished was computed alongside entries so the sort order and
+        // the rendered styling agree on a single timestamp.
+        const justFinished = e.justFinished
         return (
           <div
             key={e.id}
-            className={e.hasPermission ? 'pixel-permission-pulse' : undefined}
+            className={
+              e.hasPermission
+                ? 'pixel-permission-pulse'
+                : justFinished
+                  ? 'pixel-just-finished-pulse'
+                  : undefined
+            }
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -152,15 +174,19 @@ export function KioskStatusPanel({
               padding: e.isSub ? '6px 10px 6px 24px' : '10px 10px',
               background: e.hasPermission
                 ? 'var(--pixel-status-permission-bg)'
-                : e.isRunning
-                  ? 'rgba(232, 168, 76, 0.08)'
-                  : 'transparent',
+                : justFinished
+                  ? 'rgba(125, 211, 166, 0.10)'
+                  : e.isRunning
+                    ? 'rgba(232, 168, 76, 0.08)'
+                    : 'transparent',
               borderLeft: e.hasPermission
                 ? '4px solid var(--pixel-status-permission)'
-                : e.isSub
-                  ? '2px solid rgba(255,255,255,0.15)'
-                  : 'none',
-              opacity: isIdle ? 0.45 : 1,
+                : justFinished
+                  ? `4px solid ${KIOSK_FINISHED_COLOR}`
+                  : e.isSub
+                    ? '2px solid rgba(255,255,255,0.15)'
+                    : 'none',
+              opacity: justFinished ? 1 : isIdle ? 0.45 : 1,
             }}
           >
             {/* Status dot */}
@@ -172,9 +198,11 @@ export function KioskStatusPanel({
                 borderRadius: '50%',
                 background: e.hasPermission
                   ? 'var(--pixel-status-permission)'
-                  : e.isRunning
-                    ? 'var(--pixel-status-active)'
-                    : 'rgba(255,245,235,0.2)',
+                  : justFinished
+                    ? KIOSK_FINISHED_COLOR
+                    : e.isRunning
+                      ? 'var(--pixel-status-active)'
+                      : 'rgba(255,245,235,0.2)',
                 flexShrink: 0,
               }}
             />
@@ -183,7 +211,11 @@ export function KioskStatusPanel({
                 style={{
                   fontSize: e.isSub ? '30px' : '38px',
                   fontWeight: e.isSub ? 'normal' : 'bold',
-                  color: isIdle ? 'rgba(255,245,235,0.5)' : 'rgba(255,245,235,0.9)',
+                  color: justFinished
+                    ? 'rgba(255,245,235,0.95)'
+                    : isIdle
+                      ? 'rgba(255,245,235,0.5)'
+                      : 'rgba(255,245,235,0.9)',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   whiteSpace: 'nowrap',
@@ -191,20 +223,22 @@ export function KioskStatusPanel({
               >
                 {e.name}
               </div>
-              {!isIdle && (
+              {(justFinished || !isIdle) && (
                 <div
                   style={{
                     fontSize: e.isSub ? '26px' : '30px',
                     color: e.hasPermission
                       ? 'var(--pixel-status-permission)'
-                      : 'rgba(255, 225, 180, 0.85)',
+                      : justFinished
+                        ? KIOSK_FINISHED_COLOR
+                        : 'rgba(255, 225, 180, 0.85)',
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     whiteSpace: 'nowrap',
                     fontStyle: e.isSub ? 'italic' : 'normal',
                   }}
                 >
-                  {e.status}
+                  {justFinished ? 'Done' : e.status}
                 </div>
               )}
             </div>

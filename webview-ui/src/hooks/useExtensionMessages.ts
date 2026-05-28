@@ -10,6 +10,7 @@ import { setCharacterTemplates } from '../office/sprites/spriteData.js'
 import { setLoadedPetVariants } from '../office/sprites/petSprites.js'
 import { ws, isNoAgentsMode } from '../wsClient.js'
 import { playDoneSound, setSoundEnabled } from '../notificationSound.js'
+import { KIOSK_FINISHED_HIGHLIGHT_MS } from '../constants.js'
 
 export interface SubagentCharacter {
   id: number
@@ -77,6 +78,11 @@ export interface ExtensionMessageState {
   /** Generic usage panel data pushed by an external local daemon via
    *  POST /api/usage. Empty when no daemon is running. */
   usageSources: UsageSource[]
+  /** agentId → Date.now()+highlightMs deadline. While the deadline is in the
+   *  future AND the agent isn't actively running, the kiosk sidebar shows a
+   *  green "just finished" pulse so the user can spot completed turns at a
+   *  glance. */
+  agentFinishedAt: Record<number, number>
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -106,6 +112,7 @@ export function useExtensionMessages(
   const [dailySummaryActive, setDailySummaryActive] = useState(false)
   const dailySummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [usageSources, setUsageSources] = useState<UsageSource[]>([])
+  const [agentFinishedAt, setAgentFinishedAt] = useState<Record<number, number>>({})
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
   const layoutReadyRef = useRef(false)
@@ -164,6 +171,12 @@ export function useExtensionMessages(
           return next
         })
         setAgentStatuses((prev) => {
+          if (!(id in prev)) return prev
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+        setAgentFinishedAt((prev) => {
           if (!(id in prev)) return prev
           const next = { ...prev }
           delete next[id]
@@ -300,6 +313,21 @@ export function useExtensionMessages(
         if (status === 'waiting') {
           os.showWaitingBubble(id)
           playDoneSound()
+          // Mark this agent as "just finished" so the kiosk sidebar can pulse
+          // green for ~30s. KioskStatusPanel additionally suppresses the
+          // highlight as soon as the agent runs again, so a new tool starting
+          // before the window expires removes it visually even if the value
+          // here is still in the future.
+          setAgentFinishedAt((prev) => ({ ...prev, [id]: Date.now() + KIOSK_FINISHED_HIGHLIGHT_MS }))
+        } else if (status === 'active') {
+          // Agent picked up a new turn — drop any stale "just finished" marker
+          // so we don't show a green pulse on an agent that's clearly working.
+          setAgentFinishedAt((prev) => {
+            if (!(id in prev)) return prev
+            const next = { ...prev }
+            delete next[id]
+            return next
+          })
         }
       } else if (msg.type === 'agentToolPermission') {
         const id = msg.id as number
@@ -443,5 +471,5 @@ export function useExtensionMessages(
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 
-  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive, usageSources }
+  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive, usageSources, agentFinishedAt }
 }

@@ -141,7 +141,7 @@ function App() {
 
   const isEditDirty = useCallback(() => editor.isEditMode && editor.isDirty, [editor.isEditMode, editor.isDirty])
 
-  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates, dailySummaryActive, usageSources } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
+  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates, dailySummaryActive, usageSources, agentFinishedAt } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const dayNight = useDayNight()
 
@@ -309,8 +309,14 @@ function App() {
           50%      { background-color: rgba(232, 80, 58, 0.28); box-shadow: inset 0 0 22px 0 rgba(232, 80, 58, 0.35); }
         }
         .pixel-permission-pulse { animation: pixel-permission-pulse 1.1s ease-in-out infinite; }
+        @keyframes pixel-just-finished-pulse {
+          0%, 100% { background-color: rgba(125, 211, 166, 0.10); box-shadow: inset 0 0 0 0 rgba(125, 211, 166, 0); }
+          50%      { background-color: rgba(125, 211, 166, 0.28); box-shadow: inset 0 0 22px 0 rgba(125, 211, 166, 0.35); }
+        }
+        .pixel-just-finished-pulse { animation: pixel-just-finished-pulse 1.4s ease-in-out infinite; }
         @media (prefers-reduced-motion: reduce) {
           .pixel-permission-pulse { animation: none; }
+          .pixel-just-finished-pulse { animation: none; }
         }
       `}</style>
 
@@ -463,6 +469,7 @@ function App() {
           agentTools={agentTools}
           subagentTools={subagentTools}
           subagentCharacters={subagentCharacters}
+          agentFinishedAt={agentFinishedAt}
         />
       )}
 
