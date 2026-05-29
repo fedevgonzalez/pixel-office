@@ -7,50 +7,43 @@ const _ = '' // transparent
 
 // ── Furniture Sprites ───────────────────────────────────────────
 
-/** Square desk: 32x32 pixels (2x2 tiles) — top-down wood surface */
+/** Square desk: 32x32 pixels (2x2 tiles) — top-down wood office desk w/ drawers */
 export const DESK_SQUARE_SPRITE: SpriteData = (() => {
-  const W = '#8B6914' // wood edge
-  const L = '#A07828' // lighter wood
-  const S = '#B8922E' // surface
-  const D = '#6B4E0A' // dark edge
-  const rows: string[][] = []
-  // Row 0: empty
-  rows.push(new Array(32).fill(_))
-  // Row 1: top edge
-  rows.push([_, ...new Array(30).fill(W), _])
-  // Rows 2-5: top surface
-  for (let r = 0; r < 4; r++) {
-    rows.push([_, W, ...new Array(28).fill(r < 1 ? L : S), W, _])
-  }
-  // Row 6: horizontal divider
-  rows.push([_, D, ...new Array(28).fill(W), D, _])
-  // Rows 7-12: middle surface area
-  for (let r = 0; r < 6; r++) {
-    rows.push([_, W, ...new Array(28).fill(S), W, _])
-  }
-  // Row 13: center line
-  rows.push([_, W, ...new Array(28).fill(L), W, _])
-  // Rows 14-19: lower surface
-  for (let r = 0; r < 6; r++) {
-    rows.push([_, W, ...new Array(28).fill(S), W, _])
-  }
-  // Row 20: horizontal divider
-  rows.push([_, D, ...new Array(28).fill(W), D, _])
-  // Rows 21-24: bottom surface
-  for (let r = 0; r < 4; r++) {
-    rows.push([_, W, ...new Array(28).fill(r > 2 ? L : S), W, _])
-  }
-  // Row 25: bottom edge
-  rows.push([_, ...new Array(30).fill(W), _])
-  // Rows 26-31: legs/shadow
-  for (let r = 0; r < 4; r++) {
-    const row = new Array(32).fill(_) as string[]
-    row[1] = D; row[2] = D; row[29] = D; row[30] = D
-    rows.push(row)
-  }
-  rows.push(new Array(32).fill(_))
-  rows.push(new Array(32).fill(_))
-  return rows
+  const A='#33220A'; const B='#B5812F'; const C='#E0B05C'; const D='#9A6A24'; const E='#CB9742'; const F='#8A5E1E'; const G='#2A1B05';
+  return [
+    [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
+    [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
+    [A, B, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, B, A],
+    [A, B, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
+    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
+    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
+    [A, B, C, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, D, D, B, A],
+    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
+    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
+    [A, B, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
+    [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
+    [A, D, D, A, E, E, E, E, E, E, E, E, E, E, E, A, A, A, E, E, E, E, E, E, E, E, E, E, A, D, D, A],
+    [A, D, D, A, E, E, E, E, G, G, E, E, E, E, E, A, A, A, E, E, E, E, G, G, E, E, E, E, A, D, D, A],
+    [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
+    [_, _, _, _, _, G, G, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, G, G, _, _, _, _, _],
+  ]
 })()
 
 /** Plant in pot: 16x24 */
@@ -193,81 +186,71 @@ export const WHITEBOARD_SPRITE: SpriteData = (() => {
   ]
 })()
 
-/** Chair: 16x16 — top-down desk chair */
+/** Chair: 16x16 — top-down office chair (5-star wheeled base) */
 export const CHAIR_SPRITE: SpriteData = (() => {
-  const W = '#8B6914'
-  const D = '#6B4E0A'
-  const B = '#5C3D0A'
-  const S = '#A07828'
+  const A='#15151c'; const B='#2a2a33'; const C='#52525e'; const D='#3c3c47';
   return [
-    [_, _, _, _, _, D, D, D, D, D, D, _, _, _, _, _],
-    [_, _, _, _, D, B, B, B, B, B, B, D, _, _, _, _],
-    [_, _, _, _, D, B, S, S, S, S, B, D, _, _, _, _],
-    [_, _, _, _, D, B, S, S, S, S, B, D, _, _, _, _],
-    [_, _, _, _, D, B, S, S, S, S, B, D, _, _, _, _],
-    [_, _, _, _, D, B, S, S, S, S, B, D, _, _, _, _],
-    [_, _, _, _, D, B, S, S, S, S, B, D, _, _, _, _],
-    [_, _, _, _, D, B, S, S, S, S, B, D, _, _, _, _],
-    [_, _, _, _, D, B, S, S, S, S, B, D, _, _, _, _],
-    [_, _, _, _, D, B, B, B, B, B, B, D, _, _, _, _],
-    [_, _, _, _, _, D, D, D, D, D, D, _, _, _, _, _],
-    [_, _, _, _, _, _, D, W, W, D, _, _, _, _, _, _],
-    [_, _, _, _, _, _, D, W, W, D, _, _, _, _, _, _],
-    [_, _, _, _, _, D, D, D, D, D, D, _, _, _, _, _],
-    [_, _, _, _, _, D, _, _, _, _, D, _, _, _, _, _],
-    [_, _, _, _, _, D, _, _, _, _, D, _, _, _, _, _],
+    [_, _, _, _, A, A, A, A, A, A, A, A, _, _, _, _],
+    [_, _, _, _, A, B, B, B, B, B, B, A, _, _, _, _],
+    [_, _, _, _, A, B, B, B, B, B, B, A, _, _, _, _],
+    [_, _, _, A, A, A, A, A, A, A, A, A, A, _, _, _],
+    [_, _, _, A, C, C, C, C, C, C, C, C, A, _, _, _],
+    [_, _, _, A, D, B, B, B, B, B, B, D, A, _, _, _],
+    [_, _, _, A, D, B, B, B, B, B, B, D, A, _, _, _],
+    [_, _, _, A, D, B, B, B, B, B, B, D, A, _, _, _],
+    [_, _, _, A, D, B, B, B, B, B, B, D, A, _, _, _],
+    [_, _, _, A, D, B, B, B, B, B, B, D, A, _, _, _],
+    [_, _, _, A, D, D, D, D, D, D, D, D, A, _, _, _],
+    [_, _, _, A, A, A, A, A, A, A, A, A, A, _, _, _],
+    [_, _, _, _, _, _, _, A, A, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, C, C, _, _, _, _, _, _, _],
+    [_, _, _, _, _, D, A, A, A, A, D, _, _, _, _, _],
+    [_, _, _, _, D, _, _, D, D, _, _, D, _, _, _, _],
   ]
 })()
 
 /** PC monitor: 16x16 — top-down monitor on stand */
 export const PC_SPRITE: SpriteData = (() => {
-  const F = '#555555'
-  const S = '#3A3A5C'
-  const B = '#6688CC'
-  const D = '#444444'
+  const A='#1c1622'; const B='#52525e'; const C='#3a3a48'; const D='#2bb6e0'; const E='#10243a'; const F='#7fe0ff'; const G='#6ee06e'; const H='#ffd24a'; const I='#2a2a34';
   return [
-    [_, _, _, F, F, F, F, F, F, F, F, F, F, _, _, _],
-    [_, _, _, F, S, S, S, S, S, S, S, S, F, _, _, _],
-    [_, _, _, F, S, B, B, B, B, B, B, S, F, _, _, _],
-    [_, _, _, F, S, B, B, B, B, B, B, S, F, _, _, _],
-    [_, _, _, F, S, B, B, B, B, B, B, S, F, _, _, _],
-    [_, _, _, F, S, B, B, B, B, B, B, S, F, _, _, _],
-    [_, _, _, F, S, B, B, B, B, B, B, S, F, _, _, _],
-    [_, _, _, F, S, B, B, B, B, B, B, S, F, _, _, _],
-    [_, _, _, F, S, S, S, S, S, S, S, S, F, _, _, _],
-    [_, _, _, F, F, F, F, F, F, F, F, F, F, _, _, _],
-    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, D, D, D, D, _, _, _, _, _, _],
-    [_, _, _, _, _, D, D, D, D, D, D, _, _, _, _, _],
-    [_, _, _, _, _, D, D, D, D, D, D, _, _, _, _, _],
+    [_, _, A, A, A, A, A, A, A, A, A, A, A, A, _, _],
+    [_, _, A, B, B, B, B, B, B, B, B, B, B, A, _, _],
+    [_, _, A, C, D, D, D, D, D, D, E, E, C, A, _, _],
+    [_, _, A, C, F, F, F, F, E, E, E, E, C, A, _, _],
+    [_, _, A, C, G, G, G, G, G, G, G, E, C, A, _, _],
+    [_, _, A, C, D, D, D, E, E, E, E, E, C, A, _, _],
+    [_, _, A, C, H, H, H, H, H, H, E, E, C, A, _, _],
+    [_, _, A, C, F, F, F, F, F, E, E, E, C, A, _, _],
+    [_, _, A, C, C, C, C, C, C, C, C, C, C, A, _, _],
+    [_, _, A, A, A, A, A, A, A, A, A, A, A, A, _, _],
+    [_, _, _, _, _, _, _, I, I, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, I, I, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, I, I, I, I, _, _, _, _, _, _],
+    [_, _, _, _, _, _, I, I, I, I, _, _, _, _, _, _],
+    [_, _, _, _, _, A, A, A, A, A, A, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
   ]
 })()
 
-/** Desk lamp: 16x16 — top-down lamp with light cone */
+/** Desk lamp: 16x16 — top-down desk lamp */
 export const LAMP_SPRITE: SpriteData = (() => {
-  const Y = '#FFDD55'
-  const L = '#FFEE88'
-  const D = '#888888'
-  const B = '#555555'
-  const G = '#FFFFCC'
+  const A='#2a2a30'; const B='#ffd24a'; const C='#fff0b0'; const D='#cfae5a'; const E='#54545e'; const F='#3a3a44';
   return [
+    [_, _, _, _, A, A, A, A, A, A, A, A, _, _, _, _],
+    [_, _, _, _, A, B, B, B, B, B, B, A, _, _, _, _],
+    [_, _, _, _, A, B, C, C, C, C, B, A, _, _, _, _],
+    [_, _, _, _, A, B, C, C, C, C, B, A, _, _, _, _],
+    [_, _, _, _, A, B, B, B, B, B, B, A, _, _, _, _],
+    [_, _, _, _, _, _, _, _, D, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, D, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, D, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, D, _, _, _, _, _, _],
+    [_, _, _, _, _, _, A, E, E, E, E, A, _, _, _, _],
+    [_, _, _, _, _, _, A, E, E, E, E, A, _, _, _, _],
+    [_, _, _, _, _, _, A, A, A, A, A, A, _, _, _, _],
+    [_, _, _, _, _, A, F, F, F, F, F, F, A, _, _, _],
+    [_, _, _, _, _, A, A, A, A, A, A, A, A, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, G, G, G, G, _, _, _, _, _, _],
-    [_, _, _, _, _, G, Y, Y, Y, Y, G, _, _, _, _, _],
-    [_, _, _, _, G, Y, Y, L, L, Y, Y, G, _, _, _, _],
-    [_, _, _, _, Y, Y, L, L, L, L, Y, Y, _, _, _, _],
-    [_, _, _, _, Y, Y, L, L, L, L, Y, Y, _, _, _, _],
-    [_, _, _, _, _, Y, Y, Y, Y, Y, Y, _, _, _, _, _],
-    [_, _, _, _, _, _, D, D, D, D, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, D, D, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, D, D, D, D, _, _, _, _, _, _],
-    [_, _, _, _, _, B, B, B, B, B, B, _, _, _, _, _],
-    [_, _, _, _, _, B, B, B, B, B, B, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
   ]
 })()
