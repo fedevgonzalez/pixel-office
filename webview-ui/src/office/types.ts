@@ -305,6 +305,8 @@ export interface WorldBackground {
 
 export const ZoneType = {
   FOCUS: 'focus',
+  /** Green "play" area — pets walk here to play. */
+  PLAY: 'play',
 } as const
 export type ZoneType = (typeof ZoneType)[keyof typeof ZoneType]
 

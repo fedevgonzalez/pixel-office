@@ -14,7 +14,6 @@ import {
   CHARACTER_HIT_HEIGHT,
   PET_HIT_HALF_WIDTH,
   PET_HIT_HEIGHT,
-  PET_PLAY_ZONE_THEMES,
 } from '../../constants.js'
 import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Pet, FloorColor, PetColors } from '../types.js'
 import { createCharacter, updateCharacter } from './characters.js'
@@ -313,17 +312,16 @@ export class OfficeState {
   }
 
   /**
-   * Walkable tiles whose floor theme marks them as the "green" play zone.
+   * Walkable tiles designated as the "green" play zone (zones[i] === 'play').
    * Pets head here to play. Empty array when no such tiles exist (no zone).
    */
   getPlayZoneTiles(): Array<{ col: number; row: number }> {
-    const themes = this.layout.tileThemes
-    if (!themes) return []
+    const zones = this.layout.zones
+    if (!zones) return []
     const cols = this.layout.cols
     const result: Array<{ col: number; row: number }> = []
     for (const t of this.walkableTiles) {
-      const theme = themes[t.row * cols + t.col]
-      if (theme && (PET_PLAY_ZONE_THEMES as readonly string[]).includes(theme)) {
+      if (zones[t.row * cols + t.col] === 'play') {
         result.push({ col: t.col, row: t.row })
       }
     }

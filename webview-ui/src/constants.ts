@@ -190,10 +190,8 @@ export const PET_DOG_FOLLOW_CHANCE = 0.3
 export const PET_DOG_FOLLOW_MAX_DIST = 6
 
 // ── Pet play zone ────────────────────────────────────────────
-// The "green space": floor tiles painted with one of these themes are treated
-// as a play area. Pets occasionally walk there and enter the PLAY state with a
-// happy bubble. Keyed off the floor theme so the grass you see IS the zone.
-export const PET_PLAY_ZONE_THEMES = ['forest', 'beach'] as const
+// The "green space": floor tiles tagged with the 'play' zone (zones[i]).
+// Pets occasionally walk there and enter the PLAY state with a happy bubble.
 // Per-personality chance, on each behavior transition, to head to the play zone
 // (only when a zone exists and the pet isn't already in it).
 export const PET_GO_PLAY_CHANCE: Record<string, number> = {
