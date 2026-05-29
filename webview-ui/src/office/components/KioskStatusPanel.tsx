@@ -7,13 +7,17 @@ import {
   KIOSK_STATUS_PANEL_WIDTH,
   RESTING_COUNT_LABEL_FONT_SIZE,
   KIOSK_FINISHED_COLOR,
-  KIOSK_AGENT_CONTEXT_BAR_WIDTH,
   KIOSK_AGENT_CONTEXT_BAR_HEIGHT,
-  KIOSK_AGENT_CONTEXT_FONT_SIZE,
-  KIOSK_AGENT_CONTEXT_COLOR,
-  KIOSK_AGENT_CONTEXT_WARN,
-  KIOSK_AGENT_CONTEXT_WARN_COLOR,
+  KIOSK_CONTEXT_HEALTH_BANDS,
 } from '../../constants.js'
+
+/** Color for a context-occupancy fraction, per the health bands. */
+function contextHealthColor(pct: number): string {
+  for (const band of KIOSK_CONTEXT_HEALTH_BANDS) {
+    if (pct < band.max) return band.color
+  }
+  return KIOSK_CONTEXT_HEALTH_BANDS[KIOSK_CONTEXT_HEALTH_BANDS.length - 1].color
+}
 
 interface KioskStatusPanelProps {
   officeState: OfficeState
@@ -25,34 +29,29 @@ interface KioskStatusPanelProps {
   agentContext: Record<number, AgentContext>
 }
 
-/** Inline context-window meter shown under a main agent's row. */
+/** Full-width context-window meter: fills to the occupancy % and is tinted by
+ *  the health band (green → red). No text — color + fill are the whole signal. */
 function ContextMeter({ ctx }: { ctx: AgentContext }) {
   const pct = Math.max(0, Math.min(1, ctx.pct))
-  const warn = pct >= KIOSK_AGENT_CONTEXT_WARN
-  const color = warn ? KIOSK_AGENT_CONTEXT_WARN_COLOR : KIOSK_AGENT_CONTEXT_COLOR
+  const color = contextHealthColor(pct)
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+    <div
+      style={{
+        width: '100%',
+        height: KIOSK_AGENT_CONTEXT_BAR_HEIGHT,
+        background: 'rgba(255, 245, 235, 0.10)',
+        border: '1px solid rgba(255, 245, 235, 0.15)',
+        overflow: 'hidden',
+      }}
+    >
       <div
         style={{
-          width: KIOSK_AGENT_CONTEXT_BAR_WIDTH,
-          height: KIOSK_AGENT_CONTEXT_BAR_HEIGHT,
-          background: 'rgba(255, 245, 235, 0.12)',
-          border: '1px solid rgba(255, 245, 235, 0.18)',
-          flexShrink: 0,
+          width: `${pct * 100}%`,
+          height: '100%',
+          background: color,
+          transition: 'width 300ms linear, background-color 300ms linear',
         }}
-      >
-        <div style={{ width: `${pct * 100}%`, height: '100%', background: color }} />
-      </div>
-      <span
-        style={{
-          fontSize: KIOSK_AGENT_CONTEXT_FONT_SIZE,
-          color: 'rgba(255, 245, 235, 0.55)',
-          fontVariantNumeric: 'tabular-nums',
-          lineHeight: 1,
-        }}
-      >
-        {Math.round(pct * 100)}% ctx
-      </span>
+      />
     </div>
   )
 }
@@ -209,8 +208,9 @@ export function KioskStatusPanel({
             }
             style={{
               display: 'flex',
-              alignItems: 'center',
-              gap: 10,
+              flexDirection: 'column',
+              alignItems: 'stretch',
+              gap: 6,
               padding: e.isSub ? '6px 10px 6px 24px' : '10px 10px',
               background: e.hasPermission
                 ? 'var(--pixel-status-permission-bg)'
@@ -229,6 +229,7 @@ export function KioskStatusPanel({
               opacity: justFinished ? 1 : isIdle ? 0.45 : 1,
             }}
           >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {/* Status dot */}
             <span
               className={e.isRunning && !e.hasPermission ? 'pixel-agents-pulse' : undefined}
@@ -281,10 +282,11 @@ export function KioskStatusPanel({
                   {justFinished ? 'Done' : e.status}
                 </div>
               )}
-              {/* Context-window meter — main agents only (sub-agents share the
-                  parent's window, so a per-sub bar would be misleading). */}
-              {!e.isSub && agentContext[e.id] && <ContextMeter ctx={agentContext[e.id]} />}
             </div>
+            </div>
+            {/* Full-width context meter — main agents only (sub-agents share the
+                parent's window, so a per-sub bar would mislead). */}
+            {!e.isSub && agentContext[e.id] && <ContextMeter ctx={agentContext[e.id]} />}
           </div>
         )
       })}

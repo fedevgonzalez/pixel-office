@@ -325,18 +325,28 @@ export const KIOSK_STATS_GAP_PX = 18
 /** Distance from the top-left corner of the viewport */
 export const KIOSK_STATS_OFFSET_PX = 18
 
-// ── Kiosk Agent Context (inline in sidebar) ──────────────────
-/** Width of the per-agent context bar (px) */
-export const KIOSK_AGENT_CONTEXT_BAR_WIDTH = 120
+// ── Kiosk Agent Context meter (full-width bar, inline per agent) ──
 /** Height of the per-agent context bar (px) */
-export const KIOSK_AGENT_CONTEXT_BAR_HEIGHT = 8
-/** Font size of the per-agent context "82%" label */
-export const KIOSK_AGENT_CONTEXT_FONT_SIZE = 22
-/** Fill color of the context bar */
-export const KIOSK_AGENT_CONTEXT_COLOR = '#8ec7ff'
-/** Fill color when context is high (≥ KIOSK_AGENT_CONTEXT_WARN) */
-export const KIOSK_AGENT_CONTEXT_WARN = 0.85
-export const KIOSK_AGENT_CONTEXT_WARN_COLOR = '#e8a84c'
+export const KIOSK_AGENT_CONTEXT_BAR_HEIGHT = 12
+/**
+ * Context-health color bands by occupancy fraction. The bar fills to the
+ * occupancy % and is tinted by the band it falls in (green → red). Thresholds
+ * come from a cited research pass (NoLiMa ICML 2025, RULER, Chroma "Context
+ * Rot", Lost-in-the-Middle) cross-checked against practitioner /compact
+ * guidance: degradation is a gradient (not a cliff), effective context sits
+ * well below the nominal window, and the practical "compact soon" pressure for
+ * a coding agent lands around 50–66%. Read as a risk signal, not a hard line.
+ *   0–25%  sano       25–50% casi sano   50–66% medio
+ *   66–85% casi malo  85–100% malo
+ * `max` is the exclusive upper edge of each band.
+ */
+export const KIOSK_CONTEXT_HEALTH_BANDS: ReadonlyArray<{ max: number; color: string }> = [
+  { max: 0.25, color: '#22c55e' },
+  { max: 0.50, color: '#a3e635' },
+  { max: 0.66, color: '#facc15' },
+  { max: 0.85, color: '#f97316' },
+  { max: Infinity, color: '#ef4444' },
+]
 
 // ── Kiosk Clock Widget ───────────────────────────────────────
 /** How often the kiosk clock re-reads wall time (ms) */
