@@ -46,6 +46,29 @@ export const DESK_SQUARE_SPRITE: SpriteData = (() => {
   ]
 })()
 
+/** Table 2x1 (32x16) — flat top-down wood surface for placing objects on */
+export const TABLE_2X1_SPRITE: SpriteData = (() => {
+  const A='#3A2A12'; const B='#A4742E'; const C='#D6A85A'; const D='#7A5523'; const E='#BE8C3C'; const F='#8C5F22';
+  return [
+    [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
+    [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
+    [A, B, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, D, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, A],
+    [A, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, A],
+    [A, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, A],
+    [A, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, A],
+    [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
+  ]
+})()
+
 /** Plant in pot: 16x24 */
 export const PLANT_SPRITE: SpriteData = (() => {
   const G = '#3D8B37'
