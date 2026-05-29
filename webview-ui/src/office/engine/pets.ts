@@ -17,7 +17,26 @@ import {
   PET_IDLE_OFFICE_THRESHOLD_SEC,
   PET_DOG_FOLLOW_CHANCE,
   PET_DOG_FOLLOW_MAX_DIST,
+  PET_GO_PLAY_CHANCE,
+  PET_GO_PLAY_CHANCE_DEFAULT,
+  PET_PLAY_IN_ZONE_CHANCE,
+  PET_PLAY_MIN_SEC,
+  PET_PLAY_MAX_SEC,
+  PET_PLAY_BUBBLE_SEC,
 } from '../../constants.js'
+
+const PLAY_ZONE_EMPTY: Array<{ col: number; row: number }> = []
+
+function tilesContain(tiles: Array<{ col: number; row: number }>, col: number, row: number): boolean {
+  for (const t of tiles) if (t.col === col && t.row === row) return true
+  return false
+}
+
+/** Drop a happy/heart reaction bubble on a playing pet. */
+function startPlayBubble(pet: Pet): void {
+  pet.reactionBubble = pet.species === 'cat' ? 'heart' : 'happy'
+  pet.reactionTimer = PET_PLAY_BUBBLE_SEC
+}
 
 function randomRange(min: number, max: number): number {
   return min + Math.random() * (max - min)
@@ -119,6 +138,7 @@ export function createPet(placed: PlacedPet): Pet {
     personality: placed.personality,
     reactionBubble: null,
     reactionTimer: 0,
+    wantsToPlay: false,
     isPerkedUp: false,
     perkTimer: 0,
     speechText: null,
@@ -147,6 +167,9 @@ export function updatePet(
    *  the same tile or directly below another pet (where the lower pet's body
    *  would cover the upper pet's feet). */
   otherPetTiles?: Array<{ uid: string; col: number; row: number }>,
+  /** Tiles of the "green" play zone (floor painted with a play-zone theme).
+   *  Empty when no zone is defined. */
+  playZoneTiles: Array<{ col: number; row: number }> = PLAY_ZONE_EMPTY,
 ): void {
   // Bounds check: if pet is outside the grid, relocate to a walkable tile
   const rows = tileMap.length
@@ -230,7 +253,7 @@ export function updatePet(
       pet.frame = 0 // idle frame
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
       }
       break
     }
@@ -243,7 +266,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
       }
       break
     }
@@ -256,8 +279,19 @@ export function updatePet(
       }
 
       if (pet.path.length === 0) {
-        // Arrived — pick new behavior
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
+        // Arrived. If we came to play and we're standing in the green zone,
+        // start a play bout; otherwise pick a new behavior.
+        if (pet.wantsToPlay && tilesContain(playZoneTiles, pet.tileCol, pet.tileRow)) {
+          pet.wantsToPlay = false
+          pet.state = PetState.PLAY
+          pet.frame = 0
+          pet.frameTimer = 0
+          pet.behaviorTimer = randomRange(PET_PLAY_MIN_SEC, PET_PLAY_MAX_SEC)
+          startPlayBubble(pet)
+        } else {
+          pet.wantsToPlay = false
+          transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
+        }
         break
       }
 
@@ -294,9 +328,11 @@ export function updatePet(
         pet.frameTimer -= PET_WALK_FRAME_DURATION_SEC
         pet.frame = (pet.frame + 1) % 2
       }
+      // Keep the happy bubble alive for the whole bout.
+      if (!pet.reactionBubble) startPlayBubble(pet)
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
       }
       break
     }
@@ -311,8 +347,9 @@ function transitionToNewBehavior(
   activeAgentPositions?: Array<{ col: number; row: number }>,
   doorTiles?: Set<string>,
   otherPetTiles?: Array<{ uid: string; col: number; row: number }>,
+  playZoneTiles: Array<{ col: number; row: number }> = PLAY_ZONE_EMPTY,
 ): void {
-  const behavior = pickBehavior(pet.species, pet.personality)
+  pet.wantsToPlay = false
 
   // Tiles forbidden as wander destinations: other pets' tiles AND the tile
   // directly below each (same column, row+1) — so the lower pet's body can't
@@ -326,6 +363,38 @@ function transitionToNewBehavior(
       forbidden.add(`${t.col},${t.row + 1}`)
     }
   }
+
+  // Maybe head out to the green space to play. If already standing in it, just
+  // play in place; otherwise walk to a free zone tile and play on arrival.
+  if (playZoneTiles.length > 0 && !forbidden.has(`${pet.tileCol},${pet.tileRow}`)) {
+    const goChance = PET_GO_PLAY_CHANCE[pet.personality || ''] ?? PET_GO_PLAY_CHANCE_DEFAULT
+    if (Math.random() < goChance) {
+      if (tilesContain(playZoneTiles, pet.tileCol, pet.tileRow) && Math.random() < PET_PLAY_IN_ZONE_CHANCE) {
+        pet.state = PetState.PLAY
+        pet.frame = 0
+        pet.frameTimer = 0
+        pet.behaviorTimer = randomRange(PET_PLAY_MIN_SEC, PET_PLAY_MAX_SEC)
+        startPlayBubble(pet)
+        return
+      }
+      const dests = playZoneTiles.filter((t) => !forbidden.has(`${t.col},${t.row}`))
+      if (dests.length > 0) {
+        const target = dests[Math.floor(Math.random() * dests.length)]
+        const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
+        if (path.length > 0) {
+          pet.state = PetState.WALK
+          pet.path = path
+          pet.frame = 0
+          pet.frameTimer = 0
+          pet.wantsToPlay = true
+          pet.dir = directionBetween(pet.tileCol, pet.tileRow, path[0].col, path[0].row)
+          return
+        }
+      }
+    }
+  }
+
+  const behavior = pickBehavior(pet.species, pet.personality)
 
   // If this pet is currently sitting on a forbidden tile (overlap with another
   // pet), force a WALK so it relocates instead of resting in place.

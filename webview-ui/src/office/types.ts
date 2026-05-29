@@ -264,6 +264,8 @@ export interface Pet {
   reactionBubble: PetBubble | null
   /** Countdown timer for reaction bubble */
   reactionTimer: number
+  /** Walking to the play zone with intent to play on arrival. */
+  wantsToPlay?: boolean
   /** Whether pet is perked up (agents using tools nearby) */
   isPerkedUp: boolean
   /** Countdown timer for perk state */

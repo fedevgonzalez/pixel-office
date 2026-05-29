@@ -188,6 +188,28 @@ export const PET_IDLE_OFFICE_THRESHOLD_SEC = 120.0
 export const PET_PERK_DURATION_SEC = 1.5
 export const PET_DOG_FOLLOW_CHANCE = 0.3
 export const PET_DOG_FOLLOW_MAX_DIST = 6
+
+// ── Pet play zone ────────────────────────────────────────────
+// The "green space": floor tiles painted with one of these themes are treated
+// as a play area. Pets occasionally walk there and enter the PLAY state with a
+// happy bubble. Keyed off the floor theme so the grass you see IS the zone.
+export const PET_PLAY_ZONE_THEMES = ['forest', 'beach'] as const
+// Per-personality chance, on each behavior transition, to head to the play zone
+// (only when a zone exists and the pet isn't already in it).
+export const PET_GO_PLAY_CHANCE: Record<string, number> = {
+  playful: 0.45,
+  energetic: 0.4,
+  chill: 0.18,
+  lazy: 0.08,
+}
+export const PET_GO_PLAY_CHANCE_DEFAULT = 0.25
+/** When already standing in the play zone, chance to just play in place. */
+export const PET_PLAY_IN_ZONE_CHANCE = 0.6
+/** How long a play bout lasts (seconds). */
+export const PET_PLAY_MIN_SEC = 5.0
+export const PET_PLAY_MAX_SEC = 13.0
+/** Happy/heart bubble duration while playing (re-triggered each bout). */
+export const PET_PLAY_BUBBLE_SEC = 3.0
 export const PET_ZZZ_FRAME_DURATION_SEC = 0.8
 export const PET_MAX_NAME_LENGTH = 20
 export const PET_PREVIEW_CANVAS_SIZE = 144

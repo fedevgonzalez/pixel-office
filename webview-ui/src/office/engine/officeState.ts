@@ -14,6 +14,7 @@ import {
   CHARACTER_HIT_HEIGHT,
   PET_HIT_HALF_WIDTH,
   PET_HIT_HEIGHT,
+  PET_PLAY_ZONE_THEMES,
 } from '../../constants.js'
 import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Pet, FloorColor, PetColors } from '../types.js'
 import { createCharacter, updateCharacter } from './characters.js'
@@ -306,6 +307,24 @@ export class OfficeState {
         const col = i % cols
         const row = Math.floor(i / cols)
         result.add(`${col},${row}`)
+      }
+    }
+    return result
+  }
+
+  /**
+   * Walkable tiles whose floor theme marks them as the "green" play zone.
+   * Pets head here to play. Empty array when no such tiles exist (no zone).
+   */
+  getPlayZoneTiles(): Array<{ col: number; row: number }> {
+    const themes = this.layout.tileThemes
+    if (!themes) return []
+    const cols = this.layout.cols
+    const result: Array<{ col: number; row: number }> = []
+    for (const t of this.walkableTiles) {
+      const theme = themes[t.row * cols + t.col]
+      if (theme && (PET_PLAY_ZONE_THEMES as readonly string[]).includes(theme)) {
+        result.push({ col: t.col, row: t.row })
       }
     }
     return result
@@ -1027,8 +1046,9 @@ export class OfficeState {
     const petTiles = Array.from(this.pets.values()).map((p) => ({
       uid: p.uid, col: p.tileCol, row: p.tileRow,
     }))
+    const playZoneTiles = this.getPlayZoneTiles()
     for (const pet of this.pets.values()) {
-      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles, petTiles)
+      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles, petTiles, playZoneTiles)
     }
   }
 
