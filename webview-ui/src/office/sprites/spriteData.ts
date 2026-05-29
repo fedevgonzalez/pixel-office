@@ -7,42 +7,42 @@ const _ = '' // transparent
 
 // ── Furniture Sprites ───────────────────────────────────────────
 
-/** Square desk: 32x32 pixels (2x2 tiles) — top-down wood office desk w/ drawers */
+/** Table 2x2 (32x32) — flat top-down wood surface to place objects on */
 export const DESK_SQUARE_SPRITE: SpriteData = (() => {
-  const A='#33220A'; const B='#B5812F'; const C='#E0B05C'; const D='#9A6A24'; const E='#CB9742'; const F='#8A5E1E'; const G='#2A1B05';
+  const A='#3A2A12'; const B='#A4742E'; const C='#D6A85A'; const D='#7A5523'; const E='#BE8C3C'; const F='#8C5F22';
   return [
     [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
     [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
-    [A, B, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, B, A],
     [A, B, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, C, D, B, A],
     [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
     [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
-    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
-    [A, B, C, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, B, E, E, D, B, A],
-    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, E, D, B, A],
     [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
     [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, F, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, D, B, A],
+    [A, B, C, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
-    [A, B, C, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, D, B, B, D, B, A],
+    [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
+    [A, B, C, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, F, B, B, D, B, A],
     [A, B, C, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, B, A],
-    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
-    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
-    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
-    [A, B, C, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, F, D, D, D, B, A],
-    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
-    [A, B, C, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
-    [A, B, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, B, A],
-    [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
-    [A, D, D, A, E, E, E, E, E, E, E, E, E, E, E, A, A, A, E, E, E, E, E, E, E, E, E, E, A, D, D, A],
-    [A, D, D, A, E, E, E, E, G, G, E, E, E, E, E, A, A, A, E, E, E, E, G, G, E, E, E, E, A, D, D, A],
+    [A, D, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, D, A],
+    [A, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, A],
+    [A, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, A],
+    [A, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, A],
     [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
-    [_, _, _, _, _, G, G, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, G, G, _, _, _, _, _],
   ]
 })()
 
