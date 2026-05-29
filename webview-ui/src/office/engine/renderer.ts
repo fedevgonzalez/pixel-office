@@ -12,6 +12,7 @@ import type { DayNightState } from './dayNightCycle.js'
 import { renderDayNightOverlay } from './dayNightRenderer.js'
 import type { WorldBackgroundTheme } from '../types.js'
 import { renderWorldBackground } from '../backgrounds/renderWorldBackground.js'
+import { GRASS_TILE, GRASS_TILE_2 } from '../backgrounds/backgroundSprites.js'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles.js'
 import {
@@ -95,6 +96,7 @@ export function renderTileGrid(
   canvasWidth?: number,
   canvasHeight?: number,
   tileThemes?: Array<string | null>,
+  zones?: Array<ZoneTypeVal | null>,
 ): void {
   const s = TILE_SIZE * zoom
   const useSpriteFloors = hasFloorSprites()
@@ -133,11 +135,19 @@ export function renderTileGrid(
         continue
       }
 
-      // Floor tile: get colorized sprite
+      // Floor tile. Play-zone tiles render the same grass sprite as the outdoor
+      // background (real dithered-green texture) instead of a tinted office
+      // floor, so the yard reads as actual lawn and matches the backdrop.
       const colorIdx = r * layoutCols + c
-      const color = tileColors?.[colorIdx] ?? { h: 0, s: 0, b: 0, c: 0 }
-      const themeId = tileThemes?.[colorIdx] ?? null
-      const sprite = getColorizedFloorSprite(tile, color, themeId)
+      let sprite: SpriteData
+      if (zones?.[colorIdx] === 'play') {
+        const hash = ((c * 7 + r * 13) & 0x7fffffff) % 2
+        sprite = hash === 0 ? GRASS_TILE : GRASS_TILE_2
+      } else {
+        const color = tileColors?.[colorIdx] ?? { h: 0, s: 0, b: 0, c: 0 }
+        const themeId = tileThemes?.[colorIdx] ?? null
+        sprite = getColorizedFloorSprite(tile, color, themeId)
+      }
       const cached = getCachedSprite(sprite, zoom)
       ctx.drawImage(cached, offsetX + c * s, offsetY + r * s)
     }
@@ -1019,7 +1029,7 @@ export function renderFrame(
   }
 
   // Draw tiles (floor + wall base color) — pass canvas dims for viewport culling.
-  renderTileGrid(ctx, tileMap, offsetX, offsetY, zoom, tileColors, layoutCols, canvasWidth, canvasHeight, tileThemes)
+  renderTileGrid(ctx, tileMap, offsetX, offsetY, zoom, tileColors, layoutCols, canvasWidth, canvasHeight, tileThemes, zones)
 
   // Seat indicators (below furniture/characters, on top of floor)
   if (selection) {
