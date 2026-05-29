@@ -965,7 +965,12 @@ export class OfficeState {
 
   update(dt: number): void {
     const toDelete: number[] = []
-    const breakRoomTiles = this.getBreakRoomTiles()
+    // Resting agents wander off to relax. Destinations = the play-zone grass
+    // (the outdoor yard) plus any break-room furniture tiles. The grass yard
+    // has far more tiles, so a uniform pick lands an idle agent outside on the
+    // lawn most of the time — they "go out to the grass" — while still
+    // occasionally using the indoor couches.
+    const breakRoomTiles = [...this.getPlayZoneTiles(), ...this.getBreakRoomTiles()]
     const focusZoneTiles = this.getFocusZoneTiles()
     for (const ch of this.characters.values()) {
       // Handle matrix effect animation
