@@ -405,7 +405,10 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           isScreenshotMode ? undefined : dayNightRef.current,
           isScreenshotMode ? undefined : officeState.getLayout().furniture,
           officeState.getLayout().background?.theme,
-          isEditMode ? officeState.getLayout().zones : undefined,
+          // Zones are needed at runtime now (play-zone tiles render as grass),
+          // not just in edit mode. The zone-overlay UI still only draws when an
+          // editor object is present, so passing zones always is safe.
+          officeState.getLayout().zones,
           officeState.dailySummaryText
             ? { text: officeState.dailySummaryText, timer: officeState.dailySummaryTimer, fullDuration: officeState.dailySummaryFullDuration }
             : undefined,
