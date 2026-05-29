@@ -323,12 +323,16 @@ export function updatePet(
     }
 
     case PetState.PLAY: {
-      // Play animation (simple frame cycle)
-      if (pet.frameTimer >= PET_WALK_FRAME_DURATION_SEC) {
-        pet.frameTimer -= PET_WALK_FRAME_DURATION_SEC
-        pet.frame = (pet.frame + 1) % 2
+      // Playing = standing happily in the grass (idle pose, NOT a walk-cycle —
+      // cycling walk frames in place looked like treadmilling). It looks around
+      // now and then and keeps a happy/heart bubble up for the whole bout.
+      pet.frame = 0
+      pet.playLookTimer = (pet.playLookTimer ?? 0) - dt
+      if (pet.playLookTimer <= 0) {
+        const dirs = [Direction.DOWN, Direction.LEFT, Direction.RIGHT, Direction.UP]
+        pet.dir = dirs[Math.floor(Math.random() * dirs.length)]
+        pet.playLookTimer = randomRange(0.9, 1.8)
       }
-      // Keep the happy bubble alive for the whole bout.
       if (!pet.reactionBubble) startPlayBubble(pet)
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
@@ -545,9 +549,10 @@ export function getPetSprite(pet: Pet): SpriteData {
   let frameIdx: number
   switch (pet.state) {
     case PetState.WALK:
-    case PetState.PLAY:
       frameIdx = pet.frame % 2 // walk1, walk2
       break
+    // PLAY falls through to the idle frame (default) — it stands happily in
+    // the grass with a bubble rather than cycling walk frames in place.
     case PetState.SLEEP:
       frameIdx = 3 + (pet.frame % 2) // sleep1, sleep2
       break

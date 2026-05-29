@@ -266,6 +266,8 @@ export interface Pet {
   reactionTimer: number
   /** Walking to the play zone with intent to play on arrival. */
   wantsToPlay?: boolean
+  /** Countdown to the next "look around" while playing (seconds). */
+  playLookTimer?: number
   /** Whether pet is perked up (agents using tools nearby) */
   isPerkedUp: boolean
   /** Countdown timer for perk state */
