@@ -26,10 +26,26 @@ const SERVER_URL = process.argv[2] || process.env.PIXEL_OFFICE_SERVER || 'ws://l
 const MACHINE_ID = process.env.PIXEL_OFFICE_MACHINE_ID || os.hostname();
 const CLAUDE_PROJECTS_ROOT = path.join(os.homedir(), '.claude', 'projects');
 const CURSOR_PROJECTS_ROOT = path.join(os.homedir(), '.cursor', 'projects');
+const CODEX_SESSIONS_ROOT = process.env.CODEX_SESSIONS_DIR || path.join(os.homedir(), '.codex', 'sessions');
 const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min — match server's IDLE_LEAVE_MS (server handles resting state)
+
+// Usage reporting: a session whose transcript was touched within this window
+// is "active" and contributes its context% to the usage panel. Tighter than
+// IDLE_TIMEOUT so the panel reflects what you're working on right now.
+const USAGE_ACTIVE_WINDOW_MS = 30 * 60 * 1000;
+// Claude stamps the bare model id in the JSONL even on the 1M-context variant,
+// so the literal model string is ambiguous. Default to the standard 200k and
+// auto-bump to 1M when observed totals wouldn't otherwise fit.
+const CLAUDE_DEFAULT_CONTEXT = 200_000;
+const CLAUDE_1M_CONTEXT = 1_000_000;
+const CLAUDE_USAGE_COLOR = '#d97757';
+const CODEX_USAGE_COLOR = '#10a37f';
+// Trailing path segments that don't identify a project — stripped when
+// deriving a folder label from a cwd (e.g. ~/Local Sites/aprende/app/public).
+const GENERIC_DIR_SEGMENTS = new Set(['public', 'app', 'src', 'dist', 'build', 'current', 'www', 'htdocs']);
 
 let ws = null;
 let connected = false;
@@ -276,11 +292,124 @@ function readNewCursorLines(filePath) {
   } catch {}
 }
 
+// --- Codex (OpenAI) transcript translation ---
+// Codex rollout JSONL uses its own event schema. We translate the subset that
+// maps cleanly onto the pixel-office protocol (Claude-format records) so a
+// Codex session animates the same way a Claude one does:
+//   response_item/function_call        → assistant tool_use
+//   response_item/function_call_output → user tool_result (closes the tool)
+//   event_msg/task_complete            → system turn_duration (turn ends → wave)
+// agent_message (the model's commentary) is intentionally NOT translated to
+// assistant text: Codex emits it before each tool batch within a single turn,
+// and an assistant-text record would start the server's idle→waiting timer,
+// flickering the agent to "done" (green pulse + sound) mid-turn. task_complete
+// is the authoritative turn-end signal. reasoning/raw messages/meta are ignored;
+// token_count is consumed separately for the usage panel.
+
+function createCodexParser() {
+  return {};
+}
+
+// Map a Codex tool name + parsed args onto a pixel-office tool so the kiosk
+// shows a meaningful status ("Running: …", "Editing …") instead of a raw name.
+function mapCodexTool(name, args) {
+  if (name === 'exec_command' || name === 'shell' || name === 'local_shell') {
+    const cmd = args && (args.cmd || args.command || (Array.isArray(args.command) ? args.command.join(' ') : ''));
+    return { name: 'Bash', input: cmd ? { command: String(cmd) } : {} };
+  }
+  if (name === 'apply_patch') {
+    // The patch body embeds the target path; pull the first one out for a label.
+    const patch = args && (args.input || args.patch || '');
+    const m = typeof patch === 'string' ? patch.match(/\*\*\* (?:Update|Add|Delete) File: (.+)/) : null;
+    return { name: 'Edit', input: m ? { file_path: m[1].trim() } : {} };
+  }
+  if (name === 'read_file') return { name: 'Read', input: { file_path: (args && (args.path || args.file_path)) || '' } };
+  if (name === 'write_file') return { name: 'Write', input: { file_path: (args && (args.path || args.file_path)) || '' } };
+  // Browser/MCP and anything else: pass through; server renders "Using <name>".
+  return { name, input: args && typeof args === 'object' ? args : {} };
+}
+
+// Translate one Codex JSONL line into zero or more Claude-format JSONL strings.
+function parseCodexLine(_parser, lineStr) {
+  const out = [];
+  let r;
+  try { r = JSON.parse(lineStr); } catch { return out; }
+  const t = r.type;
+  const p = r.payload || {};
+  if (t === 'response_item' && p.type === 'function_call' && p.call_id) {
+    let args = {};
+    try { args = p.arguments ? JSON.parse(p.arguments) : {}; } catch {}
+    const mapped = mapCodexTool(p.name || '', args);
+    out.push(JSON.stringify({
+      type: 'assistant',
+      message: { content: [{ type: 'tool_use', id: p.call_id, name: mapped.name, input: mapped.input }] },
+    }));
+  } else if (t === 'response_item' && p.type === 'function_call_output' && p.call_id) {
+    out.push(JSON.stringify({
+      type: 'user',
+      message: { content: [{ type: 'tool_result', tool_use_id: p.call_id }] },
+    }));
+  } else if (t === 'event_msg' && p.type === 'task_complete') {
+    out.push(JSON.stringify({ type: 'system', subtype: 'turn_duration' }));
+  }
+  return out;
+}
+
+// Derive a project label from a cwd, stripping trailing generic segments so
+// "~/Local Sites/aprende/app/public" reads as "aprende" rather than "public".
+function folderFromCwd(cwd) {
+  if (!cwd || typeof cwd !== 'string') return '';
+  const segs = cwd.split(/[\\/]/).filter(Boolean);
+  while (segs.length > 1 && GENERIC_DIR_SEGMENTS.has(segs[segs.length - 1].toLowerCase())) segs.pop();
+  return segs[segs.length - 1] || '';
+}
+
+// Read the cwd out of a Codex rollout's session_meta header (first line). The
+// header embeds the full system prompt and can exceed 100KB, so we regex the
+// cwd out of the first 4KB instead of JSON-parsing the whole line.
+function readCodexCwd(filePath) {
+  try {
+    const fd = fs.openSync(filePath, 'r');
+    const buf = Buffer.alloc(4096);
+    const n = fs.readSync(fd, buf, 0, buf.length, 0);
+    fs.closeSync(fd);
+    const text = buf.slice(0, n).toString('utf-8');
+    const m = text.match(/"cwd"\s*:\s*"((?:\\.|[^"\\])*)"/);
+    if (!m) return '';
+    return m[1].replace(/\\(["\\/bfnrt])/g, (_, c) => ({ '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n', r: '\r', t: '\t' }[c] || c));
+  } catch { return ''; }
+}
+
+// --- Read new lines from a Codex rollout file ---
+function readNewCodexLines(filePath) {
+  const session = sessions.get(filePath);
+  if (!session) return;
+  try {
+    const stat = fs.statSync(filePath);
+    if (stat.size <= session.offset) return;
+    const buf = Buffer.alloc(stat.size - session.offset);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buf, 0, buf.length, session.offset);
+    fs.closeSync(fd);
+    session.offset = stat.size;
+    const text = session.lineBuffer + buf.toString('utf-8');
+    const lines = text.split('\n');
+    session.lineBuffer = lines.pop() || '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      for (const rec of parseCodexLine(session.cursorParser, line)) {
+        send({ type: 'session-line', sessionId: session.sessionId, line: rec });
+      }
+    }
+  } catch {}
+}
+
 // --- Read new lines from a Claude Code session file and send them ---
 function readNewLines(filePath) {
   const session = sessions.get(filePath);
   if (!session) return;
   if (session.agentType === 'cursor') return readNewCursorLines(filePath);
+  if (session.agentType === 'codex') return readNewCodexLines(filePath);
   try {
     const stat = fs.statSync(filePath);
     if (stat.size <= session.offset) return;
@@ -316,12 +445,18 @@ function readNewLines(filePath) {
 function startSession(filePath, projDir, agentType) {
   const ext = agentType === 'cursor' ? path.extname(filePath) : '.jsonl';
   const rawId = path.basename(filePath, ext);
-  const sessionId = agentType === 'cursor' ? `cursor-${rawId}` : rawId;
-  const folderName = resolveFolderName(path.basename(projDir));
+  const sessionId = agentType === 'claude' ? rawId : `${agentType}-${rawId}`;
+  // Codex sessions are stored by date, not by project, so the folder label
+  // comes from the cwd in the rollout header rather than the directory name.
+  const folderName = agentType === 'codex'
+    ? (folderFromCwd(readCodexCwd(filePath)) || 'codex')
+    : resolveFolderName(path.basename(projDir));
 
   let offset = 0;
   const replayLines = [];
-  let cursorParser = agentType === 'cursor' ? createCursorParser() : null;
+  let cursorParser = agentType === 'cursor' ? createCursorParser()
+    : agentType === 'codex' ? createCodexParser()
+    : null;
 
   try {
     const content = fs.readFileSync(filePath, 'utf-8');
@@ -333,6 +468,11 @@ function startSession(filePath, projDir, agentType) {
         replayLines.push(...records);
       }
       replayLines.push(...flushPendingCursorTool(cursorParser));
+    } else if (agentType === 'codex') {
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (line.trim()) replayLines.push(...parseCodexLine(cursorParser, line));
+      }
     } else {
       const lines = content.split('\n');
       for (const line of lines) {
@@ -448,17 +588,193 @@ function scanCursorFiles() {
   return activeFiles;
 }
 
+function safeReaddir(dir) {
+  try { return fs.readdirSync(dir); } catch { return []; }
+}
+
+// List Codex rollout files from day-folders (sessions/YYYY/MM/DD/) whose date
+// could fall within `withinMs`. Codex never prunes sessions, so a naive full
+// recursive walk grows unbounded; pruning by the date-named folders keeps the
+// cost O(recent days) instead of O(all history).
+function listRecentCodexRollouts(withinMs) {
+  const out = [];
+  const cutoff = Date.now() - withinMs;
+  for (const y of safeReaddir(CODEX_SESSIONS_ROOT)) {
+    if (!/^\d{4}$/.test(y)) continue;
+    const yp = path.join(CODEX_SESSIONS_ROOT, y);
+    for (const mo of safeReaddir(yp)) {
+      if (!/^\d{2}$/.test(mo)) continue;
+      const mp = path.join(yp, mo);
+      for (const d of safeReaddir(mp)) {
+        if (!/^\d{2}$/.test(d)) continue;
+        // Skip whole day-folders that ended before the cutoff.
+        const dayEnd = Date.parse(`${y}-${mo}-${d}T23:59:59`);
+        if (!Number.isNaN(dayEnd) && dayEnd < cutoff) continue;
+        const dp = path.join(mp, d);
+        for (const f of safeReaddir(dp)) {
+          if (f.startsWith('rollout-') && f.endsWith('.jsonl')) out.push(path.join(dp, f));
+        }
+      }
+    }
+  }
+  return out;
+}
+
+// --- Filter a precomputed Codex rollout list down to the active set ---
+function scanCodexFiles(rollouts) {
+  const activeFiles = new Set();
+  const now = Date.now();
+  for (const file of rollouts) {
+    try {
+      const stat = fs.statSync(file);
+      if (now - stat.mtimeMs > AUTO_DETECT_MAX_AGE_MS) continue;
+      const skippedMtime = skippedFiles.get(file);
+      if (skippedMtime !== undefined) {
+        if (stat.mtimeMs <= skippedMtime) continue;
+        skippedFiles.delete(file);
+        log(`Re-detected Codex activity: ${path.basename(file)}`);
+      }
+      activeFiles.add(file);
+    } catch {}
+  }
+  return activeFiles;
+}
+
+// --- Usage panel: per-tool context% for the most-recently-active session ---
+// Read only the trailing window of a transcript — active Claude sessions reach
+// 100MB+, and this runs every scan, so slurping the whole file (as the replay
+// path does once at start) would churn memory/GC continuously. The last usage /
+// token_count record always lives near EOF, well within this window.
+const USAGE_TAIL_BYTES = 512 * 1024;
+function readLastLines(filePath, maxLines) {
+  try {
+    const st = fs.statSync(filePath);
+    const start = Math.max(0, st.size - USAGE_TAIL_BYTES);
+    const len = st.size - start;
+    if (len <= 0) return [];
+    const buf = Buffer.alloc(len);
+    const fd = fs.openSync(filePath, 'r');
+    fs.readSync(fd, buf, 0, len, start);
+    fs.closeSync(fd);
+    let text = buf.toString('utf-8');
+    if (start > 0) {
+      const nl = text.indexOf('\n'); // drop the partial first line
+      if (nl >= 0) text = text.slice(nl + 1);
+    }
+    const lines = text.split('\n').filter((l) => l.trim());
+    return lines.slice(-maxLines);
+  } catch { return []; }
+}
+
+function formatTokens(n) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return String(n);
+}
+
+// Newest file (within `withinMs`) from a flat list of candidate paths.
+function newestRecentFile(files, withinMs) {
+  const now = Date.now();
+  let best = null, bestM = 0;
+  for (const f of files) {
+    try {
+      const st = fs.statSync(f);
+      if (now - st.mtimeMs > withinMs) continue;
+      if (st.mtimeMs > bestM) { bestM = st.mtimeMs; best = f; }
+    } catch {}
+  }
+  return best;
+}
+
+function listClaudeJsonl() {
+  const out = [];
+  let dirs;
+  try { dirs = fs.readdirSync(CLAUDE_PROJECTS_ROOT).map((d) => path.join(CLAUDE_PROJECTS_ROOT, d)); } catch { return out; }
+  for (const d of dirs) {
+    let files;
+    try { files = fs.readdirSync(d); } catch { continue; } // one level only — skips nested plugin logs
+    for (const f of files) if (f.endsWith('.jsonl')) out.push(path.join(d, f));
+  }
+  return out;
+}
+
+function buildClaudeUsage() {
+  const file = newestRecentFile(listClaudeJsonl(), USAGE_ACTIVE_WINDOW_MS);
+  if (!file) return null;
+  const lines = readLastLines(file, 200);
+  let usage = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let r;
+    try { r = JSON.parse(lines[i]); } catch { continue; }
+    if (r.type === 'assistant' && r.message && r.message.usage) { usage = r.message.usage; break; }
+  }
+  if (!usage) return null;
+  const total = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) +
+    (usage.cache_read_input_tokens || 0) + (usage.output_tokens || 0);
+  const limit = total > CLAUDE_DEFAULT_CONTEXT ? CLAUDE_1M_CONTEXT : CLAUDE_DEFAULT_CONTEXT;
+  const folder = resolveFolderName(path.basename(path.dirname(file)));
+  const pct = limit > 0 ? total / limit : 0;
+  return {
+    id: 'claude-context', label: 'Claude', primary: `${Math.round(pct * 100)}%`,
+    secondary: `${formatTokens(total)} / ${formatTokens(limit)}${folder ? ` · ${folder}` : ''}`,
+    percent: pct, color: CLAUDE_USAGE_COLOR,
+  };
+}
+
+function buildCodexUsage(rollouts) {
+  const file = newestRecentFile(rollouts, USAGE_ACTIVE_WINDOW_MS);
+  if (!file) return null;
+  const lines = readLastLines(file, 400);
+  let info = null;
+  for (let i = lines.length - 1; i >= 0; i--) {
+    let r;
+    try { r = JSON.parse(lines[i]); } catch { continue; }
+    const p = r.payload || {};
+    if (r.type === 'event_msg' && p.type === 'token_count' && p.info) { info = p.info; break; }
+  }
+  if (!info) return null;
+  // last_token_usage.total_tokens is the current context-window occupancy.
+  // total_token_usage is CUMULATIVE across the session (can far exceed the
+  // window), so it's not a valid fallback — skip the source if absent.
+  const total = info.last_token_usage && info.last_token_usage.total_tokens;
+  const limit = info.model_context_window || 0;
+  if (!total || !limit) return null;
+  const folder = folderFromCwd(readCodexCwd(file));
+  const pct = Math.max(0, Math.min(1, total / limit)); // clamp — never show >100%
+  return {
+    id: 'codex-context', label: 'Codex', primary: `${Math.round(pct * 100)}%`,
+    secondary: `${formatTokens(total)} / ${formatTokens(limit)}${folder ? ` · ${folder}` : ''}`,
+    percent: pct, color: CODEX_USAGE_COLOR,
+  };
+}
+
+// Compute and push the usage panel over the existing reporter WS. Sending an
+// empty array when nothing is active clears this machine's sources server-side;
+// sending every scan (even unchanged) is intentional — it's the heartbeat that
+// keeps the server from expiring the sources as stale. `codexRollouts` is the
+// list already gathered this scan, so we don't re-walk the sessions tree.
+function reportUsage(codexRollouts) {
+  const sources = [];
+  try { const c = buildClaudeUsage(); if (c) sources.push(c); } catch {}
+  try { const x = buildCodexUsage(codexRollouts || []); if (x) sources.push(x); } catch {}
+  send({ type: 'usage-report', sources });
+}
+
 // --- Scan: detect active sessions from all providers and report them ---
 function scan() {
   if (!connected) return;
 
   const claudeFiles = scanClaudeFiles();
   const cursorFiles = scanCursorFiles();
+  // Gather Codex rollouts once and reuse for both session detection and usage.
+  const codexRollouts = listRecentCodexRollouts(AUTO_DETECT_MAX_AGE_MS);
+  const codexFiles = scanCodexFiles(codexRollouts);
 
   // Merge into a single map: filePath → agentType
   const allActive = new Map();
   for (const f of claudeFiles) allActive.set(f, 'claude');
   for (const f of cursorFiles) allActive.set(f, 'cursor');
+  for (const f of codexFiles) allActive.set(f, 'codex');
 
   // Start sessions for files we're not tracking yet
   for (const [file, agentType] of allActive) {
@@ -485,6 +801,9 @@ function scan() {
       }
     } catch {}
   }
+
+  // Push the usage panel (Claude + Codex context%) over the same WS.
+  reportUsage(codexRollouts);
 }
 
 // --- WebSocket connection with auto-reconnect ---
@@ -523,6 +842,7 @@ log(`Pixel Office Reporter`);
 log(`Machine ID: ${MACHINE_ID}`);
 log(`Claude projects: ${CLAUDE_PROJECTS_ROOT}`);
 log(`Cursor projects: ${CURSOR_PROJECTS_ROOT}`);
+log(`Codex sessions: ${CODEX_SESSIONS_ROOT}`);
 log(`Server: ${SERVER_URL}`);
 
 connect();

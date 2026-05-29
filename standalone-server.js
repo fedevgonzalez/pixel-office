@@ -125,9 +125,57 @@ function sanitizeUsageSource(s) {
   return out;
 }
 
+function usageKey(owner, id) {
+  return JSON.stringify([owner, id]);
+}
+
+// Replace all of `owner`'s usage sources with the sanitized incoming set.
+// Returns the number of sources accepted.
+function setUsageForOwner(owner, rawSources) {
+  const now = Date.now();
+  for (const [k, v] of usageByKey) {
+    if (v.owner === owner) usageByKey.delete(k);
+  }
+  let n = 0;
+  for (const raw of Array.isArray(rawSources) ? rawSources : []) {
+    const s = sanitizeUsageSource(raw);
+    if (!s) continue;
+    s.owner = owner;
+    s.updatedAt = now;
+    usageByKey.set(usageKey(owner, s.id), s);
+    if (++n >= USAGE_MAX_SOURCES) break;
+  }
+  usageUpdatedAt = now;
+  return n;
+}
+
+function clearUsageForOwner(owner) {
+  let removed = 0;
+  for (const [k, v] of usageByKey) {
+    if (v.owner === owner) { usageByKey.delete(k); removed++; }
+  }
+  if (removed) usageUpdatedAt = Date.now();
+  return removed;
+}
+
+// Live (non-stale) sources, shaped for the client. Source ids are namespaced
+// with the owner only when more than one owner is present, so a single-machine
+// setup keeps clean ids ("claude-context") while multi-machine stays unique.
 function getActiveUsageSources() {
   const now = Date.now();
-  return usageSources.filter((s) => now - s.updatedAt < USAGE_STALE_MS);
+  const live = [];
+  for (const v of usageByKey.values()) {
+    if (now - v.updatedAt >= USAGE_STALE_MS) continue;
+    live.push(v);
+  }
+  const multiOwner = new Set(live.map((s) => s.owner)).size > 1;
+  return live.map((s) => {
+    const out = { id: multiOwner ? `${s.owner}:${s.id}` : s.id, label: s.label, primary: s.primary, updatedAt: s.updatedAt };
+    if (s.secondary !== undefined) out.secondary = s.secondary;
+    if (s.percent !== undefined) out.percent = s.percent;
+    if (s.color !== undefined) out.color = s.color;
+    return out;
+  });
 }
 
 // Local community-repo path for development (fallback used when GitHub is
@@ -249,15 +297,18 @@ let wsClients = [];
 // per-transition events.
 const petRuntimeStates = new Map(); // uid → state string
 let petRuntimeStatesUpdatedAt = 0;
-// Usage panel state — populated by external local daemons via POST /api/usage.
-// Pixel-office stays generic: sources are opaque records the daemon defines
-// (e.g. "claude 5h", "codex session", "gemini quota"). Sources older than
-// USAGE_STALE_MS are filtered out so a crashed daemon doesn't leave stale data
-// on the kiosk forever.
+// Usage panel state — populated by reporters over /ws/report (usage-report)
+// or external posters via POST /api/usage. Pixel-office stays generic: sources
+// are opaque records the producer defines (e.g. "Claude 87%", "Codex 6%").
+// Sources are keyed by a JSON `[owner, id]` key so multiple producers (one per
+// reporter machine, plus the 'http' REST path) don't clobber each other; each
+// carries `owner` (for per-reporter cleanup on disconnect) and `updatedAt`
+// (sources older than USAGE_STALE_MS are filtered out so a dead producer
+// doesn't leave stale data on the kiosk forever).
 const USAGE_STALE_MS = 5 * 60 * 1000;
-const USAGE_MAX_SOURCES = 8;
+const USAGE_MAX_SOURCES = 8; // per owner
 const USAGE_MAX_BODY_BYTES = 16 * 1024;
-let usageSources = []; // [{ id, label, primary, secondary?, percent?, color?, updatedAt }]
+const usageByKey = new Map(); // a JSON `[owner, id]` key -> { ...source, owner, updatedAt }
 let usageUpdatedAt = 0;
 const clientLastPong = new Map(); // ws -> timestamp of last pong
 const WS_PING_INTERVAL_MS = 15000;
@@ -1821,6 +1872,15 @@ function handleReporterMessage(ws, msg) {
   const reporter = reporterClients.get(ws);
   if (!reporter) return;
   const { machineId } = reporter;
+
+  // Usage reports carry no sessionId — they're per-machine tool quotas, not a
+  // session. Route them straight to the usage store owned by this machine.
+  if (msg.type === 'usage-report') {
+    setUsageForOwner(machineId, msg.sources);
+    broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
+    return;
+  }
+
   const remoteKey = `${machineId}:${msg.sessionId}`;
 
   if (msg.type === 'session-start') {
@@ -1872,6 +1932,11 @@ function cleanupReporter(ws) {
       removeAgent(agentId, `reporter disconnected (${machineId})`);
       remoteAgents.delete(remoteKey);
     }
+  }
+  // Drop this machine's usage sources so the kiosk panel clears when the
+  // reporter goes away (rather than waiting out USAGE_STALE_MS).
+  if (clearUsageForOwner(machineId) > 0) {
+    broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
   }
   reporterClients.delete(ws);
   console.log(`Reporter disconnected: ${machineId}`);
@@ -2635,11 +2700,13 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // API: usage panel — generic surface for any local daemon to push tool quotas
-  // (e.g. Claude 5h limit, Codex session tokens, Gemini quota). Pixel-office is
-  // intentionally agnostic about which tool a source represents; the daemon
-  // composes the strings. Loopback callers don't need a token; remote callers
-  // must present `x-pixel-office-usage-token` matching PIXEL_OFFICE_USAGE_TOKEN.
+  // API: usage panel — generic surface for any local producer to push tool
+  // quotas (e.g. Claude 87%, Codex 6%). The primary producer is the reporter
+  // over /ws/report (usage-report); this REST path is an alternative for
+  // standalone posters and is owned by 'http'. Pixel-office is agnostic about
+  // which tool a source represents; the producer composes the strings.
+  // Loopback callers don't need a token; remote callers must present
+  // `x-pixel-office-usage-token` matching PIXEL_OFFICE_USAGE_TOKEN.
   if (urlPath === '/api/usage' && req.method === 'GET') {
     const body = JSON.stringify({ sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
@@ -2662,21 +2729,10 @@ const server = http.createServer(async (req, res) => {
       if (aborted) return;
       try {
         const parsed = JSON.parse(body || '{}');
-        const incoming = Array.isArray(parsed.sources) ? parsed.sources : [];
-        const now = Date.now();
-        const sanitized = [];
-        for (const raw of incoming) {
-          const s = sanitizeUsageSource(raw);
-          if (!s) continue;
-          s.updatedAt = now;
-          sanitized.push(s);
-          if (sanitized.length >= USAGE_MAX_SOURCES) break;
-        }
-        usageSources = sanitized;
-        usageUpdatedAt = now;
+        const count = setUsageForOwner('http', parsed.sources);
         broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
         res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-        res.end(JSON.stringify({ ok: true, count: sanitized.length }));
+        res.end(JSON.stringify({ ok: true, count }));
       } catch {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'bad json' }));
@@ -2690,9 +2746,8 @@ const server = http.createServer(async (req, res) => {
       res.end(JSON.stringify({ error: 'unauthorized' }));
       return;
     }
-    usageSources = [];
-    usageUpdatedAt = Date.now();
-    broadcast({ type: 'usageUpdate', sources: [], updatedAt: usageUpdatedAt });
+    clearUsageForOwner('http');
+    broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify({ ok: true }));
     return;

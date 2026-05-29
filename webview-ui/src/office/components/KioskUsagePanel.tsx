@@ -38,7 +38,7 @@ export function KioskUsagePanel({ sources }: KioskUsagePanelProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: KIOSK_USAGE_GAP_PX,
-        padding: '10px 14px',
+        padding: '16px 22px',
         background: 'var(--pixel-kiosk-panel-bg)',
         backdropFilter: 'var(--pixel-kiosk-blur)',
         border: '2px solid var(--pixel-border)',
@@ -48,7 +48,7 @@ export function KioskUsagePanel({ sources }: KioskUsagePanelProps) {
         zIndex: 50,
         opacity: KIOSK_USAGE_OPACITY,
         fontFamily: 'var(--pixel-font)',
-        minWidth: KIOSK_USAGE_BAR_WIDTH + 28,
+        minWidth: KIOSK_USAGE_BAR_WIDTH + 44,
       }}
       aria-hidden="true"
     >
