@@ -587,15 +587,15 @@ export const PET_HEART_SPRITE: SpriteData = [
   [_, _, _, _, _, _, _, _, _],
 ]
 
-/** Happy/wag bubble (9x9) for dog reaction */
+/** Happy/wag bubble (9x9) for dog reaction — smiling face (mouth curves up) */
 export const PET_HAPPY_SPRITE: SpriteData = [
   [_, _, _, _, _, _, _, _, _],
   [_, _, H, _, _, _, H, _, _],
   [_, H, HD, H, _, H, HD, H, _],
   [_, _, H, _, _, _, H, _, _],
   [_, _, _, _, _, _, _, _, _],
-  [_, _, H, H, H, H, H, _, _],
   [_, H, _, _, _, _, _, H, _],
+  [_, _, H, H, H, H, H, _, _],
   [_, _, _, _, _, _, _, _, _],
   [_, _, _, _, _, _, _, _, _],
 ]
