@@ -2,6 +2,7 @@ import { TileType, FurnitureType, DEFAULT_COLS, DEFAULT_ROWS, TILE_SIZE, Directi
 import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Seat, FurnitureInstance, FloorColor } from '../types.js'
 import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
+import { getActiveFloorThemeId } from '../floorTiles.js'
 
 /** Convert flat tile array from layout into 2D grid */
 export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
@@ -18,17 +19,17 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
 
 /** Convert placed furniture into renderable FurnitureInstance[] */
 export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): FurnitureInstance[] {
-  // Pre-compute desk zY per tile so surface items can sort in front of desks
-  const deskZByTile = new Map<string, number>()
+  // Pre-compute surface zY per tile so stackable items can sort in front of their host surface
+  const surfaceZByTile = new Map<string, number>()
   for (const item of furniture) {
     const entry = getCatalogEntry(item.type)
-    if (!entry || !entry.isDesk) continue
-    const deskZY = item.row * TILE_SIZE + entry.sprite.length
+    if (!entry || !(entry.providesSurface || entry.isDesk)) continue
+    const surfaceZY = item.row * TILE_SIZE + entry.sprite.length
     for (let dr = 0; dr < entry.footprintH; dr++) {
       for (let dc = 0; dc < entry.footprintW; dc++) {
         const key = `${item.col + dc},${item.row + dr}`
-        const prev = deskZByTile.get(key)
-        if (prev === undefined || deskZY > prev) deskZByTile.set(key, deskZY)
+        const prev = surfaceZByTile.get(key)
+        if (prev === undefined || surfaceZY > prev) surfaceZByTile.set(key, surfaceZY)
       }
     }
   }
@@ -55,12 +56,12 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
       }
     }
 
-    // Surface items render in front of the desk they sit on
+    // Surface items render in front of the surface they sit on
     if (entry.canPlaceOnSurfaces) {
       for (let dr = 0; dr < entry.footprintH; dr++) {
         for (let dc = 0; dc < entry.footprintW; dc++) {
-          const deskZ = deskZByTile.get(`${item.col + dc},${item.row + dr}`)
-          if (deskZ !== undefined && deskZ + 0.5 > zY) zY = deskZ + 0.5
+          const surfaceZ = surfaceZByTile.get(`${item.col + dc},${item.row + dr}`)
+          if (surfaceZ !== undefined && surfaceZ + 0.5 > zY) zY = surfaceZ + 0.5
         }
       }
     }
@@ -298,38 +299,47 @@ export function migrateLayoutColors(layout: OfficeLayout): OfficeLayout {
 
 /**
  * Migrate old layouts that use legacy tile types (TILE_FLOOR=1, WOOD_FLOOR=2, CARPET=3, DOORWAY=4)
- * to the new pattern-based system. If tileColors is already present, no migration needed.
+ * to the new pattern-based system. Also backfills tileThemes for layouts that
+ * predate per-tile theme support.
  */
 function migrateLayout(layout: OfficeLayout): OfficeLayout {
-  if (layout.tileColors && layout.tileColors.length === layout.tiles.length) {
-    return layout // Already migrated
-  }
+  let out = layout
 
-  // Check if any tiles use old values (1-4) — these map directly to FLOOR_1-4
-  // but need color assignments
-  const tileColors: Array<FloorColor | null> = []
-  for (const tile of layout.tiles) {
-    switch (tile) {
-      case 0: // WALL
-        tileColors.push(null)
-        break
-      case 1: // was TILE_FLOOR → FLOOR_1 beige
-        tileColors.push(DEFAULT_LEFT_ROOM_COLOR)
-        break
-      case 2: // was WOOD_FLOOR → FLOOR_2 brown
-        tileColors.push(DEFAULT_RIGHT_ROOM_COLOR)
-        break
-      case 3: // was CARPET → FLOOR_3 purple
-        tileColors.push(DEFAULT_CARPET_COLOR)
-        break
-      case 4: // was DOORWAY → FLOOR_4 tan
-        tileColors.push(DEFAULT_DOORWAY_COLOR)
-        break
-      default:
-        // New tile types (5-7) without colors — use neutral gray
-        tileColors.push(tile > 0 ? { h: 0, s: 0, b: 0, c: 0 } : null)
+  if (!out.tileColors || out.tileColors.length !== out.tiles.length) {
+    const tileColors: Array<FloorColor | null> = []
+    for (const tile of out.tiles) {
+      switch (tile) {
+        case 0: // WALL
+          tileColors.push(null)
+          break
+        case 1: // was TILE_FLOOR → FLOOR_1 beige
+          tileColors.push(DEFAULT_LEFT_ROOM_COLOR)
+          break
+        case 2: // was WOOD_FLOOR → FLOOR_2 brown
+          tileColors.push(DEFAULT_RIGHT_ROOM_COLOR)
+          break
+        case 3: // was CARPET → FLOOR_3 purple
+          tileColors.push(DEFAULT_CARPET_COLOR)
+          break
+        case 4: // was DOORWAY → FLOOR_4 tan
+          tileColors.push(DEFAULT_DOORWAY_COLOR)
+          break
+        default:
+          tileColors.push(tile > 0 ? { h: 0, s: 0, b: 0, c: 0 } : null)
+      }
     }
+    out = { ...out, tileColors }
   }
 
-  return { ...layout, tileColors }
+  if (!out.tileThemes || out.tileThemes.length !== out.tiles.length) {
+    const defaultTheme = getActiveFloorThemeId()
+    const tileThemes: Array<string | null> = out.tiles.map((tile) => {
+      // Only floor tiles (1-7) carry a theme; WALL=0 and VOID=8 stay null.
+      if (tile >= 1 && tile <= 7) return defaultTheme
+      return null
+    })
+    out = { ...out, tileThemes }
+  }
+
+  return out
 }

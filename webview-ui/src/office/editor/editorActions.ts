@@ -4,16 +4,27 @@ import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor
 import { getCatalogEntry, getRotatedType, getToggledType } from '../layout/furnitureCatalog.js'
 import { getPlacementBlockedTiles } from '../layout/layoutSerializer.js'
 
-/** Paint a single tile with pattern and color. Returns new layout (immutable). */
-export function paintTile(layout: OfficeLayout, col: number, row: number, tileType: TileTypeVal, color?: FloorColor): OfficeLayout {
+/** Paint a single tile with pattern, color, and theme. Returns new layout (immutable). */
+export function paintTile(
+  layout: OfficeLayout,
+  col: number,
+  row: number,
+  tileType: TileTypeVal,
+  color?: FloorColor,
+  themeId?: string | null,
+): OfficeLayout {
   const idx = row * layout.cols + col
   if (idx < 0 || idx >= layout.tiles.length) return layout
 
   const existingColors = layout.tileColors || new Array(layout.tiles.length).fill(null)
+  const existingThemes = layout.tileThemes || new Array(layout.tiles.length).fill(null)
   const newColor = color ?? (tileType === TileType.WALL || tileType === TileType.VOID ? null : { ...DEFAULT_NEUTRAL_COLOR })
+  // Floor tiles get a theme; walls and void clear it.
+  const isFloor = tileType !== TileType.WALL && tileType !== TileType.VOID
+  const newTheme: string | null = isFloor ? (themeId ?? existingThemes[idx] ?? null) : null
 
   // Check if anything actually changed
-  if (layout.tiles[idx] === tileType) {
+  if (layout.tiles[idx] === tileType && existingThemes[idx] === newTheme) {
     const existingColor = existingColors[idx]
     if (newColor === null && existingColor === null) return layout
     if (newColor && existingColor &&
@@ -26,7 +37,9 @@ export function paintTile(layout: OfficeLayout, col: number, row: number, tileTy
   tiles[idx] = tileType
   const tileColors = [...existingColors]
   tileColors[idx] = newColor
-  return { ...layout, tiles, tileColors }
+  const tileThemes = [...existingThemes]
+  tileThemes[idx] = newTheme
+  return { ...layout, tiles, tileColors, tileThemes }
 }
 
 /** Place furniture. Returns new layout (immutable). */
@@ -129,17 +142,17 @@ export function canPlaceFurniture(
   // Build occupied set excluding the item being moved, skipping background tile rows
   const occupied = getPlacementBlockedTiles(layout.furniture, excludeUid)
 
-  // If this item can be placed on surfaces, build set of desk tiles to exclude from collision
-  let deskTiles: Set<string> | null = null
+  // If this item can be placed on surfaces, build set of surface tiles to exclude from collision
+  let surfaceTiles: Set<string> | null = null
   if (entry.canPlaceOnSurfaces) {
-    deskTiles = new Set<string>()
+    surfaceTiles = new Set<string>()
     for (const item of layout.furniture) {
       if (item.uid === excludeUid) continue
       const itemEntry = getCatalogEntry(item.type)
-      if (!itemEntry || !itemEntry.isDesk) continue
+      if (!itemEntry || !(itemEntry.providesSurface || itemEntry.isDesk)) continue
       for (let dr = 0; dr < itemEntry.footprintH; dr++) {
         for (let dc = 0; dc < itemEntry.footprintW; dc++) {
-          deskTiles.add(`${item.col + dc},${item.row + dr}`)
+          surfaceTiles.add(`${item.col + dc},${item.row + dr}`)
         }
       }
     }
@@ -152,7 +165,7 @@ export function canPlaceFurniture(
     if (row + dr < 0) continue // row above map (wall items extending upward)
     for (let dc = 0; dc < entry.footprintW; dc++) {
       const key = `${col + dc},${row + dr}`
-      if (occupied.has(key) && !(deskTiles?.has(key))) return false
+      if (occupied.has(key) && !(surfaceTiles?.has(key))) return false
     }
   }
 
@@ -170,8 +183,9 @@ export function expandLayout(
   layout: OfficeLayout,
   direction: ExpandDirection,
 ): { layout: OfficeLayout; shift: { col: number; row: number } } | null {
-  const { cols, rows, tiles, furniture, tileColors, zones } = layout
+  const { cols, rows, tiles, furniture, tileColors, tileThemes, zones } = layout
   const existingColors = tileColors || new Array(tiles.length).fill(null)
+  const existingThemes = tileThemes || new Array(tiles.length).fill(null)
   const existingZones = zones || new Array(tiles.length).fill(null)
 
   let newCols = cols
@@ -196,6 +210,7 @@ export function expandLayout(
   // Build new tile array
   const newTiles: TileTypeVal[] = new Array(newCols * newRows).fill(TileType.VOID as TileTypeVal)
   const newColors: Array<FloorColor | null> = new Array(newCols * newRows).fill(null)
+  const newThemes: Array<string | null> = new Array(newCols * newRows).fill(null)
   const newZones: Array<ZoneTypeVal | null> = new Array(newCols * newRows).fill(null)
 
   for (let r = 0; r < rows; r++) {
@@ -204,6 +219,7 @@ export function expandLayout(
       const newIdx = (r + shiftRow) * newCols + (c + shiftCol)
       newTiles[newIdx] = tiles[oldIdx]
       newColors[newIdx] = existingColors[oldIdx]
+      newThemes[newIdx] = existingThemes[oldIdx]
       newZones[newIdx] = existingZones[oldIdx]
     }
   }
@@ -216,7 +232,7 @@ export function expandLayout(
   }))
 
   return {
-    layout: { ...layout, cols: newCols, rows: newRows, tiles: newTiles, tileColors: newColors, zones: newZones, furniture: newFurniture },
+    layout: { ...layout, cols: newCols, rows: newRows, tiles: newTiles, tileColors: newColors, tileThemes: newThemes, zones: newZones, furniture: newFurniture },
     shift: { col: shiftCol, row: shiftRow },
   }
 }

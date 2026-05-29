@@ -1106,6 +1106,30 @@ function pngToSpriteDataResampled(png, srcX, srcY, srcW, srcH, outW, outH) {
   return sprite;
 }
 
+// Resample png to (outW × visualScale) × (outH × visualScale) and anchor it
+// bottom-center inside an outW × outH transparent canvas. Used for small decor
+// items where the AI raster fills the whole canvas but visually the prop
+// should sit smaller within its tile footprint.
+function pngToSpriteDataScaled(png, outW, outH, visualScale) {
+  const contentW = Math.max(1, Math.round(outW * visualScale));
+  const contentH = Math.max(1, Math.round(outH * visualScale));
+  const offsetX = Math.floor((outW - contentW) / 2);
+  const offsetY = outH - contentH;
+  const content = pngToSpriteDataResampled(png, 0, 0, png.width, png.height, contentW, contentH);
+  const sprite = [];
+  for (let row = 0; row < outH; row++) {
+    const line = new Array(outW).fill('');
+    const cRow = row - offsetY;
+    if (cRow >= 0 && cRow < contentH) {
+      for (let col = 0; col < contentW; col++) {
+        line[offsetX + col] = content[cRow][col];
+      }
+    }
+    sprite.push(line);
+  }
+  return sprite;
+}
+
 // Community-installed character sprites live here (downloaded via "Use this
 // Character" from the gallery). Bundled chars keep their stable numeric
 // indices; community chars are appended after them sorted by id, so existing
@@ -1126,14 +1150,26 @@ async function loadCharacterSprites() {
   // Legacy: 112×96 sheets (16×32 cells) are detected by dims and loaded as-is —
   // they render correctly side-by-side with new sprites since the renderer
   // anchors at bottom-center using each sprite's intrinsic width/height.
+  // Accept both numeric IDs (legacy `char_0.png`, `char_1.png`, …) and
+  // descriptive IDs (`char_professor.png`, `char_punk_grandma.png`, …).
+  // Numeric IDs sort by number for stable backwards-compat ordering;
+  // descriptive IDs append after numeric, sorted alphabetically.
   const bundled = fs.existsSync(bundledDir)
     ? fs.readdirSync(bundledDir)
         .map((name) => {
-          const m = name.match(/^char_(\d+)\.png$/);
-          return m ? { idx: Number(m[1]), file: path.join(bundledDir, name) } : null;
+          const m = name.match(/^char_([a-z0-9_-]+)\.png$/i);
+          if (!m) return null;
+          const raw = m[1];
+          const numeric = /^\d+$/.test(raw) ? Number(raw) : null;
+          return { id: raw, numeric, file: path.join(bundledDir, name) };
         })
         .filter(Boolean)
-        .sort((a, b) => a.idx - b.idx)
+        .sort((a, b) => {
+          if (a.numeric !== null && b.numeric !== null) return a.numeric - b.numeric;
+          if (a.numeric !== null) return -1;
+          if (b.numeric !== null) return 1;
+          return a.id.localeCompare(b.id);
+        })
     : [];
   // Community files use `char_community_<id>.png` naming so they never collide
   // with bundled numeric ids. They're appended after bundled, sorted by id.
@@ -1150,6 +1186,10 @@ async function loadCharacterSprites() {
   const chars = [];
   for (const { file } of [...bundled, ...community]) {
     const png = await loadPng(file);
+    // Strip a flat magenta background (#FF00FF) if the generator fell back to
+    // it — see characters/PROMPTS.md. Same step pets use; harmless on real
+    // alpha sheets because chromaKeyPetMagenta no-ops below the 8% threshold.
+    chromaKeyPetMagenta(png);
     // Three size paths, detected by sheet dimensions:
     //   112 × 96  → legacy 16 × 32 cells (sprite cache upscales 3× on render)
     //   168 × 96  → native bump 24 × 32 cells
@@ -1437,7 +1477,105 @@ async function loadFurnitureAssets() {
       const name = f.replace(/\.png$/, '');
       try {
         const png = await loadPng(path.join(furnitureDir, f));
-        sprites[name] = pngToSpriteData(png, 0, 0, png.width, png.height);
+        // AI-generated prop sheets ship with a solid #FF00FF magenta background
+        // (true alpha is unreliable from the generator). chromaKeyPetMagenta
+        // is gated by an 8% magenta-pixel threshold so hand-authored alpha
+        // sheets pass through untouched.
+        chromaKeyPetMagenta(png);
+        const sidecarPath = path.join(furnitureDir, `${name}.json`);
+        const meta = fs.existsSync(sidecarPath)
+          ? (() => {
+              try { return JSON.parse(fs.readFileSync(sidecarPath, 'utf-8')); }
+              catch (e) { console.warn(`  bundled prop sidecar ${name}.json invalid: ${e.message}`); return {}; }
+            })()
+          : null;
+
+        // AI-generated props ship as 2×2 rotation sheets (top-L=front, top-R=right,
+        // bot-L=back, bot-R=left). Loader slices into 4 sprites and exposes them as
+        // a rotation group: only the `_front` variant is catalog-visible; the editor's
+        // groupId+orientation infra cycles through the other three on rotate.
+        if (meta && meta.directions === 4) {
+          const srcCellW = png.width >> 1;
+          const srcCellH = png.height >> 1;
+          // Sidecar's footprintW/H is the in-game tile footprint. Resample each
+          // cell from raw raster (often ~500-1000 px) down to LOGICAL pixels
+          // (footprint × client TILE_SIZE = 48 per tile) so the sprite renders
+          // at the correct in-game scale instead of dwarfing characters.
+          const CLIENT_TILE_PX = 48;
+          const footprintW = Number.isFinite(meta.footprintW) && meta.footprintW > 0
+            ? meta.footprintW
+            : Math.max(1, Math.round(srcCellW / TILE_PIXELS));
+          const footprintH = Number.isFinite(meta.footprintH) && meta.footprintH > 0
+            ? meta.footprintH
+            : Math.max(1, Math.round(srcCellH / TILE_PIXELS));
+          const outW = footprintW * CLIENT_TILE_PX;
+          const outH = footprintH * CLIENT_TILE_PX;
+          const orientations = [
+            { o: 'front', sx: 0,        sy: 0 },
+            { o: 'right', sx: srcCellW, sy: 0 },
+            { o: 'back',  sx: 0,        sy: srcCellH },
+            { o: 'left',  sx: srcCellW, sy: srcCellH },
+          ];
+          for (const { o, sx, sy } of orientations) {
+            const id = `${name}_${o}`;
+            if (catalog.some((e) => e.id === id)) continue;
+            sprites[id] = pngToSpriteDataResampled(png, sx, sy, srcCellW, srcCellH, outW, outH);
+            catalog.push({
+              id,
+              label: meta.label || meta.name || name,
+              category: meta.category || 'decor',
+              width: outW,
+              height: outH,
+              footprintW,
+              footprintH,
+              isDesk: !!meta.isDesk,
+              groupId: name,
+              orientation: o,
+              ...(meta.canPlaceOnSurfaces ? { canPlaceOnSurfaces: true } : {}),
+              ...(meta.canPlaceOnWalls ? { canPlaceOnWalls: true } : {}),
+              ...(meta.providesSurface ? { providesSurface: true } : {}),
+              ...(typeof meta.backgroundTiles === 'number' ? { backgroundTiles: meta.backgroundTiles } : {}),
+            });
+          }
+        } else {
+          // Legacy single-perspective prop. Resample from raw AI raster
+          // (often ~1000+ px) down to LOGICAL pixels (footprint × CLIENT_TILE_PX)
+          // so the sprite renders at the correct in-game scale instead of
+          // dwarfing characters. visualScale < 1 shrinks the content
+          // and anchors it bottom-center inside the footprint canvas.
+          const CLIENT_TILE_PX = 48;
+          const footprintW = Number.isFinite(meta && meta.footprintW) && meta.footprintW > 0
+            ? meta.footprintW
+            : Math.max(1, Math.round(png.width / TILE_PIXELS));
+          const footprintH = Number.isFinite(meta && meta.footprintH) && meta.footprintH > 0
+            ? meta.footprintH
+            : Math.max(1, Math.round(png.height / TILE_PIXELS));
+          const outW = footprintW * CLIENT_TILE_PX;
+          const outH = footprintH * CLIENT_TILE_PX;
+          const visualScale = Number.isFinite(meta && meta.visualScale) && meta.visualScale > 0 && meta.visualScale <= 1
+            ? meta.visualScale
+            : 1;
+          sprites[name] = visualScale < 1
+            ? pngToSpriteDataScaled(png, outW, outH, visualScale)
+            : pngToSpriteDataResampled(png, 0, 0, png.width, png.height, outW, outH);
+          const hasInCatalog = catalog.some((e) => e.id === name);
+          if (!hasInCatalog && meta) {
+            catalog.push({
+              id: name,
+              label: meta.label || meta.name || name,
+              category: meta.category || 'decor',
+              width: outW,
+              height: outH,
+              footprintW,
+              footprintH,
+              isDesk: !!meta.isDesk,
+              ...(meta.canPlaceOnSurfaces ? { canPlaceOnSurfaces: true } : {}),
+              ...(meta.canPlaceOnWalls ? { canPlaceOnWalls: true } : {}),
+              ...(meta.providesSurface ? { providesSurface: true } : {}),
+              ...(typeof meta.backgroundTiles === 'number' ? { backgroundTiles: meta.backgroundTiles } : {}),
+            });
+          }
+        }
       } catch (e) {
         console.warn(`  bundled prop sprite ${f} failed:`, e.message);
       }
@@ -1473,6 +1611,7 @@ async function loadFurnitureAssets() {
           isDesk: !!meta.isDesk,
           ...(meta.canPlaceOnSurfaces ? { canPlaceOnSurfaces: true } : {}),
           ...(meta.canPlaceOnWalls ? { canPlaceOnWalls: true } : {}),
+          ...(meta.providesSurface ? { providesSurface: true } : {}),
           ...(typeof meta.backgroundTiles === 'number' ? { backgroundTiles: meta.backgroundTiles } : {}),
         });
       } catch (e) {
@@ -1484,35 +1623,49 @@ async function loadFurnitureAssets() {
   return { catalog, sprites };
 }
 
-async function loadFloorTiles() {
-  const file = path.join(assetsDir, 'floors.png');
-  if (!fs.existsSync(file)) return null;
+async function loadOneFloorSheet(file) {
   const png = await loadPng(file);
-
-  // For sheets whose aspect is far off the expected ~7:1, try to detect 7
-  // padded cell bboxes (AI generators tend to lay tiles out as separate
-  // framed samples). When detection succeeds, each bbox is resampled to
-  // 48×48 so the final palette is uniform regardless of source resolution.
   const aspect = png.width / png.height;
   if (aspect < 5.5 || aspect > 8.5) {
     const bboxes = detectFloorCellBboxes(png);
     if (bboxes && bboxes.length === 7) {
-      console.log(`  floors.png: detected 7 cells in ${png.width}×${png.height} padded canvas → resampling each to 48×48`);
+      console.log(`  ${path.basename(file)}: detected 7 cells in ${png.width}×${png.height} padded canvas → resampling each to 48×48`);
       return bboxes.map((b) => pngToSpriteDataResampled(png, b.x, b.y, b.w, b.h, 48, 48));
     }
-    console.warn(`  floors.png: aspect ${aspect.toFixed(2)}:1 is far from 7:1 and bbox detection failed; falling back to uniform width/7 slicing (result may be off)`);
+    console.warn(`  ${path.basename(file)}: aspect ${aspect.toFixed(2)}:1 is far from 7:1 and bbox detection failed; falling back to uniform width/7 slicing`);
   }
-
-  // Default tight-strip path: 7 equal-width cells across the full height.
-  // Covers the legacy 112×16 / 336×48 native layouts and any other tight
-  // 7:1 strip the user hand-authored.
   const cellW = Math.round(png.width / 7);
-  const cellH = png.height; // floors are always 1 tile tall
+  const cellH = png.height;
   const sprites = [];
   for (let i = 0; i < 7; i++) {
     sprites.push(pngToSpriteData(png, i * cellW, 0, cellW, cellH));
   }
   return sprites;
+}
+
+/**
+ * Scan the assets dir for `floors.png` (the default theme) and any
+ * `floors_<id>.png` (additional themes). Returns an array of
+ * `{id, sprites}` themes, or null if nothing's there. The client picks
+ * which theme to render via the editor's theme dropdown.
+ */
+async function loadFloorTiles() {
+  if (!fs.existsSync(assetsDir)) return null;
+  const matches = fs.readdirSync(assetsDir).filter((f) => /^floors(?:_[a-z0-9_-]+)?\.png$/i.test(f));
+  if (matches.length === 0) return null;
+  // Stable order: default first (if present), then alphabetical.
+  matches.sort((a, b) => (a === 'floors.png' ? -1 : b === 'floors.png' ? 1 : a.localeCompare(b)));
+  const themes = [];
+  for (const f of matches) {
+    const id = f === 'floors.png' ? 'default' : f.replace(/^floors_/, '').replace(/\.png$/i, '');
+    try {
+      const sprites = await loadOneFloorSheet(path.join(assetsDir, f));
+      themes.push({ id, sprites });
+    } catch (e) {
+      console.warn(`  ${f} failed to load: ${e.message}`);
+    }
+  }
+  return themes;
 }
 
 async function loadWallTiles() {
@@ -1849,9 +2002,9 @@ async function handleClientMessage(ws, msg) {
       console.log(`  petTemplates: sent (${(tpl.templates || []).length})`);
     } catch (e) { console.error('  petTemplates error:', e.message); }
     try {
-      const floors = await loadFloorTiles();
-      if (floors) ws.send(JSON.stringify({ type: 'floorTilesLoaded', sprites: floors }));
-      console.log(`  floorTiles: ${floors ? 'sent' : 'skipped (no floors.png)'}`);
+      const floorThemes = await loadFloorTiles();
+      if (floorThemes) ws.send(JSON.stringify({ type: 'floorTilesLoaded', themes: floorThemes }));
+      console.log(`  floorTiles: ${floorThemes ? `sent ${floorThemes.length} theme(s) [${floorThemes.map((t) => t.id).join(', ')}]` : 'skipped (no floors.png)'}`);
     } catch (e) { console.error('  floorTiles error:', e.message); }
     try {
       const walls = await loadWallTiles();

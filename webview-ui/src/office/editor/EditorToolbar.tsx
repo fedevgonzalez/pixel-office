@@ -6,7 +6,14 @@ import type { FurnitureCategory, LoadedAssetData } from '../layout/furnitureCata
 
 const EDITOR_CATEGORY_STORAGE_KEY = 'pixel-office:editor:activeCategory'
 import { getCachedSprite } from '../sprites/spriteCache.js'
-import { getColorizedFloorSprite, getFloorPatternCount, hasFloorSprites } from '../floorTiles.js'
+import {
+  getColorizedFloorSprite,
+  getFloorPatternCount,
+  hasFloorSprites,
+  getFloorThemes,
+  getActiveFloorThemeId,
+  setActiveFloorTheme,
+} from '../floorTiles.js'
 
 const btnStyle: React.CSSProperties = {
   padding: '3px 8px',
@@ -63,9 +70,10 @@ const FLOOR_PREVIEW_SIZE = 56
 
 /** Render a floor pattern preview large enough that the herringbone / accent
  *  features are actually visible, plus a small number label underneath. */
-function FloorPatternPreview({ patternIndex, color, selected, onClick }: {
+function FloorPatternPreview({ patternIndex, color, themeId, selected, onClick }: {
   patternIndex: number
   color: FloorColor
+  themeId: string | null
   selected: boolean
   onClick: () => void
 }) {
@@ -87,7 +95,7 @@ function FloorPatternPreview({ patternIndex, color, selected, onClick }: {
       return
     }
 
-    const sprite = getColorizedFloorSprite(patternIndex, color)
+    const sprite = getColorizedFloorSprite(patternIndex, color, themeId)
     // Pick a zoom that gets us close to FLOOR_PREVIEW_SIZE without overshooting.
     // Sprites are 16, 32 or 48 wide (legacy / native / current). For each case
     // the zoom is computed to fit the preview tile exactly.
@@ -97,7 +105,7 @@ function FloorPatternPreview({ patternIndex, color, selected, onClick }: {
     const drawX = Math.floor((FLOOR_PREVIEW_SIZE - cached.width) / 2)
     const drawY = Math.floor((FLOOR_PREVIEW_SIZE - cached.height) / 2)
     ctx.drawImage(cached, drawX, drawY)
-  }, [patternIndex, color])
+  }, [patternIndex, color, themeId])
 
   return (
     <button
@@ -334,6 +342,14 @@ export function EditorToolbar({
   const [showColor, setShowColor] = useState(false)
   const [showWallColor, setShowWallColor] = useState(false)
   const [showFurnitureColor, setShowFurnitureColor] = useState(false)
+  // Local mirror of the active floor theme id. Module-global state is the
+  // source of truth; this just gives React something to re-render on.
+  const [activeFloorTheme, setActiveFloorThemeLocal] = useState<string | null>(getActiveFloorThemeId())
+  const floorThemes = getFloorThemes()
+  const handleFloorThemeChange = useCallback((id: string) => {
+    setActiveFloorTheme(id)
+    setActiveFloorThemeLocal(id)
+  }, [])
 
   useEffect(() => {
     try { window.localStorage.setItem(EDITOR_CATEGORY_STORAGE_KEY, activeCategory) } catch { /* ignore */ }
@@ -490,14 +506,43 @@ export function EditorToolbar({
           <div style={{ display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2 }}>
             {floorPatterns.map((patIdx) => (
               <FloorPatternPreview
-                key={patIdx}
+                key={`${activeFloorTheme}-${patIdx}`}
                 patternIndex={patIdx}
                 color={floorColor}
+                themeId={activeFloorTheme}
                 selected={selectedTileType === patIdx}
                 onClick={() => onTileTypeChange(patIdx as TileTypeVal)}
               />
             ))}
           </div>
+
+          {/* Paint theme dropdown — selects the theme used by the next paint
+              stroke; does NOT change already-painted tiles. */}
+          {floorThemes.length >= 2 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, color: 'var(--pixel-text-dim)' }}>
+              <span style={{ flexShrink: 0 }}>Paint theme:</span>
+              <select
+                aria-label="Floor theme"
+                value={activeFloorTheme || ''}
+                onChange={(e) => handleFloorThemeChange(e.target.value)}
+                style={{
+                  flex: 1,
+                  fontFamily: 'var(--pixel-font)',
+                  fontSize: 16,
+                  background: 'var(--pixel-btn-bg)',
+                  color: 'var(--pixel-text)',
+                  border: '2px solid var(--pixel-border)',
+                  borderRadius: 0,
+                  padding: '3px 6px',
+                  cursor: 'pointer',
+                }}
+              >
+                {floorThemes.map((t) => (
+                  <option key={t.id} value={t.id}>{t.id}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
 

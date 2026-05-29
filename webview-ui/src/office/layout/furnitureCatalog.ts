@@ -30,6 +30,7 @@ export interface LoadedAssetData {
     canPlaceOnSurfaces?: boolean
     backgroundTiles?: number
     canPlaceOnWalls?: boolean
+    providesSurface?: boolean
   }>
   sprites: Record<string, SpriteData>
 }
@@ -118,6 +119,7 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
       ...(asset.canPlaceOnSurfaces ? { canPlaceOnSurfaces: true } : {}),
       ...(asset.backgroundTiles ? { backgroundTiles: asset.backgroundTiles } : {}),
       ...(asset.canPlaceOnWalls ? { canPlaceOnWalls: true } : {}),
+      ...(asset.providesSurface ? { providesSurface: true } : {}),
     }
   }).filter((e): e is CatalogEntryWithCategory => e !== null)
 

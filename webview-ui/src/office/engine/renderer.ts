@@ -94,6 +94,7 @@ export function renderTileGrid(
   cols?: number,
   canvasWidth?: number,
   canvasHeight?: number,
+  tileThemes?: Array<string | null>,
 ): void {
   const s = TILE_SIZE * zoom
   const useSpriteFloors = hasFloorSprites()
@@ -135,7 +136,8 @@ export function renderTileGrid(
       // Floor tile: get colorized sprite
       const colorIdx = r * layoutCols + c
       const color = tileColors?.[colorIdx] ?? { h: 0, s: 0, b: 0, c: 0 }
-      const sprite = getColorizedFloorSprite(tile, color)
+      const themeId = tileThemes?.[colorIdx] ?? null
+      const sprite = getColorizedFloorSprite(tile, color, themeId)
       const cached = getCachedSprite(sprite, zoom)
       ctx.drawImage(cached, offsetX + c * s, offsetY + r * s)
     }
@@ -991,6 +993,7 @@ export function renderFrame(
   backgroundTheme?: WorldBackgroundTheme,
   zones?: Array<ZoneTypeVal | null>,
   dailySummary?: { text: string; timer: number; fullDuration: number },
+  tileThemes?: Array<string | null>,
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -1016,7 +1019,7 @@ export function renderFrame(
   }
 
   // Draw tiles (floor + wall base color) — pass canvas dims for viewport culling.
-  renderTileGrid(ctx, tileMap, offsetX, offsetY, zoom, tileColors, layoutCols, canvasWidth, canvasHeight)
+  renderTileGrid(ctx, tileMap, offsetX, offsetY, zoom, tileColors, layoutCols, canvasWidth, canvasHeight, tileThemes)
 
   // Seat indicators (below furniture/characters, on top of floor)
   if (selection) {

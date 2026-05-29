@@ -409,6 +409,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           officeState.dailySummaryText
             ? { text: officeState.dailySummaryText, timer: officeState.dailySummaryTimer, fullDuration: officeState.dailySummaryFullDuration }
             : undefined,
+          officeState.getLayout().tileThemes,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 

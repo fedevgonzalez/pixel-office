@@ -5,6 +5,7 @@ import { EditTool, ZoneType } from '../office/types.js'
 import { TileType } from '../office/types.js'
 import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture } from '../office/types.js'
 import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout } from '../office/editor/editorActions.js'
+import { getActiveFloorThemeId } from '../office/floorTiles.js'
 import type { ExpandDirection } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
 import { defaultZoom } from '../office/toolUtils.js'
@@ -373,8 +374,10 @@ export function useEditorActions(
       }
     }
 
+    const paintTheme = getActiveFloorThemeId()
+
     if (editorState.activeTool === EditTool.TILE_PAINT) {
-      const newLayout = paintTile(layout, effectiveCol, effectiveRow, editorState.selectedTileType, editorState.floorColor)
+      const newLayout = paintTile(layout, effectiveCol, effectiveRow, editorState.selectedTileType, editorState.floorColor, paintTheme)
       if (newLayout !== layout) {
         applyEdit(newLayout)
       }
@@ -396,7 +399,7 @@ export function useEditorActions(
       } else {
         // Remove wall → paint floor with current floor settings
         if (isWall) {
-          const newLayout = paintTile(layout, effectiveCol, effectiveRow, editorState.selectedTileType, editorState.floorColor)
+          const newLayout = paintTile(layout, effectiveCol, effectiveRow, editorState.selectedTileType, editorState.floorColor, paintTheme)
           if (newLayout !== layout) {
             applyEdit(newLayout)
           }
