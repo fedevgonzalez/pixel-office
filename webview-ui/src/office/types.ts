@@ -84,19 +84,15 @@ export interface ToolActivity {
 }
 
 /**
- * Generic usage source displayed in the kiosk bottom-right panel. Pixel-office
- * doesn't know which tool a source represents — the local daemon composes the
- * label and primary/secondary strings. Keep this in sync with sanitizeUsageSource
- * in standalone-server.js.
+ * Per-agent context-window occupancy, shown inline next to the agent in the
+ * kiosk sidebar. `pct` is a fraction [0,1]; tokens/limit are optional for a
+ * "X / Y" detail. Computed by the reporter (tool-specific) and forwarded by
+ * the server as a generic `agentContext` event.
  */
-export interface UsageSource {
-  id: string
-  label: string
-  primary: string
-  secondary?: string
-  percent?: number
-  color?: string
-  updatedAt: number
+export interface AgentContext {
+  pct: number
+  tokens?: number
+  limit?: number
 }
 
 export const FurnitureType = {

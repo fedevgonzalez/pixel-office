@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { OfficeState } from '../office/engine/officeState.js'
-import type { OfficeLayout, ToolActivity, UsageSource } from '../office/types.js'
+import type { OfficeLayout, ToolActivity, AgentContext } from '../office/types.js'
 import { extractToolName } from '../office/toolUtils.js'
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js'
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js'
@@ -75,9 +75,9 @@ export interface ExtensionMessageState {
    *  React overlays (kiosk panels, tool labels, toolbars) so they don't
    *  cover the banner. */
   dailySummaryActive: boolean
-  /** Generic usage panel data pushed by an external local daemon via
-   *  POST /api/usage. Empty when no daemon is running. */
-  usageSources: UsageSource[]
+  /** agentId → current context-window occupancy, shown inline next to the
+   *  agent in the kiosk sidebar. Populated by the reporter (per session). */
+  agentContext: Record<number, AgentContext>
   /** agentId → Date.now()+highlightMs deadline. While the deadline is in the
    *  future AND the agent isn't actively running, the kiosk sidebar shows a
    *  green "just finished" pulse so the user can spot completed turns at a
@@ -111,7 +111,7 @@ export function useExtensionMessages(
   const [petTemplates, setPetTemplates] = useState<PetTemplate[]>([])
   const [dailySummaryActive, setDailySummaryActive] = useState(false)
   const dailySummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [usageSources, setUsageSources] = useState<UsageSource[]>([])
+  const [agentContext, setAgentContext] = useState<Record<number, AgentContext>>({})
   const [agentFinishedAt, setAgentFinishedAt] = useState<Record<number, number>>({})
 
   // Track whether initial layout has been loaded (ref to avoid re-render)
@@ -177,6 +177,12 @@ export function useExtensionMessages(
           return next
         })
         setAgentFinishedAt((prev) => {
+          if (!(id in prev)) return prev
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+        setAgentContext((prev) => {
           if (!(id in prev)) return prev
           const next = { ...prev }
           delete next[id]
@@ -450,9 +456,18 @@ export function useExtensionMessages(
         setWorkspaceFolders(folders)
       } else if (msg.type === 'settingsLoaded') {
         if (typeof msg.soundEnabled === 'boolean') setSoundEnabled(msg.soundEnabled)
-      } else if (msg.type === 'usageUpdate') {
-        const sources = Array.isArray(msg.sources) ? (msg.sources as UsageSource[]) : []
-        setUsageSources(sources)
+      } else if (msg.type === 'agentContext') {
+        const id = msg.id as number
+        const pct = typeof msg.pct === 'number' ? msg.pct : null
+        setAgentContext((prev) => {
+          if (pct === null) {
+            if (!(id in prev)) return prev
+            const next = { ...prev }
+            delete next[id]
+            return next
+          }
+          return { ...prev, [id]: { pct, tokens: msg.tokens as number | undefined, limit: msg.limit as number | undefined } }
+        })
       } else if (msg.type === 'furnitureAssetsLoaded') {
         try {
           const catalog = msg.catalog as FurnitureAsset[]
@@ -471,5 +486,5 @@ export function useExtensionMessages(
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 
-  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive, usageSources, agentFinishedAt }
+  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive, agentContext, agentFinishedAt }
 }

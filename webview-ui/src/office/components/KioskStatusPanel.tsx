@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { ToolActivity } from '../types.js'
+import type { ToolActivity, AgentContext } from '../types.js'
 import type { OfficeState } from '../engine/officeState.js'
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js'
 import {
@@ -7,6 +7,12 @@ import {
   KIOSK_STATUS_PANEL_WIDTH,
   RESTING_COUNT_LABEL_FONT_SIZE,
   KIOSK_FINISHED_COLOR,
+  KIOSK_AGENT_CONTEXT_BAR_WIDTH,
+  KIOSK_AGENT_CONTEXT_BAR_HEIGHT,
+  KIOSK_AGENT_CONTEXT_FONT_SIZE,
+  KIOSK_AGENT_CONTEXT_COLOR,
+  KIOSK_AGENT_CONTEXT_WARN,
+  KIOSK_AGENT_CONTEXT_WARN_COLOR,
 } from '../../constants.js'
 
 interface KioskStatusPanelProps {
@@ -16,6 +22,39 @@ interface KioskStatusPanelProps {
   subagentTools: Record<number, Record<string, ToolActivity[]>>
   subagentCharacters: SubagentCharacter[]
   agentFinishedAt: Record<number, number>
+  agentContext: Record<number, AgentContext>
+}
+
+/** Inline context-window meter shown under a main agent's row. */
+function ContextMeter({ ctx }: { ctx: AgentContext }) {
+  const pct = Math.max(0, Math.min(1, ctx.pct))
+  const warn = pct >= KIOSK_AGENT_CONTEXT_WARN
+  const color = warn ? KIOSK_AGENT_CONTEXT_WARN_COLOR : KIOSK_AGENT_CONTEXT_COLOR
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+      <div
+        style={{
+          width: KIOSK_AGENT_CONTEXT_BAR_WIDTH,
+          height: KIOSK_AGENT_CONTEXT_BAR_HEIGHT,
+          background: 'rgba(255, 245, 235, 0.12)',
+          border: '1px solid rgba(255, 245, 235, 0.18)',
+          flexShrink: 0,
+        }}
+      >
+        <div style={{ width: `${pct * 100}%`, height: '100%', background: color }} />
+      </div>
+      <span
+        style={{
+          fontSize: KIOSK_AGENT_CONTEXT_FONT_SIZE,
+          color: 'rgba(255, 245, 235, 0.55)',
+          fontVariantNumeric: 'tabular-nums',
+          lineHeight: 1,
+        }}
+      >
+        {Math.round(pct * 100)}% ctx
+      </span>
+    </div>
+  )
 }
 
 function getAgentStatus(
@@ -65,6 +104,7 @@ export function KioskStatusPanel({
   subagentTools,
   subagentCharacters,
   agentFinishedAt,
+  agentContext,
 }: KioskStatusPanelProps) {
   // Force periodic re-render to pick up officeState mutations (imperative state)
   // Using a longer interval since status changes propagate via props too
@@ -241,6 +281,9 @@ export function KioskStatusPanel({
                   {justFinished ? 'Done' : e.status}
                 </div>
               )}
+              {/* Context-window meter — main agents only (sub-agents share the
+                  parent's window, so a per-sub bar would be misleading). */}
+              {!e.isSub && agentContext[e.id] && <ContextMeter ctx={agentContext[e.id]} />}
             </div>
           </div>
         )

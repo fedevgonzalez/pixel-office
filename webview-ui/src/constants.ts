@@ -325,28 +325,18 @@ export const KIOSK_STATS_GAP_PX = 18
 /** Distance from the top-left corner of the viewport */
 export const KIOSK_STATS_OFFSET_PX = 18
 
-// ── Kiosk Usage Panel ────────────────────────────────────────
-// Sized to sit comfortably next to the sidebar (38/30px) and clock (48px) on a
-// 1080p–1200p kiosk display; the original 16/22px read as half-size from across
-// a room.
-/** Distance from the bottom-right viewport edge (px) */
-export const KIOSK_USAGE_MARGIN = 20
-/** Default opacity — slightly dimmed so it doesn't fight the scene */
-export const KIOSK_USAGE_OPACITY = 0.92
-/** Gap between source rows (px) */
-export const KIOSK_USAGE_GAP_PX = 12
-/** Font size of the source label */
-export const KIOSK_USAGE_LABEL_FONT_SIZE = 28
-/** Font size of the primary value (e.g. "82%") */
-export const KIOSK_USAGE_PRIMARY_FONT_SIZE = 42
-/** Font size of the secondary line (e.g. "172k / 200k · pixel-office") */
-export const KIOSK_USAGE_SECONDARY_FONT_SIZE = 20
-/** Width of the progress bar (px) */
-export const KIOSK_USAGE_BAR_WIDTH = 260
-/** Height of the progress bar (px) */
-export const KIOSK_USAGE_BAR_HEIGHT = 12
-/** Source is considered stale after this many ms without an update */
-export const KIOSK_USAGE_STALE_MS = 90_000
+// ── Kiosk Agent Context (inline in sidebar) ──────────────────
+/** Width of the per-agent context bar (px) */
+export const KIOSK_AGENT_CONTEXT_BAR_WIDTH = 120
+/** Height of the per-agent context bar (px) */
+export const KIOSK_AGENT_CONTEXT_BAR_HEIGHT = 8
+/** Font size of the per-agent context "82%" label */
+export const KIOSK_AGENT_CONTEXT_FONT_SIZE = 22
+/** Fill color of the context bar */
+export const KIOSK_AGENT_CONTEXT_COLOR = '#8ec7ff'
+/** Fill color when context is high (≥ KIOSK_AGENT_CONTEXT_WARN) */
+export const KIOSK_AGENT_CONTEXT_WARN = 0.85
+export const KIOSK_AGENT_CONTEXT_WARN_COLOR = '#e8a84c'
 
 // ── Kiosk Clock Widget ───────────────────────────────────────
 /** How often the kiosk clock re-reads wall time (ms) */

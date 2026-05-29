@@ -125,6 +125,17 @@ function sanitizeUsageSource(s) {
   return out;
 }
 
+// Per-agent context-window occupancy, sanitized from a reporter message.
+// `pct` is the fraction [0,1]; tokens/limit are optional for a "X / Y" label.
+// Returns null when there's no usable percentage.
+function sanitizeAgentContext(msg) {
+  if (!msg || typeof msg.pct !== 'number' || !Number.isFinite(msg.pct)) return null;
+  const out = { pct: Math.max(0, Math.min(1, msg.pct)) };
+  if (typeof msg.tokens === 'number' && Number.isFinite(msg.tokens)) out.tokens = Math.max(0, Math.round(msg.tokens));
+  if (typeof msg.limit === 'number' && Number.isFinite(msg.limit)) out.limit = Math.max(0, Math.round(msg.limit));
+  return out;
+}
+
 function usageKey(owner, id) {
   return JSON.stringify([owner, id]);
 }
@@ -1872,15 +1883,6 @@ function handleReporterMessage(ws, msg) {
   const reporter = reporterClients.get(ws);
   if (!reporter) return;
   const { machineId } = reporter;
-
-  // Usage reports carry no sessionId — they're per-machine tool quotas, not a
-  // session. Route them straight to the usage store owned by this machine.
-  if (msg.type === 'usage-report') {
-    setUsageForOwner(machineId, msg.sources);
-    broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
-    return;
-  }
-
   const remoteKey = `${machineId}:${msg.sessionId}`;
 
   if (msg.type === 'session-start') {
@@ -1915,6 +1917,19 @@ function handleReporterMessage(ws, msg) {
     const agentId = remoteAgents.get(remoteKey);
     if (agentId == null) return;
     processLine(agentId, msg.line);
+  } else if (msg.type === 'session-context') {
+    // Per-session context-window occupancy, computed by the reporter (which
+    // owns the tool-specific token reading). We just attach it to the agent
+    // and fan it out so the sidebar can show it inline. Generic: pixel-office
+    // doesn't know which tool the numbers came from.
+    const agentId = remoteAgents.get(remoteKey);
+    if (agentId == null) return;
+    const agent = agents.get(agentId);
+    if (!agent) return;
+    const ctx = sanitizeAgentContext(msg);
+    agent.context = ctx;
+    if (ctx) broadcast({ type: 'agentContext', id: agentId, ...ctx });
+    else broadcast({ type: 'agentContext', id: agentId, pct: null });
   } else if (msg.type === 'session-end') {
     const agentId = remoteAgents.get(remoteKey);
     if (agentId == null) return;
@@ -1932,11 +1947,6 @@ function cleanupReporter(ws) {
       removeAgent(agentId, `reporter disconnected (${machineId})`);
       remoteAgents.delete(remoteKey);
     }
-  }
-  // Drop this machine's usage sources so the kiosk panel clears when the
-  // reporter goes away (rather than waiting out USAGE_STALE_MS).
-  if (clearUsageForOwner(machineId) > 0) {
-    broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
   }
   reporterClients.delete(ws);
   console.log(`Reporter disconnected: ${machineId}`);
@@ -2088,13 +2098,6 @@ async function handleClientMessage(ws, msg) {
     const settings = loadSettings();
     ws.send(JSON.stringify({ type: 'settingsLoaded', ...settings }));
 
-    // Send current usage snapshot so a freshly opened kiosk tab shows the
-    // panel immediately instead of waiting for the next daemon POST.
-    const usageList = getActiveUsageSources();
-    if (usageList.length > 0) {
-      ws.send(JSON.stringify({ type: 'usageUpdate', sources: usageList, updatedAt: usageUpdatedAt }));
-    }
-
     // Send existing agents BEFORE layout (webview buffers them until layoutLoaded)
     const agentIds = [...agents.keys()].sort((a, b) => a - b);
     const folderNames = {};
@@ -2125,6 +2128,11 @@ async function handleClientMessage(ws, msg) {
         ws.send(JSON.stringify({ type: 'agentStatus', id: agentId, status: 'waiting' }));
       } else if (agent.activeToolIds.size > 0) {
         ws.send(JSON.stringify({ type: 'agentStatus', id: agentId, status: 'active' }));
+      }
+      // Replay current per-agent context so a freshly opened tab shows it
+      // immediately instead of waiting for the next reporter tick.
+      if (agent.context) {
+        ws.send(JSON.stringify({ type: 'agentContext', id: agentId, ...agent.context }));
       }
     }
   } else if (msg.type === 'saveLayout') {
@@ -2652,6 +2660,7 @@ const server = http.createServer(async (req, res) => {
         activeTools: agent.activeToolIds.size,
         sdk: !!agent.isSDK,
         agentType: agent.agentType || 'claude',
+        context: agent.context || null,
       });
     }
     const body = JSON.stringify({ agents: agentList, count: agentList.length });

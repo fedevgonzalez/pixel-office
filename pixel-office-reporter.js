@@ -32,17 +32,11 @@ const RECONNECT_DELAY_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min — match server's IDLE_LEAVE_MS (server handles resting state)
 
-// Usage reporting: a session whose transcript was touched within this window
-// is "active" and contributes its context% to the usage panel. Tighter than
-// IDLE_TIMEOUT so the panel reflects what you're working on right now.
-const USAGE_ACTIVE_WINDOW_MS = 30 * 60 * 1000;
 // Claude stamps the bare model id in the JSONL even on the 1M-context variant,
 // so the literal model string is ambiguous. Default to the standard 200k and
 // auto-bump to 1M when observed totals wouldn't otherwise fit.
 const CLAUDE_DEFAULT_CONTEXT = 200_000;
 const CLAUDE_1M_CONTEXT = 1_000_000;
-const CLAUDE_USAGE_COLOR = '#d97757';
-const CODEX_USAGE_COLOR = '#10a37f';
 // Trailing path segments that don't identify a project — stripped when
 // deriving a folder label from a cwd (e.g. ~/Local Sites/aprende/app/public).
 const GENERIC_DIR_SEGMENTS = new Set(['public', 'app', 'src', 'dist', 'build', 'current', 'www', 'htdocs']);
@@ -666,42 +660,12 @@ function readLastLines(filePath, maxLines) {
   } catch { return []; }
 }
 
-function formatTokens(n) {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
-  return String(n);
-}
-
-// Newest file (within `withinMs`) from a flat list of candidate paths.
-function newestRecentFile(files, withinMs) {
-  const now = Date.now();
-  let best = null, bestM = 0;
-  for (const f of files) {
-    try {
-      const st = fs.statSync(f);
-      if (now - st.mtimeMs > withinMs) continue;
-      if (st.mtimeMs > bestM) { bestM = st.mtimeMs; best = f; }
-    } catch {}
-  }
-  return best;
-}
-
-function listClaudeJsonl() {
-  const out = [];
-  let dirs;
-  try { dirs = fs.readdirSync(CLAUDE_PROJECTS_ROOT).map((d) => path.join(CLAUDE_PROJECTS_ROOT, d)); } catch { return out; }
-  for (const d of dirs) {
-    let files;
-    try { files = fs.readdirSync(d); } catch { continue; } // one level only — skips nested plugin logs
-    for (const f of files) if (f.endsWith('.jsonl')) out.push(path.join(d, f));
-  }
-  return out;
-}
-
-function buildClaudeUsage() {
-  const file = newestRecentFile(listClaudeJsonl(), USAGE_ACTIVE_WINDOW_MS);
-  if (!file) return null;
-  const lines = readLastLines(file, 200);
+// Context-window occupancy for ONE Claude session file: sum the latest
+// assistant usage (input + cache + output) against the model window. Claude
+// stamps the bare model id even on the 1M variant, so we default to 200k and
+// auto-bump to 1M when the total wouldn't otherwise fit.
+function computeClaudeContext(filePath) {
+  const lines = readLastLines(filePath, 200);
   let usage = null;
   for (let i = lines.length - 1; i >= 0; i--) {
     let r;
@@ -711,20 +675,16 @@ function buildClaudeUsage() {
   if (!usage) return null;
   const total = (usage.input_tokens || 0) + (usage.cache_creation_input_tokens || 0) +
     (usage.cache_read_input_tokens || 0) + (usage.output_tokens || 0);
+  if (!total) return null;
   const limit = total > CLAUDE_DEFAULT_CONTEXT ? CLAUDE_1M_CONTEXT : CLAUDE_DEFAULT_CONTEXT;
-  const folder = resolveFolderName(path.basename(path.dirname(file)));
-  const pct = limit > 0 ? total / limit : 0;
-  return {
-    id: 'claude-context', label: 'Claude', primary: `${Math.round(pct * 100)}%`,
-    secondary: `${formatTokens(total)} / ${formatTokens(limit)}${folder ? ` · ${folder}` : ''}`,
-    percent: pct, color: CLAUDE_USAGE_COLOR,
-  };
+  return { pct: Math.max(0, Math.min(1, total / limit)), tokens: total, limit };
 }
 
-function buildCodexUsage(rollouts) {
-  const file = newestRecentFile(rollouts, USAGE_ACTIVE_WINDOW_MS);
-  if (!file) return null;
-  const lines = readLastLines(file, 400);
+// Context-window occupancy for ONE Codex rollout: last_token_usage.total_tokens
+// is the live window occupancy (total_token_usage is cumulative across the
+// session, so it's NOT a valid fallback) against model_context_window.
+function computeCodexContext(filePath) {
+  const lines = readLastLines(filePath, 400);
   let info = null;
   for (let i = lines.length - 1; i >= 0; i--) {
     let r;
@@ -733,31 +693,24 @@ function buildCodexUsage(rollouts) {
     if (r.type === 'event_msg' && p.type === 'token_count' && p.info) { info = p.info; break; }
   }
   if (!info) return null;
-  // last_token_usage.total_tokens is the current context-window occupancy.
-  // total_token_usage is CUMULATIVE across the session (can far exceed the
-  // window), so it's not a valid fallback — skip the source if absent.
   const total = info.last_token_usage && info.last_token_usage.total_tokens;
   const limit = info.model_context_window || 0;
   if (!total || !limit) return null;
-  const folder = folderFromCwd(readCodexCwd(file));
-  const pct = Math.max(0, Math.min(1, total / limit)); // clamp — never show >100%
-  return {
-    id: 'codex-context', label: 'Codex', primary: `${Math.round(pct * 100)}%`,
-    secondary: `${formatTokens(total)} / ${formatTokens(limit)}${folder ? ` · ${folder}` : ''}`,
-    percent: pct, color: CODEX_USAGE_COLOR,
-  };
+  return { pct: Math.max(0, Math.min(1, total / limit)), tokens: total, limit };
 }
 
-// Compute and push the usage panel over the existing reporter WS. Sending an
-// empty array when nothing is active clears this machine's sources server-side;
-// sending every scan (even unchanged) is intentional — it's the heartbeat that
-// keeps the server from expiring the sources as stale. `codexRollouts` is the
-// list already gathered this scan, so we don't re-walk the sessions tree.
-function reportUsage(codexRollouts) {
-  const sources = [];
-  try { const c = buildClaudeUsage(); if (c) sources.push(c); } catch {}
-  try { const x = buildCodexUsage(codexRollouts || []); if (x) sources.push(x); } catch {}
-  send({ type: 'usage-report', sources });
+// Push per-session context-window occupancy over the reporter WS, keyed by
+// sessionId so the server can attach it to that agent and show it inline in
+// the sidebar (the kiosk panel). Cursor has no usable token count → skipped.
+function reportSessionContexts() {
+  for (const [filePath, session] of sessions) {
+    let ctx = null;
+    try {
+      if (session.agentType === 'claude') ctx = computeClaudeContext(filePath);
+      else if (session.agentType === 'codex') ctx = computeCodexContext(filePath);
+    } catch {}
+    if (ctx) send({ type: 'session-context', sessionId: session.sessionId, pct: ctx.pct, tokens: ctx.tokens, limit: ctx.limit });
+  }
 }
 
 // --- Scan: detect active sessions from all providers and report them ---
@@ -802,8 +755,9 @@ function scan() {
     } catch {}
   }
 
-  // Push the usage panel (Claude + Codex context%) over the same WS.
-  reportUsage(codexRollouts);
+  // Push each tracked session's context-window occupancy (shown inline per
+  // agent in the sidebar).
+  reportSessionContexts();
 }
 
 // --- WebSocket connection with auto-reconnect ---
