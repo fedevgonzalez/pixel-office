@@ -196,28 +196,34 @@ export const COOLER_SPRITE: SpriteData = (() => {
   ]
 })()
 
-/** Whiteboard: 32x16 (2 tiles wide, 1 tile tall) — hangs on wall */
+/** Whiteboard: 32x16 (2 tiles wide, 1 tile tall) — hangs on wall.
+ *  Chunky dark frame, off-white board, tidy markings: 3 clean blue "text"
+ *  lines on the left + a red box-and-arrow diagram on the right, plus a thin
+ *  marker tray at the bottom. Hard edges, 1px strokes, no scattered speckle. */
 export const WHITEBOARD_SPRITE: SpriteData = (() => {
-  const F = '#AAAAAA'
-  const W = '#EEEEFF'
-  const M = '#CC4444'
-  const B = '#4477AA'
+  const O = '#1c1c24' // dark chunky outline
+  const F = '#3c3c47' // frame bevel (matches chair/projector grey family)
+  const W = '#f4f4ee' // off-white board field
+  const S = '#dadace' // faint board shading (bottom edge)
+  const B = '#3a6ea5' // blue marker
+  const M = '#c0463a' // red marker
+  const T = '#2a2a33' // tray
   return [
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, _],
-    [_, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, F, _],
-    [_, F, W, W, M, M, M, W, W, W, W, W, B, B, B, B, W, W, W, W, W, W, W, M, W, W, W, W, W, W, F, _],
-    [_, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, B, B, W, W, M, W, W, W, W, W, W, F, _],
-    [_, F, W, W, W, W, M, M, M, M, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, B, B, W, W, F, _],
-    [_, F, W, W, W, W, W, W, W, W, W, W, W, B, B, B, W, W, W, W, W, W, W, W, W, W, W, W, W, W, F, _],
-    [_, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, M, M, M, W, W, W, W, W, W, W, F, _],
-    [_, F, W, M, M, W, W, W, W, W, W, W, W, W, W, W, B, B, W, W, W, W, W, W, W, W, W, W, W, W, F, _],
-    [_, F, W, W, W, W, W, W, B, B, B, W, W, W, W, W, W, W, W, W, W, W, W, W, M, M, M, M, W, W, F, _],
-    [_, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, F, _],
-    [_, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, F, _],
-    [_, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _],
+    [_, O, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, O, _],
+    [_, O, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, F, O, _],
+    [_, O, F, W, B, B, B, B, B, B, W, W, W, W, W, W, W, W, M, M, M, M, M, M, M, M, W, W, W, F, O, _],
+    [_, O, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, M, W, W, W, W, W, W, M, W, W, W, F, O, _],
+    [_, O, F, W, B, B, B, B, B, W, W, W, W, W, W, W, W, W, M, W, W, W, W, W, W, M, W, W, W, F, O, _],
+    [_, O, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, M, M, M, M, M, M, M, M, W, W, W, F, O, _],
+    [_, O, F, W, B, B, B, B, B, B, B, W, W, W, W, W, W, W, W, W, W, M, W, W, W, W, W, W, W, F, O, _],
+    [_, O, F, W, W, W, W, W, W, W, W, W, W, W, W, W, W, M, M, M, M, M, M, M, W, W, W, W, W, F, O, _],
+    [_, O, F, W, B, B, B, B, W, W, W, W, W, W, W, W, W, W, M, M, M, W, W, W, W, W, W, W, W, F, O, _],
+    [_, O, F, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, F, O, _],
+    [_, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _],
+    [_, _, O, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, T, O, _, _],
+    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
   ]
 })()
