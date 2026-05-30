@@ -337,38 +337,45 @@ export const DOOR_SPRITE: SpriteData = (() => {
   ]
 })()
 
-/** Coffee machine: 16x16 (1x1 tile) — COMPACT countertop appliance.
- *  Re-authored for proportions: occupies only the upper/centre ~10px wide ×
- *  ~11px tall of the 16×16, centred, with transparent margins, so when it is
- *  raised on a counter it reads as a small appliance — NOT person-sized.
- *  Front view: dark espresso machine body, chrome top, a pale display, a
- *  group-head/spout in the middle, and a tiny cup catching coffee at the base. */
+/** Coffee machine: 16x16 (1x1 tile) — COMPACT countertop ESPRESSO machine.
+ *  Re-authored to break the boxy "framed-screen" silhouette: a NARROW stepped
+ *  chrome bean-hopper cap sits on a wider stainless body, a portafilter handle
+ *  pokes out the left, a group-head/spout protrudes at the lower-front centre
+ *  and pours into a small cream cup on the drip tray. The outline is partial
+ *  (soft dark-grey, OPEN at the spout/cup) so it never reads as a closed frame.
+ *  Centred horizontally, sub-tile, transparent margins → sits on the counter. */
 export const COFFEE_MACHINE_SPRITE: SpriteData = (() => {
-  const O = '#2b2e30' // soft 1px silhouette outline (not hard black)
-  const B = '#6b6f73' // body (stainless mid-grey)
-  const D = '#54585b' // body shadow / steel groove
-  const M = '#c6c9cc' // chrome / bright metal trim
-  const S = '#3b3e40' // dark metal (group-head)
-  const G = '#8fe6c0' // pale display glow (mint LCD)
-  const C = '#d7c9b3' // cup (cream ceramic)
+  const O = '#3a3e41' // soft, partial dark-grey outline (NOT a closed black box)
+  const B = '#7a7f84' // body (stainless mid-grey)
+  const D = '#5d6266' // body shadow / steel groove
+  const M = '#cfd2d5' // chrome / bright metal trim (hopper cap)
+  const S = '#34383b' // dark metal (group-head / portafilter)
+  const G = '#7fe3b6' // green LED / status dot
+  const C = '#e0d3bd' // cup (cream ceramic)
   const K = '#3a2412' // coffee in cup
-  const T = '#1c1d1e' // black drip tray
+  const N = '#9aa0a4' // chrome highlight on hopper
   return [
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, O, O, O, O, O, O, O, O, O, O, _, _, _],
-    [_, _, _, O, M, M, M, M, M, M, M, M, O, _, _, _],
-    [_, _, _, O, B, D, D, D, D, D, D, B, O, _, _, _],
-    [_, _, _, O, B, G, G, M, M, G, G, B, O, _, _, _],
-    [_, _, _, O, B, G, G, M, M, G, G, B, O, _, _, _],
-    [_, _, _, O, B, B, B, B, B, B, B, B, O, _, _, _],
-    [_, _, _, O, B, B, M, S, S, M, B, B, O, _, _, _],
-    [_, _, _, O, B, B, S, O, O, S, B, B, O, _, _, _],
-    [_, _, _, O, B, B, B, M, M, B, B, B, O, _, _, _],
-    [_, _, _, O, B, C, C, K, K, C, C, B, O, _, _, _],
-    [_, _, _, O, T, C, C, C, C, C, C, T, O, _, _, _],
-    [_, _, _, O, T, T, T, T, T, T, T, T, O, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    // narrow stepped chrome bean-hopper cap (breaks the rectangle at the top)
+    [_, _, _, _, _, _, O, M, M, O, _, _, _, _, _, _],
+    [_, _, _, _, _, O, M, N, N, M, O, _, _, _, _, _],
+    [_, _, _, _, _, O, M, M, M, M, O, _, _, _, _, _],
+    // wider stainless body begins (top shoulders flare out past the cap)
+    [_, _, _, _, O, B, B, B, B, B, B, O, _, _, _, _],
+    [_, _, _, O, B, B, D, D, D, D, B, B, O, _, _, _],
+    // status row: a single green LED dot on the left of the face
+    [_, _, _, O, B, G, B, B, B, B, D, B, O, _, _, _],
+    [_, _, _, O, B, B, B, B, B, B, D, B, O, _, _, _],
+    // portafilter handle pokes out the LEFT side; group-head centred
+    [_, _, S, S, B, B, B, S, S, B, B, B, O, _, _, _],
+    [_, _, _, O, B, B, B, S, S, B, B, B, O, _, _, _],
+    // group-head spout protrudes below the body (outline OPENS here)
+    [_, _, _, O, B, B, B, S, S, B, B, B, O, _, _, _],
+    [_, _, _, O, B, B, B, _, S, _, B, B, O, _, _, _],
+    // small cream cup catching the pour, sitting on the counter
+    [_, _, _, _, _, _, C, K, K, C, _, _, _, _, _, _],
+    [_, _, _, _, _, _, C, C, C, C, _, _, _, _, _, _],
+    [_, _, _, _, _, _, O, C, C, O, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
   ]
 })()
