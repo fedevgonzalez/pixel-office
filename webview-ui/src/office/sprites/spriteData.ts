@@ -390,11 +390,11 @@ export const COFFEE_MACHINE_SPRITE: SpriteData = (() => {
 export const BREAK_COUCH_SPRITE: SpriteData = (() => {
   const F = '#6B4E3A' // frame (dark wood)
   const D = '#5A3D2A' // frame shadow
-  const C = '#CC6644' // cushion main (warm terracotta)
-  const L = '#DD7755' // cushion highlight
-  const S = '#BB5533' // cushion shadow
+  const C = '#5A7088' // cushion main (muted slate-blue)
+  const L = '#7089A4' // cushion highlight
+  const S = '#47596E' // cushion shadow
   const A = '#7B5E4A' // armrest
-  const P = '#AA4422' // cushion deep shadow
+  const P = '#39485A' // cushion deep shadow
   return [
     // Row 0: empty
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
