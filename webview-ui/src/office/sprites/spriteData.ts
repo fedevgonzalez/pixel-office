@@ -63,25 +63,25 @@ export const TABLE_2X1_SPRITE: SpriteData = [
     ["#644c34", "#2a190b", "#2a190b", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#644c34", "#2a190b", "#644c34", "#644c34"],
 ]
 
-/** Projector: 16x16 — top-down, lens facing up (presentation) */
+/** Projector: 16x16 — FRONT view, pale-blue lens left, green LED, vents right */
 export const PROJECTOR_SPRITE: SpriteData = (() => {
-  const A='#bfeaff'; const B='#15151c'; const C='#7fe0ff'; const D='#ffffff'; const E='#1a1a22'; const F='#585870'; const G='#3f3f4c'; const H='#2a2a33'; const I='#46e06e';
+  const B='#15151c'; const G='#4a4a58'; const H='#34343f'; const V='#22222a'; const A='#bfeaff'; const C='#7fe0ff'; const D='#e8f7ff'; const I='#46e06e';
   return [
-    [_, _, _, _, _, _, _, A, A, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, A, _, _, A, _, _, _, _, _, _],
-    [_, _, _, _, _, B, B, B, B, B, B, _, _, _, _, _],
-    [_, _, _, _, _, B, C, D, C, C, B, _, _, _, _, _],
-    [_, _, _, _, _, B, C, C, C, C, B, _, _, _, _, _],
-    [_, _, _, _, _, B, E, E, E, E, B, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, B, B, B, B, B, B, B, B, B, B, B, B, _, _],
-    [_, _, B, F, F, F, F, F, F, F, F, F, F, B, _, _],
-    [_, _, B, G, G, G, G, G, G, G, G, G, G, B, _, _],
-    [_, _, B, G, H, G, H, G, H, G, H, G, G, B, _, _],
-    [_, _, B, G, H, G, H, G, H, G, H, G, G, B, _, _],
-    [_, _, B, G, G, G, G, G, G, G, G, I, G, B, _, _],
-    [_, _, B, H, H, H, H, H, H, H, H, H, H, B, _, _],
-    [_, _, B, B, B, B, B, B, B, B, B, B, B, B, _, _],
-    [_, _, _, B, B, _, _, _, _, _, _, B, B, _, _, _],
+    [_, _, B, G, G, G, G, G, G, G, G, G, I, G, B, _],
+    [_, _, B, G, B, B, B, G, G, H, V, H, G, G, B, _],
+    [_, _, B, G, B, C, A, B, G, H, V, H, G, G, B, _],
+    [_, _, B, G, B, A, D, A, B, H, V, H, G, G, B, _],
+    [_, _, B, G, B, A, A, A, B, H, V, H, G, G, B, _],
+    [_, _, B, G, B, C, A, B, G, H, V, H, G, G, B, _],
+    [_, _, B, G, G, B, B, G, G, H, V, H, G, G, B, _],
+    [_, _, B, G, G, G, G, G, G, H, V, H, G, G, B, _],
+    [_, _, B, G, G, G, G, G, G, G, G, G, G, G, B, _],
+    [_, _, B, B, B, B, B, B, B, B, B, B, B, B, B, _],
+    [_, _, _, B, G, B, _, _, _, _, _, B, G, B, _, _],
+    [_, _, _, B, B, B, _, _, _, _, _, B, B, B, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
   ]
 })()
