@@ -350,35 +350,24 @@ export const DOOR_SPRITE: SpriteData = (() => {
 })()
 
 /** Coffee machine: 16x16 (1x1 tile) — break room appliance */
-export const COFFEE_MACHINE_SPRITE: SpriteData = (() => {
-  const B = '#2e2a24' // body dark (warm brown-black, distinct from door)
-  const M = '#3e382e' // body mid
-  const L = '#4e483e' // body light
-  const S = '#888888' // silver trim
-  const G = '#44CC44' // indicator light
-  const C = '#EEEEDD' // cup
-  const D = '#DDDDCC' // cup shadow
-  const W = '#1e1a14' // dark recess
-  const V = '#CCCCBB' // steam
-  return [
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, S, S, S, S, S, S, S, S, _, _, _, _],
-    [_, _, _, S, B, B, B, B, B, B, B, B, S, _, _, _],
-    [_, _, _, S, B, M, M, M, M, M, M, B, S, _, _, _],
-    [_, _, _, S, B, M, L, L, L, L, M, B, S, _, _, _],
-    [_, _, _, S, B, M, L, L, L, L, M, B, S, _, _, _],
-    [_, _, _, S, B, M, M, M, M, M, M, B, S, _, _, _],
-    [_, _, _, S, B, B, W, W, W, W, B, B, S, _, _, _],
-    [_, _, _, S, B, B, W, V, _, W, B, B, S, _, _, _],
-    [_, _, _, S, B, B, W, C, C, W, B, B, S, _, _, _],
-    [_, _, _, S, B, B, W, C, D, W, B, B, S, _, _, _],
-    [_, _, _, S, B, B, W, W, W, W, B, B, S, _, _, _],
-    [_, _, _, S, B, B, B, B, B, G, B, B, S, _, _, _],
-    [_, _, _, S, S, S, S, S, S, S, S, S, S, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-  ]
-})()
+export const COFFEE_MACHINE_SPRITE: SpriteData = [
+  ['', '#bbbbbd', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', ''],
+  ['#090b0c', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#090b0c'],
+  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '', '#bbbbbd', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c'],
+  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '', '#50443d', '#50443d', '#bbbbbd', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#3a281c', '#090b0c'],
+  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#50443d', '#50443d', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#3a281c', '#090b0c'],
+  ['#50443d', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#bbbbbd'],
+  ['', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', ''],
+  ['', '#090b0c', '#291d14', '#291d14', '#291d14', '#50443d', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#50443d', '#291d14', '#291d14', '#291d14', '#090b0c', ''],
+  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#50443d', '#3a281c', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
+  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
+  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '', '', '', '', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
+  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '', '', '', '', '#020304', '#bbbbbd', '#3a281c', '#3a281c', '#090b0c', ''],
+  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#bbbbbd', '', '', '#bbbbbd', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
+  ['#090b0c', '', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#090b0c'],
+  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c'],
+  ['', '#090b0c', '#090b0c', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#090b0c', '#090b0c', ''],
+]
 
 /** Break couch: 32x16 (2 tiles wide, 1 tile tall) — comfy break room sofa */
 export const BREAK_COUCH_SPRITE: SpriteData = (() => {
