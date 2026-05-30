@@ -344,14 +344,15 @@ export const DOOR_SPRITE: SpriteData = (() => {
  *  Front view: dark espresso machine body, chrome top, a pale display, a
  *  group-head/spout in the middle, and a tiny cup catching coffee at the base. */
 export const COFFEE_MACHINE_SPRITE: SpriteData = (() => {
-  const O = '#090b0c' // dark outline
-  const B = '#3a281c' // body (warm espresso brown)
-  const D = '#291d14' // body shadow
-  const M = '#bbbbbd' // chrome / metal trim
-  const S = '#50443d' // mid metal
+  const O = '#2b2e30' // soft 1px silhouette outline (not hard black)
+  const B = '#6b6f73' // body (stainless mid-grey)
+  const D = '#54585b' // body shadow / steel groove
+  const M = '#c6c9cc' // chrome / bright metal trim
+  const S = '#3b3e40' // dark metal (group-head)
   const G = '#8fe6c0' // pale display glow (mint LCD)
   const C = '#d7c9b3' // cup (cream ceramic)
   const K = '#3a2412' // coffee in cup
+  const T = '#1c1d1e' // black drip tray
   return [
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, _, O, O, O, O, O, O, O, O, O, O, _, _, _],
@@ -361,11 +362,11 @@ export const COFFEE_MACHINE_SPRITE: SpriteData = (() => {
     [_, _, _, O, B, G, G, M, M, G, G, B, O, _, _, _],
     [_, _, _, O, B, B, B, B, B, B, B, B, O, _, _, _],
     [_, _, _, O, B, B, M, S, S, M, B, B, O, _, _, _],
-    [_, _, _, O, B, B, B, O, O, B, B, B, O, _, _, _],
+    [_, _, _, O, B, B, S, O, O, S, B, B, O, _, _, _],
     [_, _, _, O, B, B, B, M, M, B, B, B, O, _, _, _],
     [_, _, _, O, B, C, C, K, K, C, C, B, O, _, _, _],
-    [_, _, _, O, M, C, C, C, C, C, C, M, O, _, _, _],
-    [_, _, _, O, O, O, O, O, O, O, O, O, O, _, _, _],
+    [_, _, _, O, T, C, C, C, C, C, C, T, O, _, _, _],
+    [_, _, _, O, T, T, T, T, T, T, T, T, O, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
@@ -381,8 +382,8 @@ export const COUNTER_SPRITE: SpriteData = (() => {
   const T = '#cfcabf' // laminate top (pale grey)
   const H = '#dedacf' // top highlight fleck
   const S = '#b9b4a8' // top shading fleck
-  const E = '#8a8074' // front edge (darker laminate band)
-  const F = '#6f665b' // front edge shadow
+  const E = '#9a8a70' // front edge (warm beige laminate band)
+  const F = '#7e6f57' // front edge shadow (warm beige)
   return [
     [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
     [O, H, T, T, T, S, T, T, T, T, S, T, T, H, T, O],
@@ -411,8 +412,8 @@ export const COUNTER_2X1_SPRITE: SpriteData = (() => {
   const T = '#cfcabf' // laminate top (pale grey)
   const H = '#dedacf' // top highlight fleck
   const S = '#b9b4a8' // top shading fleck
-  const E = '#8a8074' // front edge band
-  const F = '#6f665b' // front edge shadow
+  const E = '#9a8a70' // front edge band (warm beige)
+  const F = '#7e6f57' // front edge shadow (warm beige)
   return [
     [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
     [O, H, T, T, T, S, T, T, T, T, S, T, T, H, T, T, T, S, T, T, H, T, T, T, T, S, T, T, T, H, T, O],
@@ -475,29 +476,32 @@ export const WALL_SHELF_SPRITE: SpriteData = (() => {
  *  Two small doors with round handles, warm wood, 1px dark outline. Hangs on a
  *  wall tile (canPlaceOnWalls, backgroundTiles == footprintH). */
 export const WALL_CABINET_SPRITE: SpriteData = (() => {
-  const O = '#23150b' // dark outline
-  const C = '#a06b2c' // cabinet wood (warm)
-  const L = '#bd8638' // door highlight
-  const D = '#7c4f1d' // door shadow / centre seam
-  const P = '#5e3a14' // recessed panel
-  const H = '#2b1c0d' // handle (dark)
+  const O = '#243530' // dark outline (cool, off the warm-oak family)
+  const C = '#8fa794' // cabinet face (painted sage — cool/greyer than desk oak)
+  const L = '#a8bdac' // door highlight
+  const D = '#5f7468' // door shadow / centre seam
+  const P = '#6f877a' // recessed panel
+  const H = '#2b332f' // handle (dark)
+  const U = '#1c2622' // under-shadow (cast below a hung cabinet)
   return [
+    // Rows 0-1: transparent gap so cabinet reads as hung above the wainscot
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
     [O, L, L, L, L, L, L, O, O, L, L, L, L, L, L, O],
     [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
     [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
     [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
-    [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
     [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
     [O, C, C, C, C, H, C, O, O, C, H, C, C, C, C, O],
     [O, C, C, C, C, H, C, O, O, C, H, C, C, C, C, O],
     [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
-    [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
     [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
     [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
     [O, D, D, D, D, D, D, O, O, D, D, D, D, D, D, O],
     [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    // Row 15: 1px cast under-shadow so it reads as mounted above the floor plane
+    [_, U, U, U, U, U, U, U, U, U, U, U, U, U, U, _],
   ]
 })()
 
