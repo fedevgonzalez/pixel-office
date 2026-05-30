@@ -337,25 +337,169 @@ export const DOOR_SPRITE: SpriteData = (() => {
   ]
 })()
 
-/** Coffee machine: 16x16 (1x1 tile) — break room appliance */
-export const COFFEE_MACHINE_SPRITE: SpriteData = [
-  ['', '#bbbbbd', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', '#50443d', ''],
-  ['#090b0c', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#090b0c'],
-  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '', '#bbbbbd', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c'],
-  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '', '#50443d', '#50443d', '#bbbbbd', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#3a281c', '#090b0c'],
-  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#50443d', '#50443d', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#3a281c', '#090b0c'],
-  ['#50443d', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#291d14', '#bbbbbd'],
-  ['', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', '#090b0c', ''],
-  ['', '#090b0c', '#291d14', '#291d14', '#291d14', '#50443d', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#50443d', '#291d14', '#291d14', '#291d14', '#090b0c', ''],
-  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#50443d', '#3a281c', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
-  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
-  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '', '', '', '', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
-  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', '', '', '', '', '#020304', '#bbbbbd', '#3a281c', '#3a281c', '#090b0c', ''],
-  ['', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#bbbbbd', '', '', '#bbbbbd', '#090b0c', '#3a281c', '#3a281c', '#3a281c', '#090b0c', ''],
-  ['#090b0c', '', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#090b0c'],
-  ['#090b0c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#3a281c', '#090b0c'],
-  ['', '#090b0c', '#090b0c', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#bbbbbd', '#090b0c', '#090b0c', ''],
-]
+/** Coffee machine: 16x16 (1x1 tile) — COMPACT countertop appliance.
+ *  Re-authored for proportions: occupies only the upper/centre ~10px wide ×
+ *  ~11px tall of the 16×16, centred, with transparent margins, so when it is
+ *  raised on a counter it reads as a small appliance — NOT person-sized.
+ *  Front view: dark espresso machine body, chrome top, a pale display, a
+ *  group-head/spout in the middle, and a tiny cup catching coffee at the base. */
+export const COFFEE_MACHINE_SPRITE: SpriteData = (() => {
+  const O = '#090b0c' // dark outline
+  const B = '#3a281c' // body (warm espresso brown)
+  const D = '#291d14' // body shadow
+  const M = '#bbbbbd' // chrome / metal trim
+  const S = '#50443d' // mid metal
+  const G = '#8fe6c0' // pale display glow (mint LCD)
+  const C = '#d7c9b3' // cup (cream ceramic)
+  const K = '#3a2412' // coffee in cup
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, O, O, O, O, O, O, O, O, O, O, _, _, _],
+    [_, _, _, O, M, M, M, M, M, M, M, M, O, _, _, _],
+    [_, _, _, O, B, D, D, D, D, D, D, B, O, _, _, _],
+    [_, _, _, O, B, G, G, M, M, G, G, B, O, _, _, _],
+    [_, _, _, O, B, G, G, M, M, G, G, B, O, _, _, _],
+    [_, _, _, O, B, B, B, B, B, B, B, B, O, _, _, _],
+    [_, _, _, O, B, B, M, S, S, M, B, B, O, _, _, _],
+    [_, _, _, O, B, B, B, O, O, B, B, B, O, _, _, _],
+    [_, _, _, O, B, B, B, M, M, B, B, B, O, _, _, _],
+    [_, _, _, O, B, C, C, K, K, C, C, B, O, _, _, _],
+    [_, _, _, O, M, C, C, C, C, C, C, M, O, _, _, _],
+    [_, _, _, O, O, O, O, O, O, O, O, O, O, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Kitchen counter: 16x16 (1x1 tile) — flat top-down counter that PROVIDES a
+ *  surface so appliances sit on top. Pale-grey laminate top with a subtle
+ *  speckle, a darker thin front edge (bottom rows), and a 1px dark outline.
+ *  Material reads distinctly from the warm oak desks/tables. */
+export const COUNTER_SPRITE: SpriteData = (() => {
+  const O = '#2a2622' // dark outline
+  const T = '#cfcabf' // laminate top (pale grey)
+  const H = '#dedacf' // top highlight fleck
+  const S = '#b9b4a8' // top shading fleck
+  const E = '#8a8074' // front edge (darker laminate band)
+  const F = '#6f665b' // front edge shadow
+  return [
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, H, T, T, T, S, T, T, T, T, S, T, T, H, T, O],
+    [O, T, T, S, T, T, T, T, H, T, T, T, S, T, T, O],
+    [O, T, H, T, T, T, S, T, T, T, T, H, T, T, S, O],
+    [O, T, T, T, S, T, T, T, T, S, T, T, T, T, T, O],
+    [O, S, T, T, T, T, H, T, T, T, T, T, S, T, H, O],
+    [O, T, T, H, T, T, T, T, S, T, H, T, T, T, T, O],
+    [O, T, T, T, T, S, T, T, T, T, T, T, T, S, T, O],
+    [O, H, T, T, T, T, T, H, T, T, S, T, T, T, T, O],
+    [O, T, T, S, T, H, T, T, T, T, T, T, H, T, S, O],
+    [O, T, T, T, T, T, T, S, T, T, T, T, T, T, T, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, E, E, E, E, E, E, E, E, E, E, E, E, E, E, O],
+    [O, E, E, E, E, E, E, E, E, E, E, E, E, E, E, O],
+    [O, F, F, F, F, F, F, F, F, F, F, F, F, F, F, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+  ]
+})()
+
+/** Kitchen counter 2x1: 32x16 — wider flat top-down counter that PROVIDES a
+ *  surface. Same pale-grey laminate material as COUNTER_SPRITE, with a single
+ *  continuous front edge band so two-tile runs read as one counter. */
+export const COUNTER_2X1_SPRITE: SpriteData = (() => {
+  const O = '#2a2622' // dark outline
+  const T = '#cfcabf' // laminate top (pale grey)
+  const H = '#dedacf' // top highlight fleck
+  const S = '#b9b4a8' // top shading fleck
+  const E = '#8a8074' // front edge band
+  const F = '#6f665b' // front edge shadow
+  return [
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, H, T, T, T, S, T, T, T, T, S, T, T, H, T, T, T, S, T, T, H, T, T, T, T, S, T, T, T, H, T, O],
+    [O, T, T, S, T, T, T, T, H, T, T, T, S, T, T, O, T, T, T, S, T, H, T, T, S, T, T, T, T, T, S, O],
+    [O, T, H, T, T, T, S, T, T, T, T, H, T, T, S, T, T, T, T, T, T, T, S, T, T, T, H, T, T, S, T, O],
+    [O, T, T, T, S, T, T, T, T, S, T, T, T, T, T, T, H, T, T, S, T, T, T, T, H, T, T, T, T, T, T, O],
+    [O, S, T, T, T, T, H, T, T, T, T, T, S, T, H, T, T, T, S, T, T, T, T, S, T, T, T, H, T, T, S, O],
+    [O, T, T, H, T, T, T, T, S, T, H, T, T, T, T, T, T, S, T, T, H, T, T, T, T, T, S, T, T, T, T, O],
+    [O, T, T, T, T, S, T, T, T, T, T, T, T, S, T, H, T, T, T, T, T, S, T, H, T, T, T, T, S, T, T, O],
+    [O, H, T, T, T, T, T, H, T, T, S, T, T, T, T, T, S, T, H, T, T, T, T, T, T, S, T, T, T, T, H, O],
+    [O, T, T, S, T, H, T, T, T, T, T, T, H, T, S, T, T, T, T, T, S, T, T, T, H, T, T, T, S, T, T, O],
+    [O, T, T, T, T, T, T, S, T, T, T, T, T, T, T, T, H, T, T, S, T, T, T, T, T, T, T, S, T, T, T, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, O],
+    [O, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, E, O],
+    [O, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, F, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+  ]
+})()
+
+/** Wall shelf: 32x16 (2 tiles wide, 1 tile tall) — front-facing mounted wooden
+ *  plank with a few small books/objects on top and a dark bracket underneath.
+ *  Hangs on a wall tile (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_SHELF_SPRITE: SpriteData = (() => {
+  const O = '#23150b' // dark outline / bracket
+  const P = '#9a6422' // plank wood (oak, matches table family)
+  const L = '#b57a26' // plank highlight
+  const D = '#6f4518' // plank shadow under-edge
+  // book / object colors (muted)
+  const R = '#a8443a' // red book
+  const G = '#4f7a4a' // green book
+  const B = '#3a6ea5' // blue book
+  const Y = '#c9a24a' // amber book / pot
+  const J = '#3f8d38' // little plant leaves
+  const K = '#7e3c1f' // little plant pot rim
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    // small objects sitting on the shelf
+    [_, _, O, O, _, _, O, O, _, _, _, O, O, _, _, _, _, _, _, J, J, _, _, _, _, O, _, _, _, _, _, _],
+    [_, _, O, R, O, _, O, G, O, _, _, O, B, O, _, _, _, J, J, J, J, J, _, _, O, Y, O, _, _, _, _, _],
+    [_, _, O, R, O, _, O, G, O, _, _, O, B, O, _, _, _, _, J, J, J, _, _, _, O, Y, O, _, _, _, _, _],
+    [_, _, O, R, O, O, O, G, O, O, _, O, B, O, _, _, _, _, K, K, K, _, _, _, O, Y, O, _, _, _, _, _],
+    [_, _, O, R, R, R, O, G, G, O, _, O, B, B, O, _, _, O, K, K, K, O, _, _, O, Y, Y, O, _, _, _, _],
+    // plank top
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, O],
+    [O, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, O],
+    [O, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    // brackets underneath
+    [_, _, _, _, O, O, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, O, O, _, _, _, _],
+    [_, _, _, _, O, O, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, O, O, _, _, _, _],
+    [_, _, _, _, _, O, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, O, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Wall cabinet: 16x16 (1x1 tile) — closed upper kitchen cabinet, front-facing.
+ *  Two small doors with round handles, warm wood, 1px dark outline. Hangs on a
+ *  wall tile (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_CABINET_SPRITE: SpriteData = (() => {
+  const O = '#23150b' // dark outline
+  const C = '#a06b2c' // cabinet wood (warm)
+  const L = '#bd8638' // door highlight
+  const D = '#7c4f1d' // door shadow / centre seam
+  const P = '#5e3a14' // recessed panel
+  const H = '#2b1c0d' // handle (dark)
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, L, L, L, L, L, L, O, O, L, L, L, L, L, L, O],
+    [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
+    [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
+    [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
+    [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
+    [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
+    [O, C, C, C, C, H, C, O, O, C, H, C, C, C, C, O],
+    [O, C, C, C, C, H, C, O, O, C, H, C, C, C, C, O],
+    [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
+    [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
+    [O, C, P, C, C, P, C, O, O, C, P, C, C, P, C, O],
+    [O, C, P, P, P, P, C, O, O, C, P, P, P, P, C, O],
+    [O, D, D, D, D, D, D, O, O, D, D, D, D, D, D, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+  ]
+})()
 
 /** Break couch: 32x16 (2 tiles wide, 1 tile tall) — comfy break room sofa */
 export const BREAK_COUCH_SPRITE: SpriteData = (() => {
