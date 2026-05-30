@@ -109,6 +109,7 @@ export const FurnitureType = {
   COFFEE_MACHINE: 'coffee_machine',
   BREAK_COUCH: 'break_couch',
   TABLE_2X1: 'table_2x1',
+  PROJECTOR: 'projector',
 } as const
 export type FurnitureType = (typeof FurnitureType)[keyof typeof FurnitureType]
 

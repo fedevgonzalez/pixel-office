@@ -13,6 +13,7 @@ import {
   COFFEE_MACHINE_SPRITE,
   BREAK_COUCH_SPRITE,
   TABLE_2X1_SPRITE,
+  PROJECTOR_SPRITE,
 } from '../sprites/spriteData.js'
 
 export interface LoadedAssetData {
@@ -56,6 +57,7 @@ export const FURNITURE_CATALOG: CatalogEntryWithCategory[] = [
   { type: FurnitureType.COFFEE_MACHINE, label: 'Coffee Machine', footprintW: 1, footprintH: 1, sprite: COFFEE_MACHINE_SPRITE, isDesk: false, category: 'break_room', isBreakRoom: true, isInteractionPoint: true },
   { type: FurnitureType.BREAK_COUCH, label: 'Break Couch', footprintW: 2, footprintH: 1, sprite: BREAK_COUCH_SPRITE, isDesk: false, category: 'break_room', isBreakRoom: true },
   { type: FurnitureType.TABLE_2X1,   label: 'Table 2x1',   footprintW: 2, footprintH: 1, sprite: TABLE_2X1_SPRITE,    isDesk: true,  category: 'desks' },
+  { type: FurnitureType.PROJECTOR,   label: 'Projector',   footprintW: 1, footprintH: 1, sprite: PROJECTOR_SPRITE,    isDesk: false, category: 'electronics', canPlaceOnSurfaces: true },
 
 ]
 
