@@ -4,44 +4,54 @@ import type { SpriteData } from '../types.js'
 // Each is a repeating tile for the world outside the office.
 // Colors follow the warm pixel-office palette.
 
-/** Grass tile — two-tone green with subtle dithering */
+// Grass palette — base + one darker + one lighter green. Texture is authored as
+// sparse 2x2 native-cell tufts (≈6px blocks at 3× render) so the lawn reads as
+// deliberate chunky pixel art rather than fine single-pixel noise. Tufts are
+// kept off the tile edges so the repeat stays seamless and tufts never merge
+// into larger blobs across the seam.
+const G = '#4a8a3a' // base
+const Gd = '#3d7a30' // shadow tuft
+const Gl = '#559a45' // highlight tuft
+
+/** Grass tile — chunky 2x2 tufts on a flat base (sparse, not noisy) */
 export const GRASS_TILE: SpriteData = [
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a'],
-  ['#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30'],
-  ['#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
+  [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+  [G, G, Gd, Gd, G, G, G, G, G, G, G, Gl, Gl, G, G, G],
+  [G, G, Gd, Gd, G, G, G, G, G, G, G, Gl, Gl, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, Gd, Gd, G, G, G, G, G, G, G],
+  [G, Gl, Gl, G, G, G, G, Gd, Gd, G, G, G, G, G, G, G],
+  [G, Gl, Gl, G, G, G, G, G, G, G, G, G, Gd, Gd, G, G],
+  [G, G, G, G, G, G, G, G, G, G, G, G, Gd, Gd, G, G],
+  [G, G, G, G, G, Gd, Gd, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, G, Gd, Gd, G, G, G, Gl, Gl, G, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, Gl, Gl, G, G, G, G],
+  [G, G, G, Gl, Gl, G, G, G, G, G, G, G, G, G, G, G],
+  [G, G, G, Gl, Gl, G, G, G, Gd, Gd, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, G, Gd, Gd, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
 ]
 
-/** Grass tile variant 2 — slightly different dithering pattern */
+/** Grass tile variant 2 — different tuft placement so a field of mixed tiles
+ * stays varied without becoming busy. */
 export const GRASS_TILE_2: SpriteData = [
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a'],
-  ['#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#4a8a3a'],
-  ['#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#559a45', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30'],
-  ['#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
-  ['#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#3d7a30', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a', '#4a8a3a'],
+  [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, G, G, Gl, Gl, G, G, G, G, G, Gd, Gd, G],
+  [G, G, G, G, G, G, Gl, Gl, G, G, G, G, G, Gd, Gd, G],
+  [G, Gd, Gd, G, G, G, G, G, G, G, G, G, G, G, G, G],
+  [G, Gd, Gd, G, G, G, G, G, G, G, Gd, Gd, G, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, Gd, Gd, G, G, G, G],
+  [G, G, G, G, G, Gl, Gl, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, G, Gl, Gl, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, G, G, Gl, Gl, G, G],
+  [G, G, Gd, Gd, G, G, G, G, G, G, G, G, Gl, Gl, G, G],
+  [G, G, Gd, Gd, G, G, G, G, Gd, Gd, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, G, Gd, Gd, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, Gl, Gl, G, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, Gl, Gl, G, G, G, G, G, G, G, G, G, G],
+  [G, G, G, G, G, G, G, G, G, G, G, G, G, G, G, G],
 ]
 
 /** Sidewalk tile — cream/tan concrete with seam lines */
@@ -64,24 +74,31 @@ export const SIDEWALK_TILE: SpriteData = [
   ['#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a', '#c8b89a'],
 ]
 
-/** Road tile — dark asphalt */
+// Road palette — flat dark asphalt with a couple of sparse, slightly-lighter
+// 2x2 wear patches (≈6px blocks). Low-contrast and rare so the road reads as a
+// calm flat surface, not speckled noise. Patches kept off tile edges to tile
+// seamlessly.
+const R = '#3a3a42' // asphalt base
+const Rl = '#3d3d45' // subtle lighter wear
+
+/** Road tile — flat dark asphalt with subtle chunky wear */
 export const ROAD_TILE: SpriteData = [
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42'],
-  ['#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3a3a42', '#3d3d45', '#3a3a42'],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, Rl, Rl, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, Rl, Rl, R, R, R, R, R, R, R, Rl, Rl, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, Rl, Rl, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, Rl, Rl, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, Rl, Rl, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
+  [R, R, R, R, R, R, R, R, R, R, R, R, R, R, R, R],
 ]
 
 /** Road center line — yellow dashes */
