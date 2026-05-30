@@ -22,6 +22,9 @@ const LIGHT_EMITTERS: Record<string, LightType> = {
   lamp: 'warm',
   pc: 'cool',
   coffee_machine: 'warm',
+  street_lamp: 'warm',
+  lamp_floor: 'warm',
+  lamp_pendant: 'warm',
 }
 
 /** Get the light type for a furniture type string, or null if it doesn't emit light */
