@@ -74,6 +74,10 @@ export interface FurnitureInstance {
   y: number
   /** Y value used for depth sorting (typically bottom edge) */
   zY: number
+  /** Optional alternate sprite shown when the scene is dark (night). Used by
+   *  lamp furniture so the renderer can swap to a glowing ON variant at night
+   *  while keeping the unlit OFF variant in `sprite` for the day. */
+  onSprite?: SpriteData
 }
 
 export interface ToolActivity {

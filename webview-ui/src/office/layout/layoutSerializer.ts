@@ -1,7 +1,8 @@
 import { TileType, FurnitureType, DEFAULT_COLS, DEFAULT_ROWS, TILE_SIZE, Direction } from '../types.js'
-import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Seat, FurnitureInstance, FloorColor } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Seat, FurnitureInstance, FloorColor, SpriteData } from '../types.js'
 import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
+import { LAMP_OFF_SPRITE, LAMP_SPRITE } from '../sprites/spriteData.js'
 import { getActiveFloorThemeId } from '../floorTiles.js'
 
 /** Convert flat tile array from layout into 2D grid */
@@ -66,14 +67,24 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
       }
     }
 
+    // Desk lamp has day/night states: the placed instance shows the unlit OFF
+    // sprite by day; the renderer swaps to `onSprite` (glowing) at night. The
+    // catalog keeps the ON sprite as its palette icon. Other furniture has no
+    // alternate sprite.
+    const isLamp = item.type === FurnitureType.LAMP
+    const baseSprite = isLamp ? LAMP_OFF_SPRITE : entry.sprite
+
     // Colorize sprite if this furniture has a color override
-    let sprite = entry.sprite
+    let sprite = baseSprite
+    let onSprite: SpriteData | undefined = isLamp ? LAMP_SPRITE : undefined
     if (item.color) {
       const { h, s, b: bv, c: cv } = item.color
-      sprite = getColorizedSprite(`furn-${item.type}-${h}-${s}-${bv}-${cv}-${item.color.colorize ? 1 : 0}`, entry.sprite, item.color)
+      const key = `furn-${item.type}-${h}-${s}-${bv}-${cv}-${item.color.colorize ? 1 : 0}`
+      sprite = getColorizedSprite(key, baseSprite, item.color)
+      if (onSprite) onSprite = getColorizedSprite(`${key}-on`, onSprite, item.color)
     }
 
-    instances.push({ sprite, x, y, zY })
+    instances.push({ sprite, x, y, zY, ...(onSprite ? { onSprite } : {}) })
   }
   return instances
 }

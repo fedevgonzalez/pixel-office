@@ -333,6 +333,11 @@ export const DN_GLOW_COOL = 'rgba(140, 185, 255, 1)'
 /** Transition speed: seconds to fully blend between time periods */
 export const DN_TRANSITION_BLEND_SEC = 1800 // 30 minutes real-time equivalent
 
+/** Darkness threshold (0=day, 1=night) above which lamp furniture switches to
+ * its glowing ON sprite. ~0.35 = onset of evening, matching when the scene is
+ * genuinely dark and the warm glow emitter becomes prominent. */
+export const DN_LAMP_ON_DARKNESS = 0.35
+
 // ── Kiosk Stats Overlay ──────────────────────────────────────
 /** How often the stats overlay recomputes counts (ms) */
 export const KIOSK_STATS_UPDATE_MS = 1500

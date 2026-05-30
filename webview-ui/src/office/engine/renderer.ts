@@ -56,6 +56,7 @@ import {
   RESTING_AGENT_LABEL_BORDER_ALPHA,
   ZONE_FILL,
   ZONE_BORDER,
+  DN_LAMP_ON_DARKNESS,
 } from '../../constants.js'
 
 // ── Render functions ────────────────────────────────────────────
@@ -174,12 +175,18 @@ export function renderScene(
   hoveredPetId?: string | null,
   canvasWidth?: number,
   canvasHeight?: number,
+  /** Scene darkness 0 (day) → 1 (night). Drives lamp ON/OFF sprite swap. */
+  nightLevel = 0,
 ): void {
   const drawables: ZDrawable[] = []
 
   // Furniture
+  const lampsOn = nightLevel >= DN_LAMP_ON_DARKNESS
   for (const f of furniture) {
-    const cached = getCachedSprite(f.sprite, zoom)
+    // Lamp furniture carries a glowing ON sprite shown only when the scene is
+    // dark; otherwise the unlit OFF sprite in `f.sprite` is used.
+    const spriteData = lampsOn && f.onSprite ? f.onSprite : f.sprite
+    const cached = getCachedSprite(spriteData, zoom)
     const fx = offsetX + f.x * zoom
     const fy = offsetY + f.y * zoom
     drawables.push({
@@ -1047,7 +1054,7 @@ export function renderFrame(
   // Draw walls + furniture + characters (z-sorted)
   const selectedId = selection?.selectedAgentId ?? null
   const hoveredId = selection?.hoveredAgentId ?? null
-  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets, selection?.selectedPetId, selection?.hoveredPetId, canvasWidth, canvasHeight)
+  renderScene(ctx, allFurniture, characters, offsetX, offsetY, zoom, selectedId, hoveredId, pets, selection?.selectedPetId, selection?.hoveredPetId, canvasWidth, canvasHeight, dayNight?.darkness ?? 0)
 
   // Speech bubbles (always on top of characters) — hidden in screenshot mode
   if (!hideBubbles) {
