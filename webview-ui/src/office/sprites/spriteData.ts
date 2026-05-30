@@ -92,83 +92,73 @@ export const PROJECTOR_SPRITE: SpriteData = (() => {
   ]
 })()
 
-/** Plant in pot: 16x24 */
+/** Plant in pot: 16x24 — leafy potted plant */
 export const PLANT_SPRITE: SpriteData = (() => {
-  const G = '#3D8B37'
-  const D = '#2D6B27'
-  const T = '#6B4E0A'
-  const P = '#B85C3A'
-  const R = '#8B4422'
+  const A='#1c3a18'; const B='#62bf52'; const C='#2c6b2c'; const D='#3f8d38'; const E='#7e3c1f'; const F='#c47048'; const G='#a8552f';
   return [
-    [_, _, _, _, _, _, G, G, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, G, G, G, G, _, _, _, _, _, _, _],
-    [_, _, _, _, G, G, D, G, G, G, _, _, _, _, _, _],
-    [_, _, _, G, G, D, G, G, D, G, G, _, _, _, _, _],
-    [_, _, G, G, G, G, G, G, G, G, G, G, _, _, _, _],
-    [_, G, G, D, G, G, G, G, G, G, D, G, G, _, _, _],
-    [_, G, G, G, G, D, G, G, D, G, G, G, G, _, _, _],
-    [_, _, G, G, G, G, G, G, G, G, G, G, _, _, _, _],
-    [_, _, _, G, G, G, D, G, G, G, G, _, _, _, _, _],
-    [_, _, _, _, G, G, G, G, G, G, _, _, _, _, _, _],
-    [_, _, _, _, _, G, G, G, G, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, T, T, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, T, T, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, T, T, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, R, R, R, R, R, _, _, _, _, _, _],
-    [_, _, _, _, R, P, P, P, P, P, R, _, _, _, _, _],
-    [_, _, _, _, R, P, P, P, P, P, R, _, _, _, _, _],
-    [_, _, _, _, R, P, P, P, P, P, R, _, _, _, _, _],
-    [_, _, _, _, R, P, P, P, P, P, R, _, _, _, _, _],
-    [_, _, _, _, R, P, P, P, P, P, R, _, _, _, _, _],
-    [_, _, _, _, R, P, P, P, P, P, R, _, _, _, _, _],
-    [_, _, _, _, _, R, P, P, P, R, _, _, _, _, _, _],
-    [_, _, _, _, _, _, R, R, R, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, A, A, A, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, A, B, A, _, _, _, _, _, _],
+    [_, _, _, A, A, A, _, A, B, A, _, A, A, A, _, _],
+    [_, _, _, A, C, C, A, B, B, B, A, C, C, A, _, _],
+    [_, _, _, A, C, C, D, B, B, B, D, C, C, A, _, _],
+    [_, _, _, _, A, C, C, B, B, B, C, C, A, _, _, _],
+    [_, _, _, _, A, D, D, B, B, B, D, D, A, _, _, _],
+    [_, _, _, _, A, D, D, B, B, B, D, D, A, _, _, _],
+    [_, _, _, _, _, A, D, B, B, B, D, A, _, _, _, _],
+    [_, _, _, _, _, A, D, B, B, B, D, A, _, _, _, _],
+    [_, _, _, _, _, A, D, B, B, B, D, A, _, _, _, _],
+    [_, _, _, _, _, A, D, B, B, B, D, A, _, _, _, _],
+    [_, _, _, _, _, _, A, B, B, B, A, _, _, _, _, _],
+    [_, _, _, _, _, _, A, D, D, D, A, _, _, _, _, _],
+    [_, _, _, _, E, F, F, F, F, F, F, _, _, _, _, _],
+    [_, _, _, _, E, G, G, G, G, G, G, _, _, _, _, _],
+    [_, _, _, _, E, G, G, G, G, E, E, _, _, _, _, _],
+    [_, _, _, _, E, G, G, G, G, E, E, _, _, _, _, _],
+    [_, _, _, _, _, E, G, G, G, E, E, _, _, _, _, _],
+    [_, _, _, _, _, E, G, G, G, E, E, _, _, _, _, _],
+    [_, _, _, _, _, E, G, G, G, E, E, _, _, _, _, _],
+    [_, _, _, _, _, E, E, E, E, E, _, _, _, _, _, _],
   ]
 })()
 
-/** Bookshelf: 16x32 (1 tile wide, 2 tiles tall) */
+/** Bookshelf: 16x32 (1x2) — oak shelves, muted book spines */
 export const BOOKSHELF_SPRITE: SpriteData = (() => {
-  const W = '#8B6914'
-  const D = '#6B4E0A'
-  const R = '#CC4444'
-  const B = '#4477AA'
-  const G = '#44AA66'
-  const Y = '#CCAA33'
-  const P = '#9955AA'
+  const A='#33240f'; const B='#7a5523'; const C='#241a0d'; const D='#8a4a40'; const E='#3f5d72'; const F='#4f7355'; const G='#b08a4a'; const H='#6e4358'; const I='#9a6a34'; const J='#8a6a48'; const K='#7a4b3a'; const L='#41301a';
   return [
-    [_, W, W, W, W, W, W, W, W, W, W, W, W, W, W, _],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, R, R, B, B, G, G, Y, Y, R, R, B, B, D, W],
-    [W, D, R, R, B, B, G, G, Y, Y, R, R, B, B, D, W],
-    [W, D, R, R, B, B, G, G, Y, Y, R, R, B, B, D, W],
-    [W, D, R, R, B, B, G, G, Y, Y, R, R, B, B, D, W],
-    [W, D, R, R, B, B, G, G, Y, Y, R, R, B, B, D, W],
-    [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, P, P, Y, Y, B, B, G, G, P, P, R, R, D, W],
-    [W, D, P, P, Y, Y, B, B, G, G, P, P, R, R, D, W],
-    [W, D, P, P, Y, Y, B, B, G, G, P, P, R, R, D, W],
-    [W, D, P, P, Y, Y, B, B, G, G, P, P, R, R, D, W],
-    [W, D, P, P, Y, Y, B, B, G, G, P, P, R, R, D, W],
-    [W, D, P, P, Y, Y, B, B, G, G, P, P, R, R, D, W],
-    [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, G, G, R, R, P, P, B, B, Y, Y, G, G, D, W],
-    [W, D, G, G, R, R, P, P, B, B, Y, Y, G, G, D, W],
-    [W, D, G, G, R, R, P, P, B, B, Y, Y, G, G, D, W],
-    [W, D, G, G, R, R, P, P, B, B, Y, Y, G, G, D, W],
-    [W, D, G, G, R, R, P, P, B, B, Y, Y, G, G, D, W],
-    [W, D, G, G, R, R, P, P, B, B, Y, Y, G, G, D, W],
-    [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, D, D, D, D, D, D, D, D, D, D, D, D, D, D, W],
-    [W, W, W, W, W, W, W, W, W, W, W, W, W, W, W, W],
-    [_, W, W, W, W, W, W, W, W, W, W, W, W, W, W, _],
+    [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
+    [A, B, C, C, C, C, C, C, C, C, C, C, C, C, B, A],
+    [A, B, C, C, C, C, C, C, C, C, C, C, C, A, B, A],
+    [A, B, C, A, D, A, E, A, F, A, G, A, H, A, B, A],
+    [A, B, C, A, D, A, E, A, F, A, G, A, H, A, B, A],
+    [A, B, C, A, D, A, E, A, F, A, G, A, H, A, B, A],
+    [A, B, C, A, D, A, E, A, F, A, G, A, H, A, B, A],
+    [A, B, I, I, I, I, I, I, I, I, I, I, I, I, B, A],
+    [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
+    [A, B, C, A, C, C, C, C, C, C, C, C, C, A, B, A],
+    [A, B, C, A, A, D, A, E, A, F, A, G, A, A, B, A],
+    [A, B, C, A, A, D, A, E, A, F, A, G, A, A, B, A],
+    [A, B, C, A, A, D, A, E, A, F, A, G, A, A, B, A],
+    [A, B, C, A, A, D, A, E, A, F, A, G, A, A, B, A],
+    [A, B, I, I, I, I, I, I, I, I, I, I, I, I, B, A],
+    [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
+    [A, B, C, C, C, C, C, C, C, C, C, C, C, A, B, A],
+    [A, B, C, A, J, A, K, A, D, A, E, A, F, A, B, A],
+    [A, B, C, A, J, A, K, A, D, A, E, A, F, A, B, A],
+    [A, B, C, A, J, A, K, A, D, A, E, A, F, A, B, A],
+    [A, B, C, A, J, A, K, A, D, A, E, A, F, A, B, A],
+    [A, B, I, I, I, I, I, I, I, I, I, I, I, I, B, A],
+    [A, B, B, B, B, B, B, B, B, B, B, B, B, B, B, A],
+    [A, B, C, A, C, C, C, C, C, C, C, C, C, A, B, A],
+    [A, B, C, A, A, J, A, K, A, D, A, E, A, A, B, A],
+    [A, B, C, A, A, J, A, K, A, D, A, E, A, A, B, A],
+    [A, B, C, A, A, J, A, K, A, D, A, E, A, A, B, A],
+    [A, B, C, A, A, J, A, K, A, D, A, E, A, A, B, A],
+    [A, B, I, I, I, I, I, I, I, I, I, I, I, I, B, A],
+    [A, B, L, L, L, L, L, L, L, L, L, L, L, L, B, A],
+    [A, B, L, L, L, L, L, L, L, L, L, L, L, L, B, A],
+    [_, A, A, A, A, A, A, A, A, A, A, A, A, A, A, _],
   ]
 })()
 
