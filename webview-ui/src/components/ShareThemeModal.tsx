@@ -1,0 +1,374 @@
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useModalFocus } from '../hooks/useModalFocus.js'
+import { showToast } from './Toast.js'
+import type { CustomThemePreset } from '../office/types.js'
+
+interface ShareThemeModalProps {
+  isOpen: boolean
+  onClose: () => void
+  /** The custom theme being shared (a saved preset). */
+  theme: CustomThemePreset | null
+}
+
+// Mirrors ShareModal: a pre-filled GitHub Issue is the submission mechanism.
+// A bot in the community repo (theme-submission label) parses it into a PR.
+const GALLERY_REPO = 'fedevgonzalez/pixel-office-community'
+const ISSUE_URL_BASE = `https://github.com/${GALLERY_REPO}/issues/new`
+const SUGGESTED_TAGS = ['garden', 'nature', 'green', 'cyberpunk', 'cozy', 'minimal', 'desert', 'snow', 'urban', 'night', 'pastel', 'autumn']
+const URL_BODY_LIMIT = 7500
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '20px',
+  color: 'var(--pixel-text-dim)',
+  marginBottom: 2,
+  display: 'block',
+}
+
+/** Build the issue body in the agreed THEME SUBMISSION FORMAT: a metadata block
+ *  followed by the CustomThemePreset JSON in a fenced code block. */
+function buildIssueBody(name: string, author: string, description: string, tags: string[], themeJson: string): string {
+  const meta = [
+    `**Name:** ${name}`,
+    `**Author:** ${author || 'anonymous'}`,
+    description ? `**Description:** ${description}` : '',
+    tags.length > 0 ? `**Tags:** ${tags.join(', ')}` : '',
+  ].filter(Boolean).join('\n')
+
+  return `## Theme Submission\n\n${meta}\n\n### Theme JSON\n\n\`\`\`json\n${themeJson}\n\`\`\`\n`
+}
+
+/** Pre-fills a GitHub Issue carrying a custom theme preset (the same export JSON
+ *  the ThemePicker produces) so it can land in the community gallery. Mirrors
+ *  ShareModal's mechanism exactly; only the title/label/payload differ. */
+export function ShareThemeModal({ isOpen, onClose, theme }: ShareThemeModalProps) {
+  const dialogRef = useModalFocus(isOpen)
+  const [name, setName] = useState('')
+  const [author, setAuthor] = useState('')
+  const [description, setDescription] = useState('')
+  const [tags, setTags] = useState<string[]>([])
+  const [tagInput, setTagInput] = useState('')
+  const [needsManualPaste, setNeedsManualPaste] = useState(false)
+  const [copied, setCopied] = useState(false)
+  const themeJsonRef = useRef<string>('')
+
+  // Seed the name from the selected theme each time the modal opens.
+  useEffect(() => {
+    if (!isOpen) return
+    setNeedsManualPaste(false)
+    setCopied(false)
+    setName(theme?.name ?? '')
+  }, [isOpen, theme])
+
+  // Escape to close
+  useEffect(() => {
+    if (!isOpen) return
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [isOpen, onClose])
+
+  const addTag = useCallback((tag: string) => {
+    const t = tag.toLowerCase().trim()
+    if (t && !tags.includes(t)) setTags((prev) => [...prev, t])
+    setTagInput('')
+  }, [tags])
+
+  const removeTag = useCallback((tag: string) => {
+    setTags((prev) => prev.filter((t) => t !== tag))
+  }, [])
+
+  const handleTagKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addTag(tagInput)
+    } else if (e.key === 'Backspace' && !tagInput && tags.length > 0) {
+      setTags((prev) => prev.slice(0, -1))
+    }
+  }, [tagInput, tags, addTag])
+
+  const handleOpenIssue = useCallback(() => {
+    const trimmedName = name.trim()
+    if (!trimmedName || !theme) return
+
+    // The shared artifact is exactly the export JSON: the CustomThemePreset
+    // (keeps its `custom:` id — the intake workflow strips it on disk).
+    const themeJson = JSON.stringify(theme)
+    themeJsonRef.current = themeJson
+
+    const authorName = author.trim() || 'anonymous'
+    const body = buildIssueBody(trimmedName, authorName, description.trim(), tags, themeJson)
+    const title = `Theme: ${trimmedName}`
+
+    const encodedBody = encodeURIComponent(body)
+    const tooLarge = encodedBody.length > URL_BODY_LIMIT
+
+    let issueUrl: string
+    if (tooLarge) {
+      // Body too large — open the issue without the JSON, user pastes manually.
+      const fallbackBody = buildIssueBody(
+        trimmedName, authorName, description.trim(), tags,
+        '<!-- PASTE YOUR THEME JSON HERE -->'
+      )
+      issueUrl = `${ISSUE_URL_BASE}?title=${encodeURIComponent(title)}&body=${encodeURIComponent(fallbackBody)}&labels=theme-submission`
+      setNeedsManualPaste(true)
+    } else {
+      issueUrl = `${ISSUE_URL_BASE}?title=${encodeURIComponent(title)}&body=${encodedBody}&labels=theme-submission`
+      setTimeout(() => {
+        showToast('✓ Submission opened in a new tab')
+        onClose()
+      }, 400)
+    }
+
+    window.open(issueUrl, '_blank')
+  }, [name, author, description, tags, theme, onClose])
+
+  const handleCopyTheme = useCallback(() => {
+    navigator.clipboard.writeText(themeJsonRef.current).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }, [])
+
+  const isValid = name.trim().length > 0 && !!theme
+
+  if (!isOpen) return null
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        aria-hidden="true"
+        className="pixel-fade-in"
+        style={{
+          position: 'fixed',
+          top: 0, left: 0, width: '100%', height: '100%',
+          background: 'var(--pixel-modal-backdrop)',
+          zIndex: 51,
+        }}
+      />
+      {/* Modal */}
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-theme-modal-title"
+        tabIndex={-1}
+        className="pixel-modal-rise"
+        style={{
+          position: 'fixed',
+          top: '50%', left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 52,
+          background: 'var(--pixel-bg)',
+          border: '2px solid var(--pixel-border)',
+          borderRadius: 0,
+          boxShadow: 'var(--pixel-shadow)',
+          width: '90%',
+          maxWidth: 480,
+          maxHeight: '85vh',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Header */}
+        <div className="modal-header">
+          <span id="share-theme-modal-title" className="modal-header__title">Share Your Theme</span>
+          <button
+            onClick={onClose}
+            aria-label="Close share dialog"
+            className="pixel-close-btn"
+          >
+            &#215;
+          </button>
+        </div>
+
+        {/* Content */}
+        <div style={{ overflow: 'auto', flex: 1, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {!theme && (
+            <div style={{ fontSize: '20px', color: 'var(--pixel-text-dim)' }}>
+              Select a custom theme to share. Built-in themes can't be submitted.
+            </div>
+          )}
+
+          {/* Name */}
+          <div>
+            <label htmlFor="share-theme-name" style={labelStyle}>Theme Name *</label>
+            <input
+              id="share-theme-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="My Garden"
+              maxLength={50}
+              className="pixel-input"
+            />
+          </div>
+
+          {/* Author */}
+          <div>
+            <label htmlFor="share-theme-author" style={labelStyle}>GitHub Username</label>
+            <input
+              id="share-theme-author"
+              type="text"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              placeholder="your-username"
+              maxLength={40}
+              className="pixel-input"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label htmlFor="share-theme-desc" style={labelStyle}>Description</label>
+            <textarea
+              id="share-theme-desc"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="A lush exterior with green grass and tan paths"
+              maxLength={200}
+              rows={2}
+              className="pixel-input"
+              style={{ resize: 'vertical', minHeight: 48 }}
+            />
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label htmlFor="share-theme-tags" style={labelStyle}>Tags</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
+              {tags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => removeTag(tag)}
+                  aria-label={`Remove tag ${tag}`}
+                  style={{
+                    fontSize: '16px',
+                    padding: '1px 6px',
+                    background: 'var(--pixel-active-bg)',
+                    color: 'var(--pixel-accent)',
+                    border: '1px solid var(--pixel-accent)',
+                    borderRadius: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {tag} &#215;
+                </button>
+              ))}
+            </div>
+            <input
+              id="share-theme-tags"
+              type="text"
+              value={tagInput}
+              onChange={(e) => setTagInput(e.target.value)}
+              onKeyDown={handleTagKeyDown}
+              placeholder="Type a tag and press Enter"
+              className="pixel-input"
+            />
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+              {SUGGESTED_TAGS.filter((t) => !tags.includes(t)).slice(0, 8).map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => addTag(tag)}
+                  style={{
+                    fontSize: '16px',
+                    padding: '1px 6px',
+                    background: 'transparent',
+                    color: 'var(--pixel-text-dim)',
+                    border: '1px solid var(--pixel-border)',
+                    borderRadius: 0,
+                    cursor: 'pointer',
+                  }}
+                >
+                  + {tag}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Manual paste fallback for large theme JSON */}
+          {needsManualPaste && (
+            <div style={{
+              padding: '8px 10px',
+              background: 'var(--pixel-active-bg)',
+              border: '2px solid var(--pixel-accent-dim)',
+              fontSize: '20px',
+              color: 'var(--pixel-accent)',
+            }}>
+              Theme too large for URL. Paste it manually into the GitHub Issue.
+              <button
+                onClick={handleCopyTheme}
+                style={{
+                  display: 'block',
+                  marginTop: 6,
+                  padding: '4px 12px',
+                  fontSize: '20px',
+                  background: 'var(--pixel-btn-bg)',
+                  color: 'var(--pixel-text)',
+                  border: '2px solid var(--pixel-border)',
+                  borderRadius: 0,
+                  cursor: 'pointer',
+                }}
+              >
+                {copied ? 'Copied!' : 'Copy Theme JSON'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            padding: '6px 12px',
+            borderTop: '1px solid var(--pixel-border)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexShrink: 0,
+          }}
+        >
+          <span style={{ fontSize: '16px', color: 'var(--pixel-text-hint)' }}>
+            Opens a GitHub Issue. A bot will create the PR.
+          </span>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={onClose}
+              className="pixel-btn"
+              style={{
+                padding: '6px 14px',
+                fontSize: '20px',
+                background: 'var(--pixel-btn-bg)',
+                color: 'var(--pixel-text-dim)',
+                border: '2px solid transparent',
+                borderRadius: 0,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleOpenIssue}
+              disabled={!isValid}
+              className="pixel-btn"
+              style={{
+                padding: '6px 14px',
+                fontSize: '20px',
+                background: !isValid ? 'var(--pixel-btn-bg)' : 'var(--pixel-agent-bg)',
+                color: !isValid ? 'var(--pixel-text-dim)' : 'var(--pixel-agent-text)',
+                border: `2px solid ${!isValid ? 'transparent' : 'var(--pixel-agent-border)'}`,
+                borderRadius: 0,
+                cursor: !isValid ? 'default' : 'pointer',
+                opacity: !isValid ? 'var(--pixel-btn-disabled-opacity)' : 1,
+              }}
+            >
+              Open GitHub Issue
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}

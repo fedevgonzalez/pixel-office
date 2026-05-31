@@ -57,6 +57,9 @@ export interface EditorActions {
   handleSaveCustomTheme: (name: string) => string
   /** Import a parsed theme-preset JSON as a new custom theme; returns id or null. */
   handleImportCustomTheme: (parsed: unknown) => string | null
+  /** Install a gallery theme locally (re-namespaced sidecar) and apply it to the
+   *  map (fill-empty). Returns the new local id, or null if the JSON is invalid. */
+  handleApplyGalleryTheme: (parsed: unknown) => string | null
   /** Delete a saved custom theme by id. */
   handleDeleteCustomTheme: (id: string) => void
   handleEditorSelectionChange: () => void
@@ -761,6 +764,17 @@ export function useEditorActions(
     return id
   }, [])
 
+  // Install a theme downloaded from the community gallery, mirroring how gallery
+  // layouts/sprites install locally: re-namespace + persist as a local custom
+  // theme sidecar (handleImportCustomTheme), then apply it to the current map
+  // (fill-empty, single undo entry) via applyThemePreset. Returns the new id.
+  const handleApplyGalleryTheme = useCallback((parsed: unknown): string | null => {
+    const id = handleImportCustomTheme(parsed)
+    if (!id) return null
+    handleApplyTheme(id, false)
+    return id
+  }, [handleImportCustomTheme, handleApplyTheme])
+
   // Delete a custom theme sidecar. If the active layout still references it, the
   // next apply falls back gracefully (resolveThemeForFill handles a missing id).
   const handleDeleteCustomTheme = useCallback((id: string) => {
@@ -801,6 +815,7 @@ export function useEditorActions(
     handleApplyTheme,
     handleSaveCustomTheme,
     handleImportCustomTheme,
+    handleApplyGalleryTheme,
     handleDeleteCustomTheme,
     handleEditorSelectionChange,
     handleDragMove,

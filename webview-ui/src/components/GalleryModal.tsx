@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useModalFocus } from '../hooks/useModalFocus.js'
 import { ws } from '../wsClient.js'
 import { GALLERY_CARD_MIN_WIDTH, GALLERY_CARD_GAP, GALLERY_CARD_PADDING } from '../constants.js'
@@ -32,6 +32,8 @@ interface GalleryModalProps {
   isOpen: boolean
   onClose: () => void
   getLayout: () => OfficeLayout
+  /** Install + apply a theme downloaded from the gallery (Backgrounds tab). */
+  onUseGalleryTheme?: (parsed: unknown) => void
 }
 
 interface AuthUser {
@@ -186,7 +188,7 @@ async function removeLike(issueNumber: number, reactionId: number): Promise<{ ok
 
 // ── Main component ──────────────────────────────────────────
 
-export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) {
+export function GalleryModal({ isOpen, onClose, getLayout, onUseGalleryTheme }: GalleryModalProps) {
   const dialogRef = useModalFocus(isOpen)
   const [manifest, setManifest] = useState<GalleryManifest | null>(null)
   const [loading, setLoading] = useState(false)
@@ -263,6 +265,32 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
   const [installingPropId, setInstallingPropId] = useState<string | null>(null)
   const [installedPropIds, setInstalledPropIds] = useState<Set<string>>(new Set())
 
+  // Community backgrounds (themes) manifest — lazy-fetched from the community
+  // repo's backgrounds.json. Unlike sprites, a theme is plain JSON, so it's
+  // downloaded via a server proxy (fetchGalleryTheme → galleryTheme), then
+  // re-namespaced + saved as a local custom theme and applied to the map
+  // (onUseGalleryTheme). The actual install rides the existing saveTheme path,
+  // so the only new server work is the fetch proxy.
+  interface CommunityBackground {
+    id: string
+    name: string
+    author: string
+    description: string
+    tags: string[]
+    screenshot: string | null
+    theme: string
+    createdAt?: string | null
+    votes?: number
+  }
+  const [bgManifest, setBgManifest] = useState<CommunityBackground[] | null>(null)
+  const [bgLoading, setBgLoading] = useState(false)
+  const [bgError, setBgError] = useState<string | null>(null)
+  const [installingBgId, setInstallingBgId] = useState<string | null>(null)
+  const [installedBgIds, setInstalledBgIds] = useState<Set<string>>(new Set())
+  // Mirror of installingBgId for the message handler (which closes over a stale
+  // value) — set synchronously when a fetch starts, cleared when it resolves.
+  const installingBgIdRef = useRef<string | null>(null)
+
   const { user, login, logout, signingIn } = useAuth()
   const [votingId, setVotingId] = useState<string | null>(null)
 
@@ -300,6 +328,27 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
         } else {
           setImporting(null)
           setError('Failed to download layout')
+        }
+      } else if (msg.type === 'galleryTheme') {
+        // A theme.json arrived from the proxy. Re-namespace + save locally and
+        // apply it to the map (onUseGalleryTheme handles both, mirroring the
+        // ThemePicker Import flow). Then mark the card installed.
+        if (msg.theme && onUseGalleryTheme) {
+          onUseGalleryTheme(msg.theme)
+          showToast('✓ Theme applied')
+          if (installingBgIdRef.current) {
+            setInstalledBgIds((prev) => {
+              const next = new Set(prev)
+              next.add(installingBgIdRef.current as string)
+              return next
+            })
+          }
+          setInstallingBgId(null)
+          installingBgIdRef.current = null
+        } else {
+          setInstallingBgId(null)
+          installingBgIdRef.current = null
+          setBgError('Failed to download theme')
         }
       } else if (msg.type === 'communityAssetInstalled') {
         // Server finished installing an asset; mark its card "Installed".
@@ -359,7 +408,7 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
 
     window.addEventListener('message', handler)
     return () => window.removeEventListener('message', handler)
-  }, [isOpen, importing, onClose])
+  }, [isOpen, importing, onClose, onUseGalleryTheme])
 
   // Fetch the layouts manifest the first time the Layouts tab is opened.
   // Same lazy pattern used by pets/chars/props below — re-opening the modal
@@ -446,6 +495,34 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
     setInstallingPropId(id)
     setPropsError(null)
     ws.postMessage({ type: 'installCommunityAsset', kind: 'prop', id })
+  }, [])
+
+  // Lazy-fetch the backgrounds (themes) manifest the first time the Backgrounds
+  // tab opens. Public repo → fetch backgrounds.json directly, same as pets.
+  useEffect(() => {
+    if (!isOpen || activeKind !== 'backgrounds' || bgManifest !== null || bgLoading) return
+    setBgLoading(true)
+    setBgError(null)
+    fetch('https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/backgrounds.json', { cache: 'no-cache' })
+      .then((res) => res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`)))
+      .then((data: { backgrounds?: CommunityBackground[] }) => {
+        setBgManifest(data.backgrounds || [])
+        setBgLoading(false)
+      })
+      .catch((err) => {
+        setBgError(err.message || 'Failed to fetch theme gallery')
+        setBgManifest([])
+        setBgLoading(false)
+      })
+  }, [isOpen, activeKind, bgManifest, bgLoading])
+
+  // Download + apply a community theme: ask the server to proxy the theme.json,
+  // then the `galleryTheme` message handler re-namespaces + installs + applies.
+  const handleUseTheme = useCallback((bg: CommunityBackground) => {
+    setInstallingBgId(bg.id)
+    installingBgIdRef.current = bg.id
+    setBgError(null)
+    ws.postMessage({ type: 'fetchGalleryTheme', path: bg.theme })
   }, [])
 
   // Fetch user likes and live vote counts when manifest loads and user is authenticated
@@ -800,27 +877,34 @@ export function GalleryModal({ isOpen, onClose, getLayout }: GalleryModalProps) 
             />
           )}
           {activeKind === 'backgrounds' && (
-            <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--pixel-text-dim)' }}>
-              <div style={{ fontSize: 28, marginBottom: 12 }}>🌆</div>
-              <div style={{ fontSize: '20px', color: 'var(--pixel-text)', marginBottom: 6 }}>
-                Image-based backgrounds are on the roadmap.
-              </div>
-              <div style={{ fontSize: '16px', color: 'var(--pixel-text-hint)', marginBottom: 20, lineHeight: 1.4 }}>
-                Today the world background is a procedural theme generated in code (grass, sidewalk, road, decorations). Installing a community .png needs a new image-tile renderer that also interacts with day/night — coming in a follow-up.
-              </div>
-              <a
-                href="https://github.com/fedevgonzalez/pixel-office-community/tree/main/backgrounds"
-                target="_blank"
-                rel="noreferrer"
-                style={{
-                  display: 'inline-block', padding: '8px 14px', fontSize: 16,
-                  background: 'var(--pixel-btn-bg)', color: 'var(--pixel-text)',
-                  border: '2px solid var(--pixel-border)', borderRadius: 0, textDecoration: 'none',
-                }}
-              >
-                Browse contributions on GitHub →
-              </a>
-            </div>
+            <CommunityAssetGrid
+              items={(bgManifest ?? []).map((bg) => ({
+                id: bg.id,
+                name: bg.name,
+                author: bg.author,
+                description: bg.description,
+                thumbnailUrl: bg.screenshot
+                  ? `https://raw.githubusercontent.com/fedevgonzalez/pixel-office-community/main/${bg.screenshot}`
+                  : null,
+                subtitle: `theme · by ${bg.author}`,
+                fallbackIcon: '🌆',
+              }))}
+              loading={bgLoading}
+              error={bgError}
+              installingId={installingBgId}
+              installedIds={installedBgIds}
+              onInstall={(id) => {
+                const bg = bgManifest?.find((b) => b.id === id)
+                if (bg) handleUseTheme(bg)
+              }}
+              itemLabel="Theme"
+              emptyState={{
+                icon: '🌆',
+                primary: 'No community themes yet — be the first.',
+                hint: 'In the Layout editor: Outdoor → Theme picker → Share… to submit yours.',
+              }}
+              onRetry={() => { setBgError(null); setBgManifest(null) }}
+            />
           )}
           {activeKind === 'layouts' && loading && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12, padding: '4px 0' }}>

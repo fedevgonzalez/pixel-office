@@ -2431,6 +2431,32 @@ async function handleClientMessage(ws, msg) {
         ws.send(JSON.stringify({ type: 'galleryLayout', path: msg.path, layout: null, error: String(e) }));
       }
     })();
+  } else if (msg.type === 'fetchGalleryBackgrounds') {
+    // Proxy the backgrounds (themes) manifest from the community repo. Mirrors
+    // fetchGalleryManifest but for backgrounds.json (no caching needed — the
+    // webview caches it client-side per its lazy-fetch pattern).
+    (async () => {
+      try {
+        const buf = await fetchFromGitHub('backgrounds.json');
+        const manifest = JSON.parse(buf.toString('utf-8'));
+        ws.send(JSON.stringify({ type: 'galleryBackgrounds', manifest }));
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'galleryBackgrounds', manifest: null, error: String(e) }));
+      }
+    })();
+  } else if (msg.type === 'fetchGalleryTheme') {
+    // Proxy a single theme.json (CustomThemePreset) from the community repo.
+    // The webview then re-namespaces + saves it as a local custom theme and
+    // applies it (mirroring fetchGalleryLayout → importGalleryLayout).
+    (async () => {
+      try {
+        const buf = await fetchFromGitHub(msg.path);
+        const theme = JSON.parse(buf.toString('utf-8'));
+        ws.send(JSON.stringify({ type: 'galleryTheme', path: msg.path, theme }));
+      } catch (e) {
+        ws.send(JSON.stringify({ type: 'galleryTheme', path: msg.path, theme: null, error: String(e) }));
+      }
+    })();
   } else if (msg.type === 'importGalleryLayout') {
     if (msg.layout && msg.layout.version === 1 && Array.isArray(msg.layout.tiles)) {
       // Pets and background theme are personal — never import from community layouts

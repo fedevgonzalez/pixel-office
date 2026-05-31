@@ -101,6 +101,8 @@ interface EditorToolbarProps {
   onImportCustomTheme: (parsed: unknown) => string | null
   /** Delete a saved custom theme by id. */
   onDeleteCustomTheme: (id: string) => void
+  /** Open the share-to-gallery flow for a selected custom theme preset. */
+  onShareTheme: (preset: CustomThemePreset) => void
 }
 
 const FLOOR_PREVIEW_SIZE = 56
@@ -384,6 +386,7 @@ function ThemePicker({
   onSaveCustomTheme,
   onImportCustomTheme,
   onDeleteCustomTheme,
+  onShareTheme,
 }: {
   customThemes: CustomThemePreset[]
   activeThemeId?: string
@@ -391,6 +394,7 @@ function ThemePicker({
   onSaveCustomTheme: (name: string) => string
   onImportCustomTheme: (parsed: unknown) => string | null
   onDeleteCustomTheme: (id: string) => void
+  onShareTheme: (preset: CustomThemePreset) => void
 }) {
   const [selected, setSelected] = useState<string>(activeThemeId || 'suburban')
   const [msg, setMsg] = useState<string | null>(null)
@@ -488,6 +492,9 @@ function ThemePicker({
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         <button style={btnStyle} title="Download the selected custom theme as JSON" onClick={handleExport}>Export</button>
         <button style={btnStyle} title="Import a theme JSON file" onClick={() => fileInputRef.current?.click()}>Import</button>
+        {selectedCustom && (
+          <button style={btnStyle} title="Share the selected custom theme to the community gallery" onClick={() => onShareTheme(selectedCustom)}>Share…</button>
+        )}
         {selectedCustom && (
           <button style={btnStyle} title="Delete the selected custom theme" onClick={handleDelete}>Delete</button>
         )}
@@ -706,6 +713,7 @@ export function EditorToolbar({
   onSaveCustomTheme,
   onImportCustomTheme,
   onDeleteCustomTheme,
+  onShareTheme,
 }: EditorToolbarProps) {
   // Persist the last-selected furniture category across editor open/close
   // cycles. Falls back to 'desks' if nothing is stored or the stored value
@@ -1040,6 +1048,7 @@ export function EditorToolbar({
             onSaveCustomTheme={onSaveCustomTheme}
             onImportCustomTheme={onImportCustomTheme}
             onDeleteCustomTheme={onDeleteCustomTheme}
+            onShareTheme={onShareTheme}
           />
         </div>
       )}

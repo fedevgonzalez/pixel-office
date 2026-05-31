@@ -26,6 +26,8 @@ interface BottomToolbarProps {
   }
   backgroundTheme?: WorldBackgroundTheme
   onBackgroundThemeChange?: (theme: WorldBackgroundTheme) => void
+  /** Install + apply a theme downloaded from the community gallery. */
+  onUseGalleryTheme?: (parsed: unknown) => void
 }
 
 const panelStyle: React.CSSProperties = {
@@ -68,6 +70,7 @@ export function BottomToolbar({
   dayNight,
   backgroundTheme,
   onBackgroundThemeChange,
+  onUseGalleryTheme,
 }: BottomToolbarProps) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false)
   const [isGalleryOpen, setIsGalleryOpen] = useState(false)
@@ -97,7 +100,7 @@ export function BottomToolbar({
       >
         Community
       </button>
-      <GalleryModal isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} getLayout={getLayout} />
+      <GalleryModal isOpen={isGalleryOpen} onClose={() => setIsGalleryOpen(false)} getLayout={getLayout} onUseGalleryTheme={onUseGalleryTheme} />
       <button
         onClick={() => setIsPetCreatorOpen((v) => !v)}
         className={`pixel-btn ${isPetCreatorOpen ? 'active' : ''}`}

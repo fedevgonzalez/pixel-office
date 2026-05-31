@@ -6,8 +6,9 @@ import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
 import { KioskStatsOverlay } from './office/components/KioskStatsOverlay.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
+import { ShareThemeModal } from './components/ShareThemeModal.js'
 import { EditTool } from './office/types.js'
-import type { PlacedPet, PetColors, WorldBackgroundTheme } from './office/types.js'
+import type { PlacedPet, PetColors, WorldBackgroundTheme, CustomThemePreset } from './office/types.js'
 import { isRotatable } from './office/layout/furnitureCatalog.js'
 import { ws } from './wsClient.js'
 import { useExtensionMessages } from './hooks/useExtensionMessages.js'
@@ -162,8 +163,14 @@ function App() {
 
   const [isDebugMode, setIsDebugMode] = useState(false)
   const [petVersion, setPetVersion] = useState(0)
+  // The custom theme being shared to the gallery (null = modal closed).
+  const [shareTheme, setShareTheme] = useState<CustomThemePreset | null>(null)
 
   const handleToggleDebugMode = useCallback(() => setIsDebugMode((prev) => !prev), [])
+
+  const handleShareTheme = useCallback((preset: CustomThemePreset) => {
+    setShareTheme(preset)
+  }, [])
 
   const handleSelectAgent = useCallback((id: number) => {
     ws.postMessage({ type: 'focusAgent', id })
@@ -370,6 +377,7 @@ function App() {
           dayNight={dayNight}
           backgroundTheme={getOfficeState().getLayout().background?.theme}
           onBackgroundThemeChange={handleBackgroundThemeChange}
+          onUseGalleryTheme={editor.handleApplyGalleryTheme}
         />
       )}
 
@@ -440,9 +448,18 @@ function App() {
             onSaveCustomTheme={editor.handleSaveCustomTheme}
             onImportCustomTheme={editor.handleImportCustomTheme}
             onDeleteCustomTheme={editor.handleDeleteCustomTheme}
+            onShareTheme={handleShareTheme}
           />
         )
       })()}
+
+      {!isKioskMode && (
+        <ShareThemeModal
+          isOpen={shareTheme !== null}
+          onClose={() => setShareTheme(null)}
+          theme={shareTheme}
+        />
+      )}
 
       {!isKioskMode && !isScreenshotMode && agents.length === 0 && (
         <div
