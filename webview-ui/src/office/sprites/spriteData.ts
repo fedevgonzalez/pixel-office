@@ -819,6 +819,44 @@ export const WALL_MIRROR_SPRITE: SpriteData = (() => {
   ]
 })()
 
+/** Wall projector: 32x16 (2 tiles wide, 1 tile tall) — a CEILING/wall-mounted
+ *  projector, distinct from the table PROJECTOR. A short mount bracket arm hangs
+ *  from the top, then a chunky dark projector body with side vents, a pale-blue
+ *  glowing lens on the front/under face, and a small green power LED.
+ *  Mounted on the wall (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_PROJECTOR_SPRITE: SpriteData = (() => {
+  const O = '#0c0e13' // dark outline
+  const B = '#272b34' // body (dark grey, matches TV bezel family)
+  const b = '#363b46' // body highlight (top)
+  const D = '#1a1d24' // body shadow / underside
+  const M = '#3a3f4a' // mount bracket arm
+  const m = '#23262e' // bracket shadow
+  const V = '#15171c' // vent slot (dark)
+  const A = '#bfeaff' // lens glow (pale blue, matches table projector lens)
+  const C = '#7fe0ff' // lens core (cyan)
+  const D2 = '#e8f7ff' // lens hotspot (near-white)
+  const I = '#46e06e' // green power LED
+  const U = '#05070a' // cast under-shadow
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, O, O, O, O, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, O, M, M, O, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, O, m, m, O, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, O, O, O, O, O, O, O, O, O, O, O, b, b, O, O, O, O, O, O, O, O, O, O, O, _, _, _, _],
+    [_, _, _, O, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, O, _, _, _],
+    [_, _, _, O, B, V, B, V, B, B, A, C, A, B, B, B, B, B, B, B, B, B, B, V, B, V, B, B, O, _, _, _],
+    [_, _, _, O, B, V, B, V, B, A, C, D2, C, A, B, B, B, B, B, B, B, B, B, V, B, V, B, B, O, _, _, _],
+    [_, _, _, O, B, V, B, V, B, A, C, D2, C, A, B, B, B, B, B, B, B, B, B, V, B, V, B, B, O, _, _, _],
+    [_, _, _, O, B, V, B, V, B, B, A, C, A, B, B, B, B, B, B, B, B, B, B, V, B, V, B, B, O, _, _, _],
+    [_, _, _, O, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, B, I, O, _, _, _],
+    [_, _, _, O, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, O, _, _, _],
+    [_, _, _, _, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, O, B, O, _, _, _, _, O, B, O, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, O, O, O, _, _, _, _, O, O, O, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, _, _, _, _],
+  ]
+})()
+
 /** Break couch: 32x16 (2 tiles wide, 1 tile tall) — comfy break room sofa */
 export const BREAK_COUCH_SPRITE: SpriteData = [
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
