@@ -17,6 +17,7 @@ import {
 } from '../../constants.js'
 import { getCatalogEntry, isRotatable } from '../layout/furnitureCatalog.js'
 import { canPlaceFurniture, getWallPlacementRow } from '../editor/editorActions.js'
+import { hasExteriorTiles } from '../layout/layoutSerializer.js'
 import { ws, isKioskMode, isScreenshotMode } from '../../wsClient.js'
 import { unlockAudio } from '../../notificationSound.js'
 import type { DayNightState } from '../engine/dayNightCycle.js'
@@ -413,6 +414,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             ? { text: officeState.dailySummaryText, timer: officeState.dailySummaryTimer, fullDuration: officeState.dailySummaryFullDuration }
             : undefined,
           officeState.getLayout().tileThemes,
+          hasExteriorTiles(officeState.getLayout()),
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 

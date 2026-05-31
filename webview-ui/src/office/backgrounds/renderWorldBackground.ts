@@ -53,6 +53,30 @@ function lerpColor(a: string, b: string, t: number): string {
 }
 
 /**
+ * Flat sky/ground fill behind the grid (theme's day/night fill, lerped by
+ * darkness). Extracted from `renderWorldBackground` sub-layer A so it can run on
+ * its own when the procedural ring is suppressed (A2: once a layout paints
+ * exterior tiles, the grid owns the look, but the off-grid canvas still needs a
+ * solid backdrop instead of going transparent). Returns false (no fill drawn)
+ * for the `void` theme or a missing config, so the caller can skip cleanly.
+ */
+export function renderSkyFill(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  canvasHeight: number,
+  theme: WorldBackgroundTheme,
+  dayNight?: DayNightState,
+): boolean {
+  if (theme === 'void') return false
+  const config = getThemeConfig(theme)
+  if (!config) return false
+  const darkness = dayNight?.darkness ?? 0
+  ctx.fillStyle = lerpColor(config.dayFill, config.nightFill, darkness)
+  ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+  return true
+}
+
+/**
  * Render the world background (terrain, zones, decorations) behind the office.
  * Called before renderTileGrid in the frame pipeline.
  */
@@ -74,11 +98,9 @@ export function renderWorldBackground(
   if (!config) return
 
   const s = TILE_SIZE * zoom
-  const darkness = dayNight?.darkness ?? 0
 
   // Sub-layer A: Sky/ground fill (entire canvas)
-  ctx.fillStyle = lerpColor(config.dayFill, config.nightFill, darkness)
-  ctx.fillRect(0, 0, canvasWidth, canvasHeight)
+  renderSkyFill(ctx, canvasWidth, canvasHeight, theme, dayNight)
 
   // Calculate visible tile range (world coords)
   const minCol = Math.floor(-offsetX / s) - 1

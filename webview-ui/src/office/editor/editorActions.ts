@@ -1,8 +1,10 @@
 import { TileType, MAX_COLS, MAX_ROWS } from '../types.js'
 import { DEFAULT_NEUTRAL_COLOR } from '../../constants.js'
-import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal, WorldBackgroundTheme } from '../types.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../layout/furnitureCatalog.js'
 import { getPlacementBlockedTiles } from '../layout/layoutSerializer.js'
+import { getThemeConfig, getZoneTileType } from '../backgrounds/backgroundThemes.js'
+import { isExteriorTile, isExteriorDefaultWalkable } from '../layout/tileKinds.js'
 
 /** Paint a single tile with pattern, color, and theme. Returns new layout (immutable). */
 export function paintTile(
@@ -135,6 +137,9 @@ export function canPlaceFurniture(
       } else {
         if (tileVal === TileType.VOID) return false // Cannot place on VOID
         if (tileVal === TileType.WALL) return false // Normal items cannot overlap walls
+        // Exterior non-walkable tiles (WATER/FENCE) reject furniture — can't drop
+        // a desk in a pond or on a fence rail. Walkable exterior (grass/path/…) OK.
+        if (isExteriorTile(tileVal) && !isExteriorDefaultWalkable(tileVal)) return false
       }
     }
   }
@@ -235,4 +240,134 @@ export function expandLayout(
     layout: { ...layout, cols: newCols, rows: newRows, tiles: newTiles, tileColors: newColors, tileThemes: newThemes, zones: newZones, furniture: newFurniture },
     shift: { col: shiftCol, row: shiftRow },
   }
+}
+
+/**
+ * Bounding box (inclusive) of the interior building region: all non-VOID,
+ * non-exterior tiles (WALL + FLOOR_1..7). Falls back to the full grid when the
+ * layout has no interior tiles at all (so a blank grid still gets a centered
+ * ring). Returned in grid coordinates.
+ */
+function getBuildingBBox(layout: OfficeLayout): { minCol: number; minRow: number; maxCol: number; maxRow: number } {
+  let minCol = Infinity, minRow = Infinity, maxCol = -Infinity, maxRow = -Infinity
+  for (let r = 0; r < layout.rows; r++) {
+    for (let c = 0; c < layout.cols; c++) {
+      const t = layout.tiles[r * layout.cols + c]
+      if (t === TileType.VOID || isExteriorTile(t)) continue
+      if (c < minCol) minCol = c
+      if (c > maxCol) maxCol = c
+      if (r < minRow) minRow = r
+      if (r > maxRow) maxRow = r
+    }
+  }
+  if (minCol === Infinity) {
+    return { minCol: 0, minRow: 0, maxCol: layout.cols - 1, maxRow: layout.rows - 1 }
+  }
+  return { minCol, minRow, maxCol, maxRow }
+}
+
+/**
+ * Core preset-fill. Writes exterior TileTypes (+ neutral colors) into `tiles[]`/
+ * `tileColors[]` using the theme's zone bands — the SAME distance/band logic as
+ * the procedural background (`getZoneTileType` mirrors `renderWorldBackground`'s
+ * getZone), so a painted preset reproduces the procedural ring's look. Also
+ * seeds the per-actor movement boundary from `EXTERIOR_DEFAULT_WALKABLE` (OQ-6:
+ * grass/sidewalk/road walkable for both; WATER/FENCE not) for every tile it
+ * writes, so Phase B's clamp has data without forcing it now.
+ *
+ * `overwrite=false` (default, OQ-4): only fills tiles that are currently VOID,
+ * PRESERVING any interior tile and any hand-painted exterior tile.
+ * `overwrite=true`: also rewrites existing exterior tiles (full ring reset);
+ * interior tiles (WALL/FLOOR) are never touched.
+ *
+ * Immutable, idempotent (running twice yields the same grid), single result —
+ * callers wrap one call in one undo entry. Records `background.theme` metadata.
+ */
+function fillThemePreset(
+  layout: OfficeLayout,
+  themeId: WorldBackgroundTheme,
+  overwrite: boolean,
+): OfficeLayout {
+  const config = getThemeConfig(themeId)
+  // No config (e.g. 'void' or unimplemented theme) — only record the metadata.
+  if (!config) {
+    return { ...layout, background: { ...layout.background, theme: themeId } }
+  }
+
+  const n = layout.cols * layout.rows
+  const tiles = [...layout.tiles]
+  const tileColors: Array<FloorColor | null> = layout.tileColors ? [...layout.tileColors] : new Array(n).fill(null)
+  const tileThemes: Array<string | null> = layout.tileThemes ? [...layout.tileThemes] : new Array(n).fill(null)
+
+  // Seed boundary masks only if a (non-null) mask already exists; otherwise leave
+  // absent → "unrestricted" (legacy). We never CREATE a mask here — that would
+  // silently restrict actors on an un-bounded layout. If a mask exists we set the
+  // cells we paint per EXTERIOR_DEFAULT_WALKABLE so it stays consistent.
+  const charMask = layout.movementBoundary?.character
+  const petMask = layout.movementBoundary?.pet
+  const newChar = charMask ? [...charMask] : null
+  const newPet = petMask ? [...petMask] : null
+
+  const { minCol, minRow, maxCol, maxRow } = getBuildingBBox(layout)
+  const officeCols = maxCol - minCol + 1
+  const officeRows = maxRow - minRow + 1
+
+  for (let r = 0; r < layout.rows; r++) {
+    for (let c = 0; c < layout.cols; c++) {
+      const idx = r * layout.cols + c
+      const existing = tiles[idx]
+      // Never touch interior tiles (WALL / FLOOR_1..7).
+      if (existing !== TileType.VOID && !isExteriorTile(existing)) continue
+      // Fill-empty-only: skip already-painted exterior tiles unless overwriting.
+      if (!overwrite && existing !== TileType.VOID) continue
+
+      // Building-local coords (relative to the building bbox top-left), matching
+      // the procedural getZone convention.
+      const localCol = c - minCol
+      const localRow = r - minRow
+      const zoneTile = getZoneTileType(localCol, localRow, officeCols, officeRows, config.zones)
+      if (zoneTile === null) continue // inside building footprint — leave VOID
+
+      tiles[idx] = zoneTile
+      tileColors[idx] = { ...DEFAULT_NEUTRAL_COLOR }
+      tileThemes[idx] = null
+      if (newChar) newChar[idx] = isExteriorDefaultWalkable(zoneTile)
+      if (newPet) newPet[idx] = isExteriorDefaultWalkable(zoneTile)
+    }
+  }
+
+  const next: OfficeLayout = {
+    ...layout,
+    tiles,
+    tileColors,
+    tileThemes,
+    background: { ...layout.background, theme: themeId },
+  }
+  if (newChar || newPet) {
+    next.movementBoundary = {
+      ...layout.movementBoundary,
+      ...(newChar ? { character: newChar } : {}),
+      ...(newPet ? { pet: newPet } : {}),
+    }
+  }
+  return next
+}
+
+/**
+ * Apply a theme as a preset fill — fill-empty-only (OQ-4 LOCKED). Writes the
+ * theme's exterior ring into VOID tiles, PRESERVING interior + hand-painted
+ * exterior tiles. Single undo entry, idempotent, valid layout. This is what the
+ * "pick a theme" UI calls (A3 wires it up).
+ */
+export function applyThemePreset(layout: OfficeLayout, themeId: WorldBackgroundTheme): OfficeLayout {
+  return fillThemePreset(layout, themeId, false)
+}
+
+/**
+ * Apply a theme as a FULL exterior reset (the explicit "Re-apply theme
+ * (overwrite all exterior)" action). Rewrites every exterior tile to the
+ * theme's ring; interior tiles are never touched. Single undo entry.
+ */
+export function applyThemePresetOverwrite(layout: OfficeLayout, themeId: WorldBackgroundTheme): OfficeLayout {
+  return fillThemePreset(layout, themeId, true)
 }

@@ -1,4 +1,5 @@
-import type { SpriteData, WorldBackgroundTheme } from '../types.js'
+import type { SpriteData, WorldBackgroundTheme, TileType as TileTypeVal } from '../types.js'
+import { TileType } from '../types.js'
 import { GRASS_TILE, GRASS_TILE_2, SIDEWALK_TILE, ROAD_TILE, ROAD_CENTER_LINE, CURB_TILE, TREE_OAK, FLOWER_PATCH, LAMPPOST } from './backgroundSprites.js'
 
 /** Zone layout around the office (distances in tiles from building edge) */
@@ -91,4 +92,44 @@ const THEME_REGISTRY: Partial<Record<WorldBackgroundTheme, ThemeConfig>> = {
 
 export function getThemeConfig(theme: WorldBackgroundTheme): ThemeConfig | null {
   return THEME_REGISTRY[theme] ?? null
+}
+
+/**
+ * Map a tile's distance from the building edge to an exterior TileType, using a
+ * theme's zone bands. This is the SAME distance/band logic as
+ * `renderWorldBackground.getZone` (sidewalk → lawn → curb → road_center → road →
+ * grass), so painting a theme preset into `tiles[]` reproduces the procedural
+ * ring's look. Returns `null` for tiles inside the building (the interior grid
+ * owns those) so `applyThemePreset` leaves them alone.
+ *
+ * `officeCols/officeRows` describe the interior building region's bounding box
+ * (passed by the caller). `col/row` are grid coords relative to that box's
+ * top-left (i.e. building-local; negative or >= size means outside the box).
+ */
+export function getZoneTileType(
+  col: number,
+  row: number,
+  officeCols: number,
+  officeRows: number,
+  zones: ThemeZones,
+): TileTypeVal | null {
+  const dLeft = -col
+  const dRight = col - officeCols + 1
+  const dTop = -row
+  const dBottom = row - officeRows + 1
+  const dist = Math.max(dLeft, dRight, dTop, dBottom)
+
+  if (dist <= 0) return null // inside building — interior grid owns this
+
+  const { sidewalk, lawn, road } = zones
+  if (dist <= sidewalk) return TileType.SIDEWALK
+  if (dist <= sidewalk + lawn) return TileType.GRASS
+  if (road > 0) {
+    const roadStart = sidewalk + lawn + 1 // +1 for curb
+    if (dist === sidewalk + lawn + 1) return TileType.CURB
+    const roadMiddle = roadStart + Math.floor(road / 2)
+    if (dist === roadMiddle) return TileType.ROAD_LINE
+    if (dist <= roadStart + road) return TileType.ROAD
+  }
+  return TileType.GRASS
 }

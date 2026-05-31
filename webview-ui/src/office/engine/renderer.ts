@@ -11,8 +11,10 @@ import { isKioskMode } from '../../wsClient.js'
 import type { DayNightState } from './dayNightCycle.js'
 import { renderDayNightOverlay } from './dayNightRenderer.js'
 import type { WorldBackgroundTheme } from '../types.js'
-import { renderWorldBackground } from '../backgrounds/renderWorldBackground.js'
+import { renderWorldBackground, renderSkyFill } from '../backgrounds/renderWorldBackground.js'
 import { GRASS_TILE, GRASS_TILE_2 } from '../backgrounds/backgroundSprites.js'
+import { getExteriorTileSprite } from '../backgrounds/exteriorTiles.js'
+import { isExteriorTile } from '../layout/tileKinds.js'
 import { getColorizedFloorSprite, hasFloorSprites, WALL_COLOR } from '../floorTiles.js'
 import { hasWallSprites, getWallInstances, wallColorToHex } from '../wallTiles.js'
 import {
@@ -122,6 +124,21 @@ export function renderTileGrid(
 
       // Skip VOID tiles entirely (transparent)
       if (tile === TileType.VOID) continue
+
+      // Exterior tiles (GRASS..DIRT, >= 9) read straight off the grid (D1/A2):
+      // draw the matching 16px-native sprite (upscaled x3 by the cache, never
+      // deformed), honoring any per-tile color override. FENCE/WATER etc. carry
+      // their own art. When a layout paints exterior tiles the procedural ring is
+      // suppressed (see renderFrame gate) so the grid is the single source.
+      if (isExteriorTile(tile)) {
+        const colorIdx = r * layoutCols + c
+        const sprite = getExteriorTileSprite(tile, c, r, tileColors?.[colorIdx])
+        if (sprite) {
+          const cached = getCachedSprite(sprite, zoom)
+          ctx.drawImage(cached, offsetX + c * s, offsetY + r * s)
+        }
+        continue
+      }
 
       if (tile === TileType.WALL || !useSpriteFloors) {
         // Wall tiles or fallback: solid color
@@ -1011,6 +1028,11 @@ export function renderFrame(
   zones?: Array<ZoneTypeVal | null>,
   dailySummary?: { text: string; timer: number; fullDuration: number },
   tileThemes?: Array<string | null>,
+  /** True when the layout has painted exterior tiles (TileType >= 9). When set,
+   *  the grid owns the outdoor look and the procedural background ring is
+   *  suppressed — only the flat sky/ground fill is drawn behind the grid. A2:
+   *  the live (un-painted) layout passes false → procedural background unchanged. */
+  layoutHasExteriorTiles?: boolean,
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -1030,9 +1052,18 @@ export function renderFrame(
   const offsetX = Math.floor((canvasWidth - mapW) / 2) + Math.round(panX)
   const offsetY = Math.floor((canvasHeight - mapH) / 2) + Math.round(panY)
 
-  // World background (terrain, zones, decorations) — drawn behind the office
+  // World background — drawn behind the office. Once a layout paints exterior
+  // tiles (A2), the grid is the single source of truth for the outdoor look, so
+  // the procedural ring is suppressed and only the flat sky/ground fill remains
+  // behind the grid (so off-grid canvas isn't transparent). Un-painted layouts
+  // (e.g. the live layout, hasExteriorTiles=false) keep the full procedural
+  // background, identical to before A2.
   if (backgroundTheme && backgroundTheme !== 'void') {
-    renderWorldBackground(ctx, canvasWidth, canvasHeight, backgroundTheme, cols, rows, offsetX, offsetY, zoom, dayNight)
+    if (layoutHasExteriorTiles) {
+      renderSkyFill(ctx, canvasWidth, canvasHeight, backgroundTheme, dayNight)
+    } else {
+      renderWorldBackground(ctx, canvasWidth, canvasHeight, backgroundTheme, cols, rows, offsetX, offsetY, zoom, dayNight)
+    }
   }
 
   // Draw tiles (floor + wall base color) — pass canvas dims for viewport culling.
