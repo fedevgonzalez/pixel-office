@@ -1,5 +1,5 @@
 import { TileType, TILE_SIZE, CharacterState } from '../types.js'
-import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture, ZoneType as ZoneTypeVal } from '../types.js'
+import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture, ZoneType as ZoneTypeVal, MovementBoundary } from '../types.js'
 import { PetState } from '../types.js'
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js'
 import { getCharacterSprites, BUBBLE_PERMISSION_SPRITE, BUBBLE_WAITING_SPRITE } from '../sprites/spriteData.js'
@@ -58,6 +58,10 @@ import {
   RESTING_AGENT_LABEL_BORDER_ALPHA,
   ZONE_FILL,
   ZONE_BORDER,
+  BOUNDARY_CHAR_FILL,
+  BOUNDARY_PET_FILL,
+  BOUNDARY_BOTH_FILL,
+  BOUNDARY_BORDER,
   DN_LAMP_ON_DARKNESS,
 } from '../../constants.js'
 
@@ -639,6 +643,61 @@ export function renderZoneOverlay(
   }
 }
 
+// ── Movement boundary overlay (edit mode only) ──────────────────
+
+/**
+ * Edit-mode-only tint showing where each actor may roam (Phase B / D2-D3).
+ * Blue = character-allowed, green = pet-allowed, teal = both. Cells with no
+ * `true` in either mask draw nothing. NEVER drawn in screenshot mode (the
+ * caller only passes an `editor` object outside screenshot mode). A white edge
+ * is stroked on the outer border of each color region so disjoint regions read
+ * clearly.
+ */
+export function renderBoundaryOverlay(
+  ctx: CanvasRenderingContext2D,
+  boundary: MovementBoundary,
+  cols: number,
+  rows: number,
+  offsetX: number,
+  offsetY: number,
+  zoom: number,
+): void {
+  const char = boundary.character
+  const pet = boundary.pet
+  if (!char && !pet) return
+  const s = TILE_SIZE * zoom
+  // Per-cell kind: 1=char only, 2=pet only, 3=both. 0=none.
+  const kindAt = (idx: number): number => {
+    const c = char?.[idx] === true ? 1 : 0
+    const p = pet?.[idx] === true ? 2 : 0
+    return c | p
+  }
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const idx = r * cols + c
+      const kind = kindAt(idx)
+      if (kind === 0) continue
+      const x = offsetX + c * s
+      const y = offsetY + r * s
+      ctx.fillStyle = kind === 3 ? BOUNDARY_BOTH_FILL : kind === 1 ? BOUNDARY_CHAR_FILL : BOUNDARY_PET_FILL
+      ctx.fillRect(x, y, s, s)
+      // Stroke only edges where the neighbour has a different kind (region outline).
+      ctx.strokeStyle = BOUNDARY_BORDER
+      ctx.lineWidth = Math.max(1, zoom)
+      const left = c === 0 || kindAt(r * cols + (c - 1)) !== kind
+      const right = c === cols - 1 || kindAt(r * cols + (c + 1)) !== kind
+      const top = r === 0 || kindAt((r - 1) * cols + c) !== kind
+      const bottom = r === rows - 1 || kindAt((r + 1) * cols + c) !== kind
+      ctx.beginPath()
+      if (left) { ctx.moveTo(x, y); ctx.lineTo(x, y + s) }
+      if (right) { ctx.moveTo(x + s, y); ctx.lineTo(x + s, y + s) }
+      if (top) { ctx.moveTo(x, y); ctx.lineTo(x + s, y) }
+      if (bottom) { ctx.moveTo(x, y + s); ctx.lineTo(x + s, y + s) }
+      ctx.stroke()
+    }
+  }
+}
+
 /** Draw faint expansion placeholders 1 tile outside grid bounds (ghost border). */
 export function renderGhostBorder(
   ctx: CanvasRenderingContext2D,
@@ -1033,6 +1092,10 @@ export function renderFrame(
    *  suppressed — only the flat sky/ground fill is drawn behind the grid. A2:
    *  the live (un-painted) layout passes false → procedural background unchanged. */
   layoutHasExteriorTiles?: boolean,
+  /** Per-actor movement-boundary masks (Phase B). Drawn as an edit-mode-only
+   *  tint overlay (blue=char, green=pet, teal=both). Only rendered when an
+   *  `editor` object is present (i.e. edit mode, never screenshot mode). */
+  movementBoundary?: MovementBoundary,
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -1105,6 +1168,11 @@ export function renderFrame(
     // Zone overlays — always visible in edit mode
     if (zones) {
       renderZoneOverlay(ctx, zones, cols, rows, offsetX, offsetY, zoom)
+    }
+    // Movement-boundary overlay — edit-mode only (this branch never runs in
+    // screenshot mode because no editor object is passed there).
+    if (movementBoundary) {
+      renderBoundaryOverlay(ctx, movementBoundary, cols, rows, offsetX, offsetY, zoom)
     }
     if (editor.showGhostBorder) {
       renderGhostBorder(ctx, offsetX, offsetY, zoom, cols, rows, editor.ghostBorderHoverCol, editor.ghostBorderHoverRow)

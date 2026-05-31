@@ -44,6 +44,55 @@ export function paintTile(
   return { ...layout, tiles, tileColors, tileThemes }
 }
 
+/**
+ * Paint a single cell of one actor's movement-boundary mask (Phase B / D3).
+ *
+ * Walkability becomes data: `movementBoundary.character` / `.pet` are masks
+ * parallel to `tiles` (length cols*rows). `true` = the actor may enter the tile,
+ * `null` = unrestricted for that cell. We never write `false` — clearing returns
+ * a cell to `null` (unrestricted) so a partially-painted mask doesn't silently
+ * fence the actor out of every un-touched tile; the engine treats a mask with
+ * ANY `true` entry as "the allowed set is exactly the true cells" (see
+ * officeState.boundarySetFromMask).
+ *
+ * The mask array is created lazily on the first paint (so layouts without a
+ * boundary stay unrestricted = legacy behavior). Returns a new layout
+ * (immutable); returns the same layout when nothing changes.
+ *
+ * @param allowed true → mark the cell as in-boundary; false → clear to null.
+ */
+export function paintMovementBoundary(
+  layout: OfficeLayout,
+  col: number,
+  row: number,
+  actor: 'character' | 'pet',
+  allowed: boolean,
+): OfficeLayout {
+  if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return layout
+  const idx = row * layout.cols + col
+  const n = layout.cols * layout.rows
+  const existing = layout.movementBoundary?.[actor]
+  const newValue: boolean | null = allowed ? true : null
+
+  // No-op when the cell already holds the target value (treat undefined as null).
+  if (existing && (existing[idx] ?? null) === newValue) return layout
+  // Clearing a cell of an absent mask is a no-op (already unrestricted).
+  if (!existing && !allowed) return layout
+
+  const mask: Array<boolean | null> = existing
+    ? [...existing]
+    : new Array(n).fill(null)
+  mask[idx] = newValue
+
+  return {
+    ...layout,
+    movementBoundary: {
+      ...layout.movementBoundary,
+      [actor]: mask,
+    },
+  }
+}
+
 /** Place furniture. Returns new layout (immutable). */
 export function placeFurniture(layout: OfficeLayout, item: PlacedFurniture): OfficeLayout {
   if (!canPlaceFurniture(layout, item.type, item.col, item.row)) return layout

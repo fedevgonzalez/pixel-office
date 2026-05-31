@@ -29,6 +29,20 @@ export class EditorState {
   zoneDragLastCol = -1
   zoneDragLastRow = -1
 
+  // Which actor mask the BOUNDARY_PAINT tool edits: characters or pets.
+  activeBoundaryActor: 'character' | 'pet' = 'character'
+
+  // Tracks paint direction during a boundary drag (true=allowing/adding the
+  // actor, false=clearing back to unrestricted, null=undecided). Mirrors zoneDrag*.
+  boundaryDragAdding: boolean | null = null
+
+  // Whether undo has been pushed for the current boundary drag session.
+  boundaryDragUndoPushed = false
+
+  // The last col/row painted during a boundary drag (avoids redundant repaints).
+  boundaryDragLastCol = -1
+  boundaryDragLastRow = -1
+
   // Picked furniture color (copied by pick tool, applied on placement)
   pickedFurnitureColor: FloorColor | null = null
 
@@ -121,6 +135,10 @@ export class EditorState {
     this.zoneDragUndoPushed = false
     this.zoneDragLastCol = -1
     this.zoneDragLastRow = -1
+    this.boundaryDragAdding = null
+    this.boundaryDragUndoPushed = false
+    this.boundaryDragLastCol = -1
+    this.boundaryDragLastRow = -1
     this.undoStack = []
     this.redoStack = []
     this.isDirty = false

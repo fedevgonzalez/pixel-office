@@ -29,6 +29,9 @@ interface OfficeCanvasProps {
   editorState: EditorState
   onEditorTileAction: (col: number, row: number) => void
   onEditorEraseAction: (col: number, row: number) => void
+  /** Clear one cell of the active actor's movement boundary (right-click in
+   *  BOUNDARY_PAINT mode). */
+  onEditorBoundaryClear: (col: number, row: number) => void
   onEditorSelectionChange: () => void
   onDeleteSelected: () => void
   onRotateSelected: () => void
@@ -46,7 +49,7 @@ interface OfficeCanvasProps {
   kioskFocusAgentIds?: number[]
 }
 
-export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef, dayNight, kioskFocusAgentIds }: OfficeCanvasProps) {
+export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorBoundaryClear, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef, dayNight, kioskFocusAgentIds }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const offsetRef = useRef({ x: 0, y: 0 })
@@ -58,6 +61,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
   const rotateButtonBoundsRef = useRef<RotateButtonBounds | null>(null)
   // Right-click erase dragging
   const isEraseDraggingRef = useRef(false)
+  // Right-click boundary-clear dragging (BOUNDARY_PAINT tool)
+  const boundaryClearDraggingRef = useRef(false)
   // Zoom scroll accumulator for trackpad pinch sensitivity
   const zoomAccumulatorRef = useRef(0)
   // Zoom ref: keeps game loop stable (no restart on zoom changes)
@@ -415,6 +420,10 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             : undefined,
           officeState.getLayout().tileThemes,
           hasExteriorTiles(officeState.getLayout()),
+          // Boundary overlay only in edit mode (never screenshot). renderFrame
+          // additionally guards on the editor object, but gate here too so the
+          // overlay never tints the live kiosk view.
+          isEditMode && !isScreenshotMode ? officeState.getLayout().movementBoundary : undefined,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 
@@ -536,8 +545,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             }
           }
 
-          // Paint on drag (tile/wall/erase paint tool only, not during furniture drag)
-          if (editorState.isDragging && (editorState.activeTool === EditTool.TILE_PAINT || editorState.activeTool === EditTool.WALL_PAINT || editorState.activeTool === EditTool.ERASE || editorState.activeTool === EditTool.ZONE_PAINT) && !editorState.dragUid) {
+          // Paint on drag (tile/wall/erase/zone/boundary paint tool only, not during furniture drag)
+          if (editorState.isDragging && (editorState.activeTool === EditTool.TILE_PAINT || editorState.activeTool === EditTool.WALL_PAINT || editorState.activeTool === EditTool.ERASE || editorState.activeTool === EditTool.ZONE_PAINT || editorState.activeTool === EditTool.BOUNDARY_PAINT) && !editorState.dragUid) {
             onEditorTileAction(tile.col, tile.row)
           }
           // Right-click erase drag
@@ -545,6 +554,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             const layout = officeState.getLayout()
             if (tile.col >= 0 && tile.col < layout.cols && tile.row >= 0 && tile.row < layout.rows) {
               onEditorEraseAction(tile.col, tile.row)
+            }
+          }
+          // Right-click boundary-clear drag
+          if (boundaryClearDraggingRef.current && editorState.activeTool === EditTool.BOUNDARY_PAINT) {
+            const layout = officeState.getLayout()
+            if (tile.col >= 0 && tile.col < layout.cols && tile.row >= 0 && tile.row < layout.rows) {
+              onEditorBoundaryClear(tile.col, tile.row)
             }
           }
         } else {
@@ -650,6 +666,13 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             isEraseDraggingRef.current = true
             onEditorEraseAction(tile.col, tile.row)
           }
+        } else if (tile && editorState.activeTool === EditTool.BOUNDARY_PAINT) {
+          // Secondary button clears the active actor's boundary cell.
+          const layout = officeState.getLayout()
+          if (tile.col >= 0 && tile.col < layout.cols && tile.row >= 0 && tile.row < layout.rows) {
+            boundaryClearDraggingRef.current = true
+            onEditorBoundaryClear(tile.col, tile.row)
+          }
         }
         return
       }
@@ -706,7 +729,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         onEditorTileAction(tile.col, tile.row)
       }
     },
-    [officeState, isEditMode, editorState, screenToTile, screenToWorld, onEditorTileAction, onEditorEraseAction, onEditorSelectionChange, onDeleteSelected, onRotateSelected, hitTestDeleteButton, hitTestRotateButton, panRef],
+    [officeState, isEditMode, editorState, screenToTile, screenToWorld, onEditorTileAction, onEditorEraseAction, onEditorBoundaryClear, onEditorSelectionChange, onDeleteSelected, onRotateSelected, hitTestDeleteButton, hitTestRotateButton, panRef],
   )
 
   const handleMouseUp = useCallback(
@@ -719,6 +742,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
       }
       if (e.button === 2) {
         isEraseDraggingRef.current = false
+        boundaryClearDraggingRef.current = false
         return
       }
 
@@ -763,6 +787,10 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
       editorState.zoneDragUndoPushed = false
       editorState.zoneDragLastCol = -1
       editorState.zoneDragLastRow = -1
+      editorState.boundaryDragAdding = null
+      editorState.boundaryDragUndoPushed = false
+      editorState.boundaryDragLastCol = -1
+      editorState.boundaryDragLastRow = -1
     },
     [editorState, isEditMode, officeState, onDragMove, onEditorSelectionChange],
   )
@@ -860,12 +888,17 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
   const handleMouseLeave = useCallback(() => {
     isPanningRef.current = false
     isEraseDraggingRef.current = false
+    boundaryClearDraggingRef.current = false
     editorState.isDragging = false
     editorState.wallDragAdding = null
     editorState.zoneDragAdding = null
     editorState.zoneDragUndoPushed = false
     editorState.zoneDragLastCol = -1
     editorState.zoneDragLastRow = -1
+    editorState.boundaryDragAdding = null
+    editorState.boundaryDragUndoPushed = false
+    editorState.boundaryDragLastCol = -1
+    editorState.boundaryDragLastRow = -1
     editorState.clearDrag()
     editorState.ghostCol = -1
     editorState.ghostRow = -1

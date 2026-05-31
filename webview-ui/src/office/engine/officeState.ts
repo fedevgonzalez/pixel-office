@@ -19,7 +19,7 @@ import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, Offic
 import { createCharacter, updateCharacter } from './characters.js'
 import { createPet, updatePet, triggerPetReaction, perkUpPet, walkPetToTile as petWalkToTile, setPetSpeech, setPetReactionBubble } from './pets.js'
 import { matrixEffectSeeds } from './matrixEffect.js'
-import { isWalkable, getWalkableTiles, findPath } from '../layout/tileMap.js'
+import { isWalkable, getWalkableTiles, findPath, findNearestWalkable } from '../layout/tileMap.js'
 import {
   createDefaultLayout,
   layoutToTileMap,
@@ -61,6 +61,13 @@ export class OfficeState {
   /** Tiles occupied by doors — walkable even though underlying tile is WALL */
   doorTiles: Set<string> = new Set()
 
+  /** Per-actor allowed-tile Sets, built ONCE on rebuild from
+   *  layout.movementBoundary (Phase B / D2-D3). `undefined` = unrestricted
+   *  (legacy: actor roams anywhere walkable). Built from "col,row" keys of mask
+   *  cells === true; an absent or all-null mask yields `undefined`. */
+  characterBoundary: Set<string> | undefined = undefined
+  petBoundary: Set<string> | undefined = undefined
+
   constructor(layout?: OfficeLayout) {
     this.layout = layout || createDefaultLayout()
     this.tileMap = layoutToTileMap(this.layout)
@@ -68,7 +75,29 @@ export class OfficeState {
     this.blockedTiles = getBlockedTiles(this.layout.furniture)
     this.doorTiles = this.computeDoorTiles()
     this.furniture = layoutToFurnitureInstances(this.layout.furniture)
+    this.characterBoundary = this.buildBoundarySet('character')
+    this.petBoundary = this.buildBoundarySet('pet')
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles, this.doorTiles)
+  }
+
+  /**
+   * Build a per-actor allowed-tile Set from layout.movementBoundary once.
+   * Returns `undefined` when the mask is absent or has NO `true` cell — that
+   * means "unrestricted" so a freshly-created or all-cleared mask never seals an
+   * actor in (backward compat). When the mask has at least one `true` cell, the
+   * Set is exactly those cells: the actor may only roam there.
+   */
+  private buildBoundarySet(actor: 'character' | 'pet'): Set<string> | undefined {
+    const mask = this.layout.movementBoundary?.[actor]
+    if (!mask) return undefined
+    const cols = this.layout.cols
+    const set = new Set<string>()
+    for (let i = 0; i < mask.length; i++) {
+      if (mask[i] === true) {
+        set.add(`${i % cols},${Math.floor(i / cols)}`)
+      }
+    }
+    return set.size > 0 ? set : undefined
   }
 
   /** Rebuild all derived state from a new layout. Reassigns existing characters.
@@ -80,6 +109,9 @@ export class OfficeState {
     this.blockedTiles = getBlockedTiles(layout.furniture)
     this.doorTiles = this.computeDoorTiles()
     this.rebuildFurnitureInstances()
+    // Rebuild per-actor boundary Sets ONCE here (never per frame).
+    this.characterBoundary = this.buildBoundarySet('character')
+    this.petBoundary = this.buildBoundarySet('pet')
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles, this.doorTiles)
 
     // Shift character positions when grid expands left/up
@@ -136,16 +168,43 @@ export class OfficeState {
       }
     }
 
-    // Relocate any characters that ended up outside bounds or on non-walkable tiles
+    // Relocate any characters that ended up outside bounds, on non-walkable
+    // tiles, or stranded outside a freshly-painted character boundary. Seated
+    // characters keep their seat (their seat is home, even if interior tiles are
+    // not in the boundary set).
     for (const ch of this.characters.values()) {
       if (ch.seatId) continue // seated characters are fine
-      if (ch.tileCol < 0 || ch.tileCol >= layout.cols || ch.tileRow < 0 || ch.tileRow >= layout.rows) {
+      const outOfBounds = ch.tileCol < 0 || ch.tileCol >= layout.cols || ch.tileRow < 0 || ch.tileRow >= layout.rows
+      const outOfBoundary = !!this.characterBoundary && !this.characterBoundary.has(`${ch.tileCol},${ch.tileRow}`)
+      if (outOfBounds || outOfBoundary) {
         this.relocateCharacterToWalkable(ch)
       }
     }
 
     // Rebuild pets from layout
     this.rebuildPets()
+  }
+
+  /** Allowed-tile Set for characters, or undefined when unrestricted. */
+  getCharacterBoundary(): Set<string> | undefined {
+    return this.characterBoundary
+  }
+
+  /** Allowed-tile Set for pets, or undefined when unrestricted. */
+  getPetBoundary(): Set<string> | undefined {
+    return this.petBoundary
+  }
+
+  /** Walkable tiles a character may roam (clamped to its boundary). */
+  getCharacterWalkableTiles(): Array<{ col: number; row: number }> {
+    if (!this.characterBoundary) return this.walkableTiles
+    return this.walkableTiles.filter((t) => this.characterBoundary!.has(`${t.col},${t.row}`))
+  }
+
+  /** Walkable tiles a pet may roam (clamped to its boundary). */
+  getPetWalkableTiles(): Array<{ col: number; row: number }> {
+    if (!this.petBoundary) return this.walkableTiles
+    return this.walkableTiles.filter((t) => this.petBoundary!.has(`${t.col},${t.row}`))
   }
 
   /** Create/update pets from layout.pets array */
@@ -167,18 +226,26 @@ export class OfficeState {
       }
     }
 
-    // Relocate any pets that ended up outside bounds or on non-walkable tiles
+    // Relocate any pets that ended up outside bounds, on non-walkable tiles, or
+    // stranded outside a freshly-painted pet boundary.
     for (const pet of this.pets.values()) {
-      if (pet.tileCol < 0 || pet.tileCol >= this.layout.cols || pet.tileRow < 0 || pet.tileRow >= this.layout.rows) {
+      const outOfBounds = pet.tileCol < 0 || pet.tileCol >= this.layout.cols || pet.tileRow < 0 || pet.tileRow >= this.layout.rows
+      const outOfBoundary = !!this.petBoundary && !this.petBoundary.has(`${pet.tileCol},${pet.tileRow}`)
+      if (outOfBounds || outOfBoundary) {
         this.relocatePetToWalkable(pet)
       }
     }
   }
 
-  /** Move a character to a random walkable tile */
+  /** Move a character to the nearest in-boundary walkable tile (random within
+   *  the boundary when stranded far outside it). Clamped to the character mask. */
   private relocateCharacterToWalkable(ch: Character): void {
-    if (this.walkableTiles.length === 0) return
-    const spawn = this.walkableTiles[Math.floor(Math.random() * this.walkableTiles.length)]
+    const pool = this.getCharacterWalkableTiles()
+    if (pool.length === 0) return
+    // Prefer the nearest in-boundary tile so the character doesn't teleport
+    // across the map when the user paints them out of a region.
+    const near = findNearestWalkable(ch.tileCol, ch.tileRow, this.tileMap, this.blockedTiles, this.doorTiles, this.characterBoundary)
+    const spawn = near ?? pool[Math.floor(Math.random() * pool.length)]
     ch.tileCol = spawn.col
     ch.tileRow = spawn.row
     ch.x = spawn.col * TILE_SIZE + TILE_SIZE / 2
@@ -187,10 +254,12 @@ export class OfficeState {
     ch.moveProgress = 0
   }
 
-  /** Move a pet to a random walkable tile */
+  /** Move a pet to the nearest in-boundary walkable tile. Clamped to pet mask. */
   private relocatePetToWalkable(pet: Pet): void {
-    if (this.walkableTiles.length === 0) return
-    const spawn = this.walkableTiles[Math.floor(Math.random() * this.walkableTiles.length)]
+    const pool = this.getPetWalkableTiles()
+    if (pool.length === 0) return
+    const near = findNearestWalkable(pet.tileCol, pet.tileRow, this.tileMap, this.blockedTiles, this.doorTiles, this.petBoundary)
+    const spawn = near ?? pool[Math.floor(Math.random() * pool.length)]
     pet.tileCol = spawn.col
     pet.tileRow = spawn.row
     pet.x = spawn.col * TILE_SIZE + TILE_SIZE / 2
@@ -970,8 +1039,17 @@ export class OfficeState {
     // has far more tiles, so a uniform pick lands an idle agent outside on the
     // lawn most of the time — they "go out to the grass" — while still
     // occasionally using the indoor couches.
-    const breakRoomTiles = [...this.getPlayZoneTiles(), ...this.getBreakRoomTiles()]
+    const allBreakRoomTiles = [...this.getPlayZoneTiles(), ...this.getBreakRoomTiles()]
     const focusZoneTiles = this.getFocusZoneTiles()
+    // Clamp wander candidates + break-room destinations to the character
+    // boundary (Phase B). Undefined boundary = unrestricted (legacy).
+    const charBoundary = this.characterBoundary
+    const charWalkable = charBoundary
+      ? this.walkableTiles.filter((t) => charBoundary.has(`${t.col},${t.row}`))
+      : this.walkableTiles
+    const breakRoomTiles = charBoundary
+      ? allBreakRoomTiles.filter((t) => charBoundary.has(`${t.col},${t.row}`))
+      : allBreakRoomTiles
     for (const ch of this.characters.values()) {
       // Handle matrix effect animation
       if (ch.matrixEffect) {
@@ -990,9 +1068,14 @@ export class OfficeState {
         continue // skip normal FSM while effect is active
       }
 
-      // Temporarily unblock own seat so character can pathfind to it
+      // Temporarily unblock own seat so character can pathfind to it. Wander
+      // candidates + break-room tiles are pre-clamped to the boundary; the
+      // boundary itself is passed so wander pathing stays inside it. Seat-return
+      // pathing inside updateCharacter is intentionally unclamped so a character
+      // can always reach its home seat (its seat is its anchor, even if interior
+      // tiles aren't in the painted boundary).
       this.withOwnSeatUnblocked(ch, () =>
-        updateCharacter(ch, dt, this.walkableTiles, this.seats, this.tileMap, this.blockedTiles, breakRoomTiles, focusZoneTiles, this.doorTiles)
+        updateCharacter(ch, dt, charWalkable, this.seats, this.tileMap, this.blockedTiles, breakRoomTiles, focusZoneTiles, this.doorTiles, charBoundary)
       )
 
       // Tick bubble timer for waiting bubbles
@@ -1049,9 +1132,18 @@ export class OfficeState {
     const petTiles = Array.from(this.pets.values()).map((p) => ({
       uid: p.uid, col: p.tileCol, row: p.tileRow,
     }))
-    const playZoneTiles = this.getPlayZoneTiles()
+    // Clamp pet wander candidates + play-zone destinations to the pet boundary
+    // (Phase B). Undefined boundary = unrestricted (legacy).
+    const petBoundary = this.petBoundary
+    const allPlayZoneTiles = this.getPlayZoneTiles()
+    const petWalkable = petBoundary
+      ? this.walkableTiles.filter((t) => petBoundary.has(`${t.col},${t.row}`))
+      : this.walkableTiles
+    const playZoneTiles = petBoundary
+      ? allPlayZoneTiles.filter((t) => petBoundary.has(`${t.col},${t.row}`))
+      : allPlayZoneTiles
     for (const pet of this.pets.values()) {
-      updatePet(pet, dt, this.walkableTiles, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles, petTiles, playZoneTiles)
+      updatePet(pet, dt, petWalkable, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles, petTiles, playZoneTiles, petBoundary)
     }
   }
 

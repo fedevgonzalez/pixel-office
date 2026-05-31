@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { EditTool, TileType } from '../types.js'
-import type { TileType as TileTypeVal, FloorColor } from '../types.js'
+import type { TileType as TileTypeVal, FloorColor, MovementBoundary } from '../types.js'
 import { getCatalogByCategory, buildDynamicCatalog, getActiveCategories, FURNITURE_CATEGORIES } from '../layout/furnitureCatalog.js'
 import type { FurnitureCategory, LoadedAssetData } from '../layout/furnitureCatalog.js'
 import { isExteriorTile } from '../layout/tileKinds.js'
@@ -74,6 +74,12 @@ interface EditorToolbarProps {
   onResizeEdge: (edge: 'top' | 'bottom' | 'left' | 'right', delta: 1 | -1) => void
   /** Transient resize message (e.g. a shrink-refused warning). */
   resizeMessage: string | null
+  /** Which actor mask the Boundary tool edits. */
+  activeBoundaryActor: 'character' | 'pet'
+  /** Switch the Boundary tool's active actor mask. */
+  onBoundaryActorChange: (actor: 'character' | 'pet') => void
+  /** Per-actor movement-boundary masks, for the save-time sanity warning. */
+  movementBoundary?: MovementBoundary
 }
 
 const FLOOR_PREVIEW_SIZE = 56
@@ -167,6 +173,92 @@ const OUTDOOR_TILES: Array<{ type: TileTypeVal; label: string }> = [
   { type: TileType.WATER, label: 'Water' },
   { type: TileType.FENCE, label: 'Fence' },
 ]
+
+/** Count `true` cells of a boundary mask. */
+function maskCount(mask: Array<boolean | null> | null | undefined): number {
+  if (!mask) return 0
+  let n = 0
+  for (const v of mask) if (v === true) n++
+  return n
+}
+
+/** Largest 4-connected component size among the mask's `true` cells. Used to
+ *  flag a disconnected boundary (the actor would be trapped in one island). */
+function largestComponent(mask: Array<boolean | null> | null | undefined, cols: number, rows: number): number {
+  if (!mask) return 0
+  const seen = new Uint8Array(cols * rows)
+  let best = 0
+  for (let start = 0; start < mask.length; start++) {
+    if (mask[start] !== true || seen[start]) continue
+    let size = 0
+    const stack = [start]
+    seen[start] = 1
+    while (stack.length > 0) {
+      const idx = stack.pop()!
+      size++
+      const c = idx % cols
+      const r = Math.floor(idx / cols)
+      const neigh = [
+        c > 0 ? idx - 1 : -1,
+        c < cols - 1 ? idx + 1 : -1,
+        r > 0 ? idx - cols : -1,
+        r < rows - 1 ? idx + cols : -1,
+      ]
+      for (const ni of neigh) {
+        if (ni >= 0 && mask[ni] === true && !seen[ni]) {
+          seen[ni] = 1
+          stack.push(ni)
+        }
+      }
+    }
+    if (size > best) best = size
+  }
+  return best
+}
+
+/**
+ * Build the save-time sanity warning for movement boundaries (Phase B). Returns
+ * an empty string when everything looks fine. Flags, in priority order:
+ *  - a painted mask that is tiny (< 4 tiles) → likely a stray click
+ *  - a disconnected mask (largest island < total) → actor could be trapped
+ *  - pet & character masks that are both painted but fully disjoint (no shared
+ *    tile) → pets and characters can never meet
+ * Unpainted (absent / all-null) masks are unrestricted and never warn.
+ */
+function computeBoundaryWarning(boundary: MovementBoundary | undefined, cols: number, rows: number): string {
+  if (!boundary) return ''
+  const char = boundary.character
+  const pet = boundary.pet
+  const charN = maskCount(char)
+  const petN = maskCount(pet)
+  if (charN === 0 && petN === 0) return ''
+
+  const tiny: string[] = []
+  if (charN > 0 && charN < 4) tiny.push('character')
+  if (petN > 0 && petN < 4) tiny.push('pet')
+  if (tiny.length > 0) {
+    return `The ${tiny.join(' & ')} boundary is very small (< 4 tiles) — actors may get stuck.`
+  }
+
+  if (charN > 0 && largestComponent(char, cols, rows) < charN) {
+    return 'The character boundary is split into disconnected islands — characters may get trapped.'
+  }
+  if (petN > 0 && largestComponent(pet, cols, rows) < petN) {
+    return 'The pet boundary is split into disconnected islands — pets may get trapped.'
+  }
+
+  // Disjoint pet vs char (both painted, no overlap)
+  if (charN > 0 && petN > 0 && char && pet) {
+    let shared = false
+    for (let i = 0; i < char.length; i++) {
+      if (char[i] === true && pet[i] === true) { shared = true; break }
+    }
+    if (!shared) {
+      return 'Pet and character boundaries do not overlap — they can never share a tile.'
+    }
+  }
+  return ''
+}
 
 /** Small sprite swatch for an outdoor tile type. Renders the exterior sprite via
  *  `getExteriorTileSprite` (nearest-upscaled, never deformed). */
@@ -428,6 +520,9 @@ export function EditorToolbar({
   rows,
   onResizeEdge,
   resizeMessage,
+  activeBoundaryActor,
+  onBoundaryActorChange,
+  movementBoundary,
 }: EditorToolbarProps) {
   // Persist the last-selected furniture category across editor open/close
   // cycles. Falls back to 'desks' if nothing is stored or the stored value
@@ -509,6 +604,11 @@ export function EditorToolbar({
   const isEraseActive = activeTool === EditTool.ERASE
   const isFurnitureActive = activeTool === EditTool.FURNITURE_PLACE || activeTool === EditTool.FURNITURE_PICK
   const isZoneActive = activeTool === EditTool.ZONE_PAINT
+  const isBoundaryActive = activeTool === EditTool.BOUNDARY_PAINT
+
+  // Save-time sanity warning for the active actor's boundary mask. Computed from
+  // the in-flight layout's masks. Empty string when nothing's wrong.
+  const boundaryWarning = computeBoundaryWarning(movementBoundary, cols, rows)
 
   return (
     <div
@@ -587,6 +687,13 @@ export function EditorToolbar({
           title="Designate no-wander zones (agents avoid these tiles when idle)"
         >
           Zones
+        </button>
+        <button
+          style={isBoundaryActive ? activeBtnStyle : btnStyle}
+          onClick={() => onToolChange(EditTool.BOUNDARY_PAINT)}
+          title="Paint where characters / pets may roam (drag to add, right-click to clear)"
+        >
+          Roam
         </button>
       </div>
 
@@ -849,6 +956,64 @@ export function EditorToolbar({
       {isZoneActive && (
         <div style={{ fontSize: '18px', color: 'var(--pixel-text-dim)', padding: '2px 4px' }}>
           No wander — click tiles to mark. Click again to clear.
+        </div>
+      )}
+
+      {/* Sub-panel: Roam / movement boundary */}
+      {isBoundaryActive && (
+        <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 6 }}>
+          {/* Actor toggle — just above the tool row */}
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <button
+              style={{
+                ...(activeBoundaryActor === 'character' ? activeBtnStyle : btnStyle),
+                fontSize: '18px',
+                padding: '3px 8px',
+                // Tint the active actor button to match its overlay color.
+                ...(activeBoundaryActor === 'character'
+                  ? { borderColor: 'rgba(80,150,255,0.9)' }
+                  : {}),
+              }}
+              onClick={() => onBoundaryActorChange('character')}
+              title="Paint where characters may roam (blue)"
+            >
+              Characters
+            </button>
+            <button
+              style={{
+                ...(activeBoundaryActor === 'pet' ? activeBtnStyle : btnStyle),
+                fontSize: '18px',
+                padding: '3px 8px',
+                ...(activeBoundaryActor === 'pet'
+                  ? { borderColor: 'rgba(80,220,120,0.9)' }
+                  : {}),
+              }}
+              onClick={() => onBoundaryActorChange('pet')}
+              title="Paint where pets may roam (green)"
+            >
+              Pets
+            </button>
+          </div>
+
+          <div style={{ fontSize: '16px', color: 'var(--pixel-text-dim)', padding: '2px 4px', maxWidth: 260 }}>
+            Drag to allow the {activeBoundaryActor === 'pet' ? 'pet' : 'character'}; right-click to clear.
+            Blue = chars, green = pets, teal = both. Unpainted = roam anywhere.
+          </div>
+
+          {/* Save-time sanity warning */}
+          {boundaryWarning && (
+            <div style={{
+              fontSize: '15px',
+              color: '#ffcc66',
+              background: 'rgba(120,80,0,0.25)',
+              border: '2px solid rgba(255,200,100,0.4)',
+              borderRadius: 0,
+              padding: '3px 6px',
+              maxWidth: 260,
+            }}>
+              ⚠ {boundaryWarning}
+            </div>
+          )}
         </div>
       )}
 

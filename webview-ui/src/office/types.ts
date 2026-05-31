@@ -143,6 +143,9 @@ export const EditTool = {
   EYEDROPPER: 'eyedropper',
   ERASE: 'erase',
   ZONE_PAINT: 'zone_paint',
+  /** Paint per-actor movement boundary (Phase B). The active actor mask is held
+   *  in EditorState.activeBoundaryActor. */
+  BOUNDARY_PAINT: 'boundary_paint',
 } as const
 export type EditTool = (typeof EditTool)[keyof typeof EditTool]
 

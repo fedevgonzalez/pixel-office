@@ -84,6 +84,14 @@ export const SELECTION_HIGHLIGHT_COLOR = '#007fd4'
 // ── Zone Overlay Colors (edit mode only) ─────────────────────
 export const ZONE_FILL = 'rgba(100, 140, 220, 0.22)'
 export const ZONE_BORDER = 'rgba(100, 140, 220, 0.55)'
+
+// ── Movement Boundary Overlay Colors (edit mode only) ────────
+// Blue tint = character-allowed, green = pet-allowed, teal = both. Drawn only in
+// edit mode (never in screenshot mode). Semi-transparent so the tile shows through.
+export const BOUNDARY_CHAR_FILL = 'rgba(80, 150, 255, 0.30)'
+export const BOUNDARY_PET_FILL = 'rgba(80, 220, 120, 0.30)'
+export const BOUNDARY_BOTH_FILL = 'rgba(60, 210, 210, 0.34)'
+export const BOUNDARY_BORDER = 'rgba(255, 255, 255, 0.45)'
 export const DELETE_BUTTON_BG = 'rgba(200, 50, 50, 0.85)'
 export const ROTATE_BUTTON_BG = 'rgba(50, 120, 200, 0.85)'
 

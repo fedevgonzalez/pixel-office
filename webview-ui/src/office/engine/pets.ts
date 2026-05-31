@@ -170,6 +170,10 @@ export function updatePet(
   /** Tiles of the "green" play zone (floor painted with a play-zone theme).
    *  Empty when no zone is defined. */
   playZoneTiles: Array<{ col: number; row: number }> = PLAY_ZONE_EMPTY,
+  /** Per-actor allowed-tile Set (Phase B). When present, all pet pathing is
+   *  clamped to it. Undefined = unrestricted (legacy). `walkableTiles` and
+   *  `playZoneTiles` are already pre-clamped to this set by the caller. */
+  boundary?: Set<string>,
 ): void {
   // Bounds check: if pet is outside the grid, relocate to a walkable tile
   const rows = tileMap.length
@@ -253,7 +257,7 @@ export function updatePet(
       pet.frame = 0 // idle frame
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles, boundary)
       }
       break
     }
@@ -266,7 +270,7 @@ export function updatePet(
       }
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles, boundary)
       }
       break
     }
@@ -290,7 +294,7 @@ export function updatePet(
           startPlayBubble(pet)
         } else {
           pet.wantsToPlay = false
-          transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
+          transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles, boundary)
         }
         break
       }
@@ -336,7 +340,7 @@ export function updatePet(
       if (!pet.reactionBubble) startPlayBubble(pet)
       pet.behaviorTimer -= dt
       if (pet.behaviorTimer <= 0) {
-        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles)
+        transitionToNewBehavior(pet, walkableTiles, tileMap, blockedTiles, activeAgentPositions, doorTiles, otherPetTiles, playZoneTiles, boundary)
       }
       break
     }
@@ -352,6 +356,8 @@ function transitionToNewBehavior(
   doorTiles?: Set<string>,
   otherPetTiles?: Array<{ uid: string; col: number; row: number }>,
   playZoneTiles: Array<{ col: number; row: number }> = PLAY_ZONE_EMPTY,
+  /** Per-actor allowed-tile Set (Phase B). Clamps every pet path. */
+  boundary?: Set<string>,
 ): void {
   pet.wantsToPlay = false
 
@@ -384,7 +390,7 @@ function transitionToNewBehavior(
       const dests = playZoneTiles.filter((t) => !forbidden.has(`${t.col},${t.row}`))
       if (dests.length > 0) {
         const target = dests[Math.floor(Math.random() * dests.length)]
-        const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
+        const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles, boundary)
         if (path.length > 0) {
           pet.state = PetState.WALK
           pet.path = path
@@ -427,7 +433,7 @@ function transitionToNewBehavior(
         })
         if (adjacent.length > 0) {
           const target = adjacent[Math.floor(Math.random() * adjacent.length)]
-          const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
+          const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles, boundary)
           if (path.length > 0) {
             pet.state = PetState.WALK
             pet.path = path
@@ -450,7 +456,7 @@ function transitionToNewBehavior(
 
     if (candidates.length > 0) {
       const target = candidates[Math.floor(Math.random() * candidates.length)]
-      const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
+      const path = findPath(pet.tileCol, pet.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles, boundary)
       if (path.length > 0) {
         pet.state = PetState.WALK
         pet.path = path

@@ -98,6 +98,10 @@ export function updateCharacter(
   breakRoomTiles: Array<{ col: number; row: number }> = [],
   focusZoneTiles: Set<string> = new Set(),
   doorTiles: Set<string> = new Set(),
+  /** Per-actor allowed-tile Set (Phase B). When present, wander/break-room
+   *  pathing is clamped to it. Seat-return pathing is intentionally NOT clamped
+   *  so a character can always reach its home seat. Undefined = unrestricted. */
+  boundary?: Set<string>,
 ): void {
   ch.frameTimer += dt
 
@@ -133,7 +137,7 @@ export function updateCharacter(
         const alreadyAtBreak = breakRoomTiles.some((t) => t.col === ch.tileCol && t.row === ch.tileRow)
         if (!alreadyAtBreak && breakRoomTiles.length > 0) {
           const target = breakRoomTiles[Math.floor(Math.random() * breakRoomTiles.length)]
-          const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles)
+          const path = findPath(ch.tileCol, ch.tileRow, target.col, target.row, tileMap, blockedTiles, doorTiles, boundary)
           if (path.length > 0) {
             ch.path = path
             ch.moveProgress = 0
@@ -205,7 +209,7 @@ export function updateCharacter(
           }
         }
         if (wanderTarget) {
-          const path = findPath(ch.tileCol, ch.tileRow, wanderTarget.col, wanderTarget.row, tileMap, blockedTiles, doorTiles)
+          const path = findPath(ch.tileCol, ch.tileRow, wanderTarget.col, wanderTarget.row, tileMap, blockedTiles, doorTiles, boundary)
           if (path.length > 0) {
             ch.path = path
             ch.moveProgress = 0

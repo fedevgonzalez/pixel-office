@@ -4,7 +4,7 @@ import type { EditorState } from '../office/editor/editorState.js'
 import { EditTool, ZoneType } from '../office/types.js'
 import { TileType } from '../office/types.js'
 import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture } from '../office/types.js'
-import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout, resizeLayout } from '../office/editor/editorActions.js'
+import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout, resizeLayout, paintMovementBoundary } from '../office/editor/editorActions.js'
 import { getActiveFloorThemeId } from '../office/floorTiles.js'
 import type { ExpandDirection, ResizeDeltas } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
@@ -37,6 +37,11 @@ export interface EditorActions {
   handleZoomChange: (zoom: number) => void
   handleEditorTileAction: (col: number, row: number) => void
   handleEditorEraseAction: (col: number, row: number) => void
+  /** Clear one cell of the active actor's movement boundary (right-click in
+   *  BOUNDARY_PAINT mode). */
+  handleEditorBoundaryClear: (col: number, row: number) => void
+  /** Switch which actor mask the BOUNDARY_PAINT tool edits. */
+  handleBoundaryActorChange: (actor: 'character' | 'pet') => void
   handleEditorSelectionChange: () => void
   handleDragMove: (uid: string, newCol: number, newRow: number) => void
   /** Resize the map by ±1 row/col at one edge. Auto-fills new exterior margin
@@ -129,6 +134,15 @@ export function useEditorActions(
 
   const handleTileTypeChange = useCallback((type: TileTypeVal) => {
     editorState.selectedTileType = type
+    setEditorTick((n) => n + 1)
+  }, [editorState])
+
+  const handleBoundaryActorChange = useCallback((actor: 'character' | 'pet') => {
+    editorState.activeBoundaryActor = actor
+    // Reset any in-flight drag direction so the next stroke re-decides.
+    editorState.boundaryDragAdding = null
+    editorState.boundaryDragLastCol = -1
+    editorState.boundaryDragLastRow = -1
     setEditorTick((n) => n + 1)
   }, [editorState])
 
@@ -552,6 +566,47 @@ export function useEditorActions(
 
       editorState.zoneDragLastCol = col
       editorState.zoneDragLastRow = row
+    } else if (editorState.activeTool === EditTool.BOUNDARY_PAINT) {
+      if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return
+      // Skip the tile we just painted in this drag stroke.
+      if (col === editorState.boundaryDragLastCol && row === editorState.boundaryDragLastRow) return
+      const actor = editorState.activeBoundaryActor
+      const idx = row * layout.cols + col
+      const currentlyAllowed = layout.movementBoundary?.[actor]?.[idx] === true
+
+      // First tile of the drag picks the direction: if it's already allowed →
+      // we're clearing; otherwise we're adding. Subsequent tiles respect this so
+      // dragging back over a just-painted tile doesn't toggle it off.
+      if (editorState.boundaryDragAdding === null) {
+        editorState.boundaryDragAdding = !currentlyAllowed
+      }
+      const allow = editorState.boundaryDragAdding
+
+      const newLayout = paintMovementBoundary(layout, col, row, actor, allow)
+      if (newLayout === layout) {
+        // No change (e.g. clearing an already-clear cell) — still advance the
+        // drag cursor so we don't re-check this tile every move event.
+        editorState.boundaryDragLastCol = col
+        editorState.boundaryDragLastRow = row
+        return
+      }
+
+      // One undo entry for the whole stroke.
+      if (!editorState.boundaryDragUndoPushed) {
+        editorState.pushUndo(layout)
+        editorState.clearRedo()
+        editorState.boundaryDragUndoPushed = true
+      }
+
+      // Apply without setEditorTick (rAF redraws every frame); rebuild the
+      // boundary Sets + persist. mid-stroke.
+      editorState.isDirty = true
+      setIsDirty(true)
+      os.rebuildFromLayout(newLayout)
+      saveLayout(newLayout)
+
+      editorState.boundaryDragLastCol = col
+      editorState.boundaryDragLastRow = row
     } else if (editorState.activeTool === EditTool.SELECT) {
       const hit = layout.furniture.find((f) => {
         const entry = getCatalogEntry(f.type)
@@ -576,6 +631,26 @@ export function useEditorActions(
     }
   }, [getOfficeState, applyEdit])
 
+  // Clear one cell of the active actor's movement boundary (right-click in
+  // BOUNDARY_PAINT mode). One undo entry per drag stroke (mirrors the boundary
+  // paint stroke); rebuild + persist mid-stroke without a React tick.
+  const handleEditorBoundaryClear = useCallback((col: number, row: number) => {
+    const os = getOfficeState()
+    const layout = os.getLayout()
+    const actor = editorState.activeBoundaryActor
+    const newLayout = paintMovementBoundary(layout, col, row, actor, false)
+    if (newLayout === layout) return
+    if (!editorState.boundaryDragUndoPushed) {
+      editorState.pushUndo(layout)
+      editorState.clearRedo()
+      editorState.boundaryDragUndoPushed = true
+    }
+    editorState.isDirty = true
+    setIsDirty(true)
+    os.rebuildFromLayout(newLayout)
+    saveLayout(newLayout)
+  }, [getOfficeState, editorState, saveLayout])
+
   return {
     isEditMode,
     editorTick,
@@ -587,6 +662,7 @@ export function useEditorActions(
     handleToggleEditMode,
     handleToolChange,
     handleTileTypeChange,
+    handleBoundaryActorChange,
     handleFloorColorChange,
     handleWallColorChange,
     handleSelectedFurnitureColorChange,
@@ -601,6 +677,7 @@ export function useEditorActions(
     handleZoomChange,
     handleEditorTileAction,
     handleEditorEraseAction,
+    handleEditorBoundaryClear,
     handleEditorSelectionChange,
     handleDragMove,
     handleResizeEdge,

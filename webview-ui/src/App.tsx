@@ -326,6 +326,7 @@ function App() {
         editorState={editorState}
         onEditorTileAction={editor.handleEditorTileAction}
         onEditorEraseAction={editor.handleEditorEraseAction}
+        onEditorBoundaryClear={editor.handleEditorBoundaryClear}
         onEditorSelectionChange={editor.handleEditorSelectionChange}
         onDeleteSelected={editor.handleDeleteSelected}
         onRotateSelected={editor.handleRotateSelected}
@@ -425,6 +426,9 @@ function App() {
             rows={layout.rows}
             onResizeEdge={editor.handleResizeEdge}
             resizeMessage={editor.resizeMessage}
+            activeBoundaryActor={editorState.activeBoundaryActor}
+            onBoundaryActorChange={editor.handleBoundaryActorChange}
+            movementBoundary={layout.movementBoundary}
           />
         )
       })()}
