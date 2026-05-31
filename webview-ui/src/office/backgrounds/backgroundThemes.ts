@@ -14,7 +14,21 @@ export interface ThemeZones {
 
 export interface DecorationDef {
   type: string
+  /**
+   * Procedural fallback sprite. Used only when `assetId` is unset OR the matching
+   * in-scene furniture asset hasn't been loaded yet (e.g. before the server's
+   * `furnitureAssetsLoaded` message arrives). When the asset IS available, the
+   * renderer draws the real furniture sprite so the perimeter and the patio read
+   * as the SAME asset set.
+   */
   sprite: SpriteData
+  /**
+   * Optional in-scene furniture catalog id (e.g. `tree_oak`, `street_lamp`). When
+   * set and the asset is loaded, `renderWorldBackground` resolves the furniture
+   * sprite from the catalog and draws THAT instead of `sprite`, so perimeter
+   * decorations match the in-scene props exactly (same silhouette, palette, size).
+   */
+  assetId?: string
   /** Footprint in tiles (width x height) */
   footprintW: number
   footprintH: number
@@ -62,6 +76,9 @@ const SUBURBAN_THEME: ThemeConfig = {
     {
       type: 'suburban:tree_oak',
       sprite: TREE_OAK,
+      // Draw the in-scene oak (public/assets/furniture/tree_oak.png, 2x2 @48px)
+      // when loaded, so perimeter trees match the patio trees exactly.
+      assetId: 'tree_oak',
       footprintW: 2,
       footprintH: 3,
       zone: 'lawn',
@@ -78,6 +95,9 @@ const SUBURBAN_THEME: ThemeConfig = {
     {
       type: 'suburban:lamppost',
       sprite: LAMPPOST,
+      // Draw the in-scene street lamp (public/assets/furniture/street_lamp.png,
+      // 1x2 @48px) when loaded, so perimeter lamps match the patio lamps exactly.
+      assetId: 'street_lamp',
       footprintW: 1,
       footprintH: 2,
       zone: 'sidewalk',

@@ -1,9 +1,39 @@
 import { TILE_SIZE } from '../types.js'
-import type { WorldBackgroundTheme } from '../types.js'
+import type { SpriteData, WorldBackgroundTheme } from '../types.js'
 import type { DayNightState } from '../engine/dayNightCycle.js'
-import { getCachedSprite } from '../sprites/spriteCache.js'
+import { getCachedSprite, getSpriteRenderSize } from '../sprites/spriteCache.js'
+import { getCatalogEntry } from '../layout/furnitureCatalog.js'
 import { getThemeConfig } from './backgroundThemes.js'
-import type { ThemeConfig } from './backgroundThemes.js'
+import type { DecorationDef, ThemeConfig } from './backgroundThemes.js'
+
+/**
+ * Resolve the sprite + footprint for a decoration. PREFERRED: if the decoration
+ * names an in-scene furniture asset (`deco.assetId`) and that asset has been
+ * loaded into the catalog, draw the real furniture sprite so perimeter props
+ * match the patio props exactly (ONE asset set). FALLBACK: the decoration's own
+ * procedural `sprite` (used before assets load, or for decorations with no
+ * `assetId`, e.g. the flower patch).
+ *
+ * Footprint (in tiles) is derived from the chosen sprite's logical render size
+ * (cols/rows × legacy upscale) so the bottom/right-edge placement offsets stay
+ * correct regardless of which sprite is used. Falls back to the deco's declared
+ * footprint if the sprite has no rows.
+ */
+function resolveDecoration(deco: DecorationDef): {
+  sprite: SpriteData
+  footprintW: number
+  footprintH: number
+} {
+  let sprite = deco.sprite
+  if (deco.assetId) {
+    const entry = getCatalogEntry(deco.assetId)
+    if (entry?.sprite) sprite = entry.sprite
+  }
+  const { width, height } = getSpriteRenderSize(sprite)
+  const footprintW = width > 0 ? Math.round(width / TILE_SIZE) : deco.footprintW
+  const footprintH = height > 0 ? Math.round(height / TILE_SIZE) : deco.footprintH
+  return { sprite, footprintW, footprintH }
+}
 
 /**
  * Determine which zone a tile falls into relative to the office bounds.
@@ -146,7 +176,10 @@ export function renderWorldBackground(
   // Trees along the lawn zone edges
   for (const deco of config.decorations) {
     if (deco.spacing <= 0) continue
-    const cached = getCachedSprite(deco.sprite, zoom)
+    // Prefer the matching in-scene furniture sprite (tree_oak, street_lamp) so
+    // perimeter and patio share ONE asset set; fall back to the procedural sprite.
+    const { sprite, footprintW, footprintH } = resolveDecoration(deco)
+    const cached = getCachedSprite(sprite, zoom)
 
     if (deco.zone === 'lawn') {
       // Place along top and bottom lawn strips
@@ -166,7 +199,7 @@ export function renderWorldBackground(
       // Bottom edge
       for (let col = -lawnMid; col < officeCols + lawnMid; col += deco.spacing) {
         const dCol = col + ((col * 5 + 3) % 3) - 1
-        const dRow = officeRows + lawnMid - deco.footprintH
+        const dRow = officeRows + lawnMid - footprintH
         if (dCol < renderMinCol || dCol > renderMaxCol || dRow < renderMinRow || dRow > renderMaxRow) continue
         const px = Math.round(offsetX + dCol * s)
         const py = Math.round(offsetY + dRow * s)
@@ -185,7 +218,7 @@ export function renderWorldBackground(
 
       // Right edge
       for (let row = 0; row < officeRows; row += deco.spacing) {
-        const dCol = officeCols + lawnMid - deco.footprintW
+        const dCol = officeCols + lawnMid - footprintW
         const dRow = row + ((row * 11 + 5) % 3) - 1
         if (dCol < renderMinCol || dCol > renderMaxCol || dRow < renderMinRow || dRow > renderMaxRow) continue
         const px = Math.round(offsetX + dCol * s)
