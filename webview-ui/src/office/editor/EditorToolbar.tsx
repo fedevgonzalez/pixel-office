@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { EditTool, TileType, ZoneType, INTERACTION_POINT_TYPES } from '../types.js'
-import type { TileType as TileTypeVal, FloorColor, MovementBoundary, ZoneType as ZoneTypeVal } from '../types.js'
+import type { TileType as TileTypeVal, FloorColor, MovementBoundary, ZoneType as ZoneTypeVal, CustomThemePreset } from '../types.js'
 import { getCatalogByCategory, buildDynamicCatalog, getActiveCategories, FURNITURE_CATEGORIES } from '../layout/furnitureCatalog.js'
 import type { FurnitureCategory, LoadedAssetData } from '../layout/furnitureCatalog.js'
 import { isExteriorTile } from '../layout/tileKinds.js'
@@ -88,6 +88,19 @@ interface EditorToolbarProps {
   selectedInteractionType: string
   /** Switch the Interaction tool's active type. */
   onInteractionTypeChange: (type: string) => void
+  /** Saved custom theme presets (Phase D), for the theme picker. */
+  customThemes: CustomThemePreset[]
+  /** The theme id currently applied to the map (built-in or `custom:`). */
+  activeThemeId?: string
+  /** Apply a theme as a preset fill. `overwrite=false` = fill-empty-only;
+   *  `overwrite=true` = full exterior reset. */
+  onApplyTheme: (themeId: string, overwrite: boolean) => void
+  /** Capture the current exterior as a new custom theme; returns its id. */
+  onSaveCustomTheme: (name: string) => string
+  /** Import a parsed theme-preset JSON as a new custom theme; returns id/null. */
+  onImportCustomTheme: (parsed: unknown) => string | null
+  /** Delete a saved custom theme by id. */
+  onDeleteCustomTheme: (id: string) => void
 }
 
 const FLOOR_PREVIEW_SIZE = 56
@@ -339,6 +352,158 @@ function OutdoorTilePreview({ tileType, label, selected, onClick }: {
   )
 }
 
+/** Built-in themes that can be applied as a preset. Only themes with a config
+ *  in the registry are offered (today: suburban). VOID is offered as a "clear
+ *  metadata" choice that paints nothing. */
+const BUILTIN_THEME_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: 'suburban', label: 'Suburban (built-in)' },
+]
+
+/** Trigger a browser download of a JSON object as `<name>.json`. */
+function downloadJson(filename: string, data: unknown): void {
+  try {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+  } catch { /* download unavailable (kiosk) — no-op */ }
+}
+
+/** Phase D theme picker: lists built-in + saved custom themes, applies one
+ *  (fill-empty or full overwrite), saves the current exterior as a custom theme,
+ *  deletes a custom theme, and exports/imports theme JSON for portability. */
+function ThemePicker({
+  customThemes,
+  activeThemeId,
+  onApplyTheme,
+  onSaveCustomTheme,
+  onImportCustomTheme,
+  onDeleteCustomTheme,
+}: {
+  customThemes: CustomThemePreset[]
+  activeThemeId?: string
+  onApplyTheme: (themeId: string, overwrite: boolean) => void
+  onSaveCustomTheme: (name: string) => string
+  onImportCustomTheme: (parsed: unknown) => string | null
+  onDeleteCustomTheme: (id: string) => void
+}) {
+  const [selected, setSelected] = useState<string>(activeThemeId || 'suburban')
+  const [msg, setMsg] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const msgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Keep the dropdown in sync when the layout's active theme changes (e.g. after
+  // a save assigns a fresh custom id).
+  useEffect(() => {
+    if (activeThemeId) setSelected(activeThemeId)
+  }, [activeThemeId])
+
+  const flash = useCallback((m: string) => {
+    setMsg(m)
+    if (msgTimerRef.current) clearTimeout(msgTimerRef.current)
+    msgTimerRef.current = setTimeout(() => setMsg(null), 3000)
+  }, [])
+
+  const selectedCustom = customThemes.find((t) => t.id === selected) || null
+
+  const handleSave = useCallback(() => {
+    const name = window.prompt('Name this theme:')
+    if (name == null) return
+    const trimmed = name.trim()
+    if (!trimmed) { flash('Name required'); return }
+    const id = onSaveCustomTheme(trimmed)
+    setSelected(id)
+    flash(`Saved "${trimmed}"`)
+  }, [onSaveCustomTheme, flash])
+
+  const handleExport = useCallback(() => {
+    if (!selectedCustom) { flash('Select a custom theme to export'); return }
+    downloadJson(`pixel-office-theme-${selectedCustom.name.replace(/[^a-z0-9]+/gi, '-')}.json`, selectedCustom)
+    flash('Exported JSON')
+  }, [selectedCustom, flash])
+
+  const handleImportFile = useCallback((file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(String(reader.result))
+        const id = onImportCustomTheme(parsed)
+        if (id) { setSelected(id); flash('Imported theme') }
+        else flash('Invalid theme file')
+      } catch { flash('Could not parse JSON') }
+    }
+    reader.readAsText(file)
+  }, [onImportCustomTheme, flash])
+
+  const handleDelete = useCallback(() => {
+    if (!selectedCustom) return
+    if (!window.confirm(`Delete custom theme "${selectedCustom.name}"?`)) return
+    onDeleteCustomTheme(selectedCustom.id)
+    setSelected('suburban')
+    flash('Deleted theme')
+  }, [selectedCustom, onDeleteCustomTheme, flash])
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 4,
+      padding: '5px 6px',
+      background: 'var(--pixel-surface)',
+      border: '2px solid var(--pixel-border)',
+      borderRadius: 0,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 13, color: 'var(--pixel-text-dim)', flexShrink: 0 }}>Theme:</span>
+        <select
+          aria-label="Theme preset"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+          style={{ fontSize: 13, padding: '2px 4px', background: 'var(--pixel-btn-bg)', color: 'var(--pixel-text-dim)', border: '2px solid var(--pixel-border)', borderRadius: 0, maxWidth: 150 }}
+        >
+          <optgroup label="Built-in">
+            {BUILTIN_THEME_OPTIONS.map((t) => (
+              <option key={t.id} value={t.id}>{t.label}</option>
+            ))}
+          </optgroup>
+          {customThemes.length > 0 && (
+            <optgroup label="My themes">
+              {customThemes.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <button style={btnStyle} title="Fill empty exterior tiles with this theme (keeps hand-painted tiles)" onClick={() => onApplyTheme(selected, false)}>Apply</button>
+        <button style={btnStyle} title="Overwrite ALL exterior tiles with this theme" onClick={() => onApplyTheme(selected, true)}>Re-apply</button>
+        <button style={btnStyle} title="Save the current exterior as a reusable custom theme" onClick={handleSave}>Save as…</button>
+      </div>
+      <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+        <button style={btnStyle} title="Download the selected custom theme as JSON" onClick={handleExport}>Export</button>
+        <button style={btnStyle} title="Import a theme JSON file" onClick={() => fileInputRef.current?.click()}>Import</button>
+        {selectedCustom && (
+          <button style={btnStyle} title="Delete the selected custom theme" onClick={handleDelete}>Delete</button>
+        )}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="application/json,.json"
+          style={{ display: 'none' }}
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportFile(f); e.target.value = '' }}
+        />
+      </div>
+      {msg && <span style={{ fontSize: 12, color: 'var(--pixel-accent)' }}>{msg}</span>}
+    </div>
+  )
+}
+
 /** Slider control for a single 1D color parameter (brightness, contrast). */
 function ColorSlider({ label, value, min, max, onChange }: {
   label: string
@@ -535,6 +700,12 @@ export function EditorToolbar({
   onZoneTypeChange,
   selectedInteractionType,
   onInteractionTypeChange,
+  customThemes,
+  activeThemeId,
+  onApplyTheme,
+  onSaveCustomTheme,
+  onImportCustomTheme,
+  onDeleteCustomTheme,
 }: EditorToolbarProps) {
   // Persist the last-selected furniture category across editor open/close
   // cycles. Falls back to 'desks' if nothing is stored or the stored value
@@ -859,6 +1030,17 @@ export function EditorToolbar({
               />
             ))}
           </div>
+
+          {/* Theme picker (Phase D) — rendered last so it sits at the TOP of the
+              column-reverse panel: apply / save / export / import custom themes. */}
+          <ThemePicker
+            customThemes={customThemes}
+            activeThemeId={activeThemeId}
+            onApplyTheme={onApplyTheme}
+            onSaveCustomTheme={onSaveCustomTheme}
+            onImportCustomTheme={onImportCustomTheme}
+            onDeleteCustomTheme={onDeleteCustomTheme}
+          />
         </div>
       )}
 

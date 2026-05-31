@@ -331,8 +331,55 @@ export interface PlacedDecoration {
 export interface WorldBackground {
   /** Theme identifier. 'void' = no background (default). */
   theme: WorldBackgroundTheme
+  /**
+   * Resolved theme id used the last time a preset was applied. May be a built-in
+   * `WorldBackgroundTheme` value (e.g. 'suburban') OR a custom-theme id (e.g.
+   * 'custom:my-yard'). Optional & non-breaking: a client that doesn't know about
+   * custom themes ignores this and the exterior tiles already painted into
+   * `tiles[]` keep the look regardless (Phase D / D6). An unknown/missing custom
+   * theme falls back gracefully to `theme` (a built-in) at apply time.
+   */
+  themeId?: string
   /** User-placed outdoor decorations (layered on top of procedural ones) */
   decorations?: PlacedDecoration[]
+}
+
+/**
+ * A savable custom theme preset (Phase D / D6). Captures everything needed to
+ * RE-APPLY a themed exterior as a reusable preset, kept small by referencing
+ * sprites by id (the exterior `TileType` number, stringified) and storing only
+ * the per-tile-type color overrides + zone bands + day/night fills + an optional
+ * decoration template — never inlined `SpriteData`.
+ *
+ * Stored as a sidecar file `~/.pixel-office/themes/<id>.json` on the server
+ * (mirroring `pet-templates.json`), NOT embedded in `layout.json`, so layouts
+ * stay small and community-shareable. Layouts reference one by
+ * `background.themeId`.
+ */
+export interface CustomThemePreset {
+  /** Stable, namespaced id (always prefixed `custom:`). */
+  id: string
+  /** Human-readable name shown in the theme picker. */
+  name: string
+  /** Schema version of the preset format (currently 1). */
+  version: number
+  /** Zone band widths (sidewalk / lawn / road), same shape a built-in uses. */
+  zones: { sidewalk: number; lawn: number; road: number }
+  /**
+   * Per-exterior-TileType color override. Keyed by the `TileType` number as a
+   * string (e.g. "9" = GRASS). Applied to each painted tile when the preset is
+   * filled. Tiles without an entry get a neutral color.
+   */
+  tileColors: Record<string, FloorColor>
+  /** Sky/ground fill color for daytime (behind the grid). */
+  dayFill: string
+  /** Sky/ground fill color for nighttime. */
+  nightFill: string
+  /** Optional decoration template (placed relative to the building top-left). */
+  decorations?: PlacedDecoration[]
+  /** ISO timestamps (server-managed). */
+  createdAt?: string
+  updatedAt?: string
 }
 
 export const ZoneType = {

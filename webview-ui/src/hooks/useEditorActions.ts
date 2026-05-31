@@ -3,8 +3,9 @@ import type { OfficeState } from '../office/engine/officeState.js'
 import type { EditorState } from '../office/editor/editorState.js'
 import { EditTool } from '../office/types.js'
 import { TileType } from '../office/types.js'
-import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture, ZoneType as ZoneTypeVal } from '../office/types.js'
-import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout, resizeLayout, paintMovementBoundary, placeInteractionPoint, deleteInteractionPoint } from '../office/editor/editorActions.js'
+import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture, ZoneType as ZoneTypeVal, CustomThemePreset } from '../office/types.js'
+import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout, resizeLayout, paintMovementBoundary, placeInteractionPoint, deleteInteractionPoint, applyThemePreset, applyThemePresetOverwrite } from '../office/editor/editorActions.js'
+import { setCustomThemes, getCustomThemes, buildCustomThemePresetFromLayout, makeCustomThemeId } from '../office/backgrounds/customThemes.js'
 import { getActiveFloorThemeId } from '../office/floorTiles.js'
 import type { ExpandDirection, ResizeDeltas } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
@@ -49,6 +50,15 @@ export interface EditorActions {
   handleInteractionTypeChange: (type: string) => void
   /** Switch which zone type the ZONE_PAINT tool paints (focus / play). */
   handleZoneTypeChange: (zone: ZoneTypeVal) => void
+  /** Apply a theme (built-in id or `custom:` id) as a preset fill.
+   *  `overwrite=false` = fill-empty-only; `overwrite=true` = full exterior reset. */
+  handleApplyTheme: (themeId: string, overwrite: boolean) => void
+  /** Capture the current exterior as a savable custom theme; returns its id. */
+  handleSaveCustomTheme: (name: string) => string
+  /** Import a parsed theme-preset JSON as a new custom theme; returns id or null. */
+  handleImportCustomTheme: (parsed: unknown) => string | null
+  /** Delete a saved custom theme by id. */
+  handleDeleteCustomTheme: (id: string) => void
   handleEditorSelectionChange: () => void
   handleDragMove: (uid: string, newCol: number, newRow: number) => void
   /** Resize the map by ±1 row/col at one edge. Auto-fills new exterior margin
@@ -693,6 +703,71 @@ export function useEditorActions(
     setEditorTick((n) => n + 1)
   }, [editorState])
 
+  // Apply a theme (built-in or custom:) as a preset fill. `overwrite=false` =
+  // fill-empty-only (preserves hand-painted tiles, OQ-4); `overwrite=true` =
+  // full exterior reset. One undo entry; persists via the standard save path.
+  const handleApplyTheme = useCallback((themeId: string, overwrite: boolean) => {
+    const os = getOfficeState()
+    const layout = os.getLayout()
+    const newLayout = overwrite
+      ? applyThemePresetOverwrite(layout, themeId)
+      : applyThemePreset(layout, themeId)
+    if (newLayout !== layout) applyEdit(newLayout)
+  }, [getOfficeState, applyEdit])
+
+  // Capture the current map's exterior as a savable custom theme. Builds a
+  // CustomThemePreset (zone bands + per-TileType color palette + fills +
+  // decoration template), assigns it as the layout's active themeId, persists
+  // the layout, and POSTs the preset sidecar to the server (which broadcasts
+  // themesLoaded back, refreshing the picker). Returns the new id.
+  const handleSaveCustomTheme = useCallback((name: string): string => {
+    const os = getOfficeState()
+    const layout = os.getLayout()
+    const id = makeCustomThemeId(name)
+    const preset = buildCustomThemePresetFromLayout(layout, id, name.trim() || 'Custom theme')
+    // Optimistically register so an immediate re-apply resolves the new id even
+    // before the server round-trips themesLoaded.
+    setCustomThemes([...getCustomThemes(), preset])
+    ws.postMessage({ type: 'saveTheme', preset })
+    // Mark the layout as using this custom theme (keeps theme metadata in sync).
+    const tagged: OfficeLayout = {
+      ...layout,
+      background: { ...layout.background, theme: layout.background?.theme ?? 'suburban', themeId: id },
+    }
+    applyEdit(tagged)
+    return id
+  }, [getOfficeState, applyEdit])
+
+  // Import a custom theme from a parsed JSON preset (Export/Import portability).
+  // Always re-namespaces with a fresh id so an import never clobbers an existing
+  // theme. Returns the new id, or null if the JSON isn't a valid preset.
+  const handleImportCustomTheme = useCallback((parsed: unknown): string | null => {
+    if (!parsed || typeof parsed !== 'object') return null
+    const p = parsed as Partial<CustomThemePreset>
+    if (typeof p.name !== 'string' || !p.zones || !p.tileColors || typeof p.dayFill !== 'string') return null
+    const id = makeCustomThemeId(p.name)
+    const preset: CustomThemePreset = {
+      id,
+      name: p.name,
+      version: typeof p.version === 'number' ? p.version : 1,
+      zones: { sidewalk: p.zones.sidewalk ?? 2, lawn: p.zones.lawn ?? 5, road: p.zones.road ?? 3 },
+      tileColors: p.tileColors as CustomThemePreset['tileColors'],
+      dayFill: p.dayFill,
+      nightFill: typeof p.nightFill === 'string' ? p.nightFill : '#080d1e',
+      ...(Array.isArray(p.decorations) ? { decorations: p.decorations } : {}),
+    }
+    setCustomThemes([...getCustomThemes(), preset])
+    ws.postMessage({ type: 'saveTheme', preset })
+    return id
+  }, [])
+
+  // Delete a custom theme sidecar. If the active layout still references it, the
+  // next apply falls back gracefully (resolveThemeForFill handles a missing id).
+  const handleDeleteCustomTheme = useCallback((id: string) => {
+    setCustomThemes(getCustomThemes().filter((t) => t.id !== id))
+    ws.postMessage({ type: 'deleteTheme', id })
+  }, [])
+
   return {
     isEditMode,
     editorTick,
@@ -723,6 +798,10 @@ export function useEditorActions(
     handleEditorInteractionRemove,
     handleInteractionTypeChange,
     handleZoneTypeChange,
+    handleApplyTheme,
+    handleSaveCustomTheme,
+    handleImportCustomTheme,
+    handleDeleteCustomTheme,
     handleEditorSelectionChange,
     handleDragMove,
     handleResizeEdge,

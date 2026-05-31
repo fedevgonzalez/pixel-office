@@ -3,7 +3,8 @@ import { DEFAULT_NEUTRAL_COLOR } from '../../constants.js'
 import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal, WorldBackgroundTheme as WorldBackgroundThemeVal, PlacedInteractionPoint } from '../types.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../layout/furnitureCatalog.js'
 import { getPlacementBlockedTiles } from '../layout/layoutSerializer.js'
-import { getThemeConfig, getZoneTileType } from '../backgrounds/backgroundThemes.js'
+import { getThemeConfig, getZoneTileType, type ThemeConfig } from '../backgrounds/backgroundThemes.js'
+import { getCustomTheme, customThemeToConfig, customThemeTileColor, isCustomThemeId } from '../backgrounds/customThemes.js'
 import { isExteriorTile, isExteriorDefaultWalkable } from '../layout/tileKinds.js'
 
 /** Paint a single tile with pattern, color, and theme. Returns new layout (immutable). */
@@ -500,7 +501,10 @@ export function resizeLayout(layout: OfficeLayout, deltas: ResizeDeltas): Resize
   // interior), and reuses the exact same band logic as applyThemePreset.
   const expanding = left > 0 || right > 0 || top > 0 || bottom > 0
   if (expanding) {
-    next = applyThemePreset(next, next.background?.theme ?? WorldBackgroundTheme.VOID)
+    // Use the active custom theme (if one was applied) so the new margin matches
+    // it; otherwise the current built-in theme.
+    const activeThemeId = next.background?.themeId ?? next.background?.theme ?? WorldBackgroundTheme.VOID
+    next = applyThemePreset(next, activeThemeId)
   }
 
   return { ok: true, layout: next, shift: { col: shiftCol, row: shiftRow } }
@@ -547,15 +551,58 @@ function getBuildingBBox(layout: OfficeLayout): { minCol: number; minRow: number
  * Immutable, idempotent (running twice yields the same grid), single result —
  * callers wrap one call in one undo entry. Records `background.theme` metadata.
  */
+/**
+ * Resolve a theme id (built-in `WorldBackgroundTheme` value OR a `custom:` id)
+ * to the `ThemeConfig` used for the fill, a per-tile color resolver, and the
+ * `background` metadata to persist.
+ *
+ * - Built-in → its registry config; neutral per-tile color; `theme=id`, no
+ *   `themeId`.
+ * - Custom → the preset converted to a config; per-TileType palette color from
+ *   the preset (falling back to neutral); `theme` kept as a sensible built-in
+ *   fallback ('suburban') so a client that doesn't know custom themes still has
+ *   a valid `WorldBackgroundTheme`, plus `themeId=id` for round-trip.
+ * - Unknown custom id (sidecar missing) → falls back to the built-in named by
+ *   the layout's current `background.theme` (graceful degradation, D6).
+ */
+function resolveThemeForFill(
+  layout: OfficeLayout,
+  themeId: string,
+): { config: ThemeConfig | null; colorFor: (tileType: TileTypeVal) => FloorColor; background: { theme: WorldBackgroundThemeVal; themeId?: string } } {
+  if (isCustomThemeId(themeId)) {
+    const preset = getCustomTheme(themeId)
+    if (preset) {
+      return {
+        config: customThemeToConfig(preset),
+        colorFor: (t) => customThemeTileColor(preset, t) ?? { ...DEFAULT_NEUTRAL_COLOR },
+        background: { theme: WorldBackgroundTheme.SUBURBAN, themeId },
+      }
+    }
+    // Unknown custom id — fall back to the layout's current built-in theme.
+    const fallback = layout.background?.theme ?? WorldBackgroundTheme.VOID
+    return {
+      config: getThemeConfig(fallback),
+      colorFor: () => ({ ...DEFAULT_NEUTRAL_COLOR }),
+      background: { theme: fallback },
+    }
+  }
+  const builtIn = themeId as WorldBackgroundThemeVal
+  return {
+    config: getThemeConfig(builtIn),
+    colorFor: () => ({ ...DEFAULT_NEUTRAL_COLOR }),
+    background: { theme: builtIn },
+  }
+}
+
 function fillThemePreset(
   layout: OfficeLayout,
-  themeId: WorldBackgroundThemeVal,
+  themeId: string,
   overwrite: boolean,
 ): OfficeLayout {
-  const config = getThemeConfig(themeId)
+  const { config, colorFor, background } = resolveThemeForFill(layout, themeId)
   // No config (e.g. 'void' or unimplemented theme) — only record the metadata.
   if (!config) {
-    return { ...layout, background: { ...layout.background, theme: themeId } }
+    return { ...layout, background: { ...layout.background, ...background } }
   }
 
   const n = layout.cols * layout.rows
@@ -593,7 +640,7 @@ function fillThemePreset(
       if (zoneTile === null) continue // inside building footprint — leave VOID
 
       tiles[idx] = zoneTile
-      tileColors[idx] = { ...DEFAULT_NEUTRAL_COLOR }
+      tileColors[idx] = colorFor(zoneTile)
       tileThemes[idx] = null
       if (newChar) newChar[idx] = isExteriorDefaultWalkable(zoneTile)
       if (newPet) newPet[idx] = isExteriorDefaultWalkable(zoneTile)
@@ -605,8 +652,11 @@ function fillThemePreset(
     tiles,
     tileColors,
     tileThemes,
-    background: { ...layout.background, theme: themeId },
+    background: { ...layout.background, ...background },
   }
+  // Drop a stale themeId if the new theme is built-in (so background.themeId only
+  // ever names a custom theme that was actually applied).
+  if (!background.themeId && next.background) delete next.background.themeId
   if (newChar || newPet) {
     next.movementBoundary = {
       ...layout.movementBoundary,
@@ -621,17 +671,19 @@ function fillThemePreset(
  * Apply a theme as a preset fill — fill-empty-only (OQ-4 LOCKED). Writes the
  * theme's exterior ring into VOID tiles, PRESERVING interior + hand-painted
  * exterior tiles. Single undo entry, idempotent, valid layout. This is what the
- * "pick a theme" UI calls (A3 wires it up).
+ * "pick a theme" UI calls (A3 wires it up). `themeId` may be a built-in
+ * `WorldBackgroundTheme` value or a `custom:` theme id (Phase D).
  */
-export function applyThemePreset(layout: OfficeLayout, themeId: WorldBackgroundThemeVal): OfficeLayout {
+export function applyThemePreset(layout: OfficeLayout, themeId: string): OfficeLayout {
   return fillThemePreset(layout, themeId, false)
 }
 
 /**
  * Apply a theme as a FULL exterior reset (the explicit "Re-apply theme
  * (overwrite all exterior)" action). Rewrites every exterior tile to the
- * theme's ring; interior tiles are never touched. Single undo entry.
+ * theme's ring; interior tiles are never touched. Single undo entry. `themeId`
+ * may be built-in or `custom:` (Phase D).
  */
-export function applyThemePresetOverwrite(layout: OfficeLayout, themeId: WorldBackgroundThemeVal): OfficeLayout {
+export function applyThemePresetOverwrite(layout: OfficeLayout, themeId: string): OfficeLayout {
   return fillThemePreset(layout, themeId, true)
 }

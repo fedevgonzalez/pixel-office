@@ -5,6 +5,8 @@ import { extractToolName } from '../office/toolUtils.js'
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js'
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js'
 import { setFloorSprites, setFloorThemes, type FloorTheme } from '../office/floorTiles.js'
+import { setCustomThemes } from '../office/backgrounds/customThemes.js'
+import type { CustomThemePreset } from '../office/types.js'
 import { setWallSprites } from '../office/wallTiles.js'
 import { setCharacterTemplates } from '../office/sprites/spriteData.js'
 import { setLoadedPetVariants } from '../office/sprites/petSprites.js'
@@ -71,6 +73,8 @@ export interface ExtensionMessageState {
   loadedAssets?: { catalog: FurnitureAsset[]; sprites: Record<string, string[][]> }
   workspaceFolders: WorkspaceFolder[]
   petTemplates: PetTemplate[]
+  /** Saved custom theme presets (Phase D), loaded from server sidecars. */
+  customThemes: CustomThemePreset[]
   /** True while the daily-summary banner is being shown — used to gate
    *  React overlays (kiosk panels, tool labels, toolbars) so they don't
    *  cover the banner. */
@@ -109,6 +113,7 @@ export function useExtensionMessages(
   const [loadedAssets, setLoadedAssets] = useState<{ catalog: FurnitureAsset[]; sprites: Record<string, string[][]> } | undefined>()
   const [workspaceFolders, setWorkspaceFolders] = useState<WorkspaceFolder[]>([])
   const [petTemplates, setPetTemplates] = useState<PetTemplate[]>([])
+  const [customThemes, setCustomThemesState] = useState<CustomThemePreset[]>([])
   const [dailySummaryActive, setDailySummaryActive] = useState(false)
   const dailySummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [agentContext, setAgentContext] = useState<Record<number, AgentContext>>({})
@@ -440,6 +445,12 @@ export function useExtensionMessages(
       } else if (msg.type === 'petTemplatesLoaded') {
         const templates = (msg.templates as PetTemplate[]) || []
         setPetTemplates(templates)
+      } else if (msg.type === 'themesLoaded') {
+        const themes = (msg.themes as CustomThemePreset[]) || []
+        // Update the module-global registry (read by the editor's preset-fill)
+        // AND React state (so the theme picker re-renders).
+        setCustomThemes(themes)
+        setCustomThemesState(themes)
       } else if (msg.type === 'floorTilesLoaded') {
         // New payload: { themes: [{id, sprites}] }
         // Legacy payload: { sprites: [...] } — treated as the "default" theme.
@@ -491,5 +502,5 @@ export function useExtensionMessages(
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 
-  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, dailySummaryActive, agentContext, agentFinishedAt }
+  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, customThemes, dailySummaryActive, agentContext, agentFinishedAt }
 }

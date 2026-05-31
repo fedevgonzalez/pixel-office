@@ -1758,6 +1758,10 @@ const LAYOUT_DIR = path.join(os.homedir(), '.pixel-office');
 const LAYOUT_FILE = path.join(LAYOUT_DIR, 'layout.json');
 const SETTINGS_FILE = path.join(LAYOUT_DIR, 'settings.json');
 const PET_TEMPLATES_FILE = path.join(LAYOUT_DIR, 'pet-templates.json');
+// Phase D — custom themes live as one sidecar JSON per theme under themes/,
+// mirroring how pet-templates are stored. id is namespaced 'custom:<slug>' on
+// the client; the colon is not filesystem-safe so the on-disk name strips it.
+const THEMES_DIR = path.join(LAYOUT_DIR, 'themes');
 
 function loadLayout() {
   if (!fs.existsSync(LAYOUT_FILE)) return null;
@@ -1800,6 +1804,65 @@ function savePetTemplates(data) {
   } catch (e) {
     console.error('Failed to save pet templates:', e.message);
   }
+}
+
+// --- Custom themes (Phase D) — sidecar files under ~/.pixel-office/themes/ ---
+
+/** Map a namespaced theme id ('custom:my-yard') to a filesystem-safe filename.
+ *  Returns null for an id that would escape the directory or contains unexpected
+ *  characters. Keeps the server OSS-safe and path-traversal-proof. */
+function themeIdToFile(id) {
+  if (typeof id !== 'string' || id.length === 0 || id.length > 128) return null;
+  // Only allow the documented namespaced shape: a 'custom:' prefix + slug.
+  if (!/^custom:[a-z0-9][a-z0-9_-]*$/i.test(id)) return null;
+  const safe = id.replace(/^custom:/, '').replace(/[^a-z0-9_-]/gi, '');
+  if (!safe) return null;
+  return path.join(THEMES_DIR, `${safe}.json`);
+}
+
+/** Load every custom-theme sidecar into an array of presets (skips invalid). */
+function loadThemes() {
+  if (!fs.existsSync(THEMES_DIR)) return [];
+  const out = [];
+  let files;
+  try { files = fs.readdirSync(THEMES_DIR).filter((f) => f.endsWith('.json')); }
+  catch { return []; }
+  for (const f of files) {
+    try {
+      const data = JSON.parse(fs.readFileSync(path.join(THEMES_DIR, f), 'utf-8'));
+      if (data && typeof data.id === 'string' && typeof data.name === 'string') out.push(data);
+    } catch (e) {
+      console.warn(`  theme ${f} failed to load: ${e.message}`);
+    }
+  }
+  // Stable order: by name, then id.
+  out.sort((a, b) => (a.name || '').localeCompare(b.name || '') || a.id.localeCompare(b.id));
+  return out;
+}
+
+/** Atomically write one custom-theme sidecar. Returns true on success. */
+function saveTheme(preset) {
+  if (!preset || typeof preset.id !== 'string') return false;
+  const file = themeIdToFile(preset.id);
+  if (!file) { console.warn('  refused to save theme with bad id:', preset.id); return false; }
+  try {
+    if (!fs.existsSync(THEMES_DIR)) fs.mkdirSync(THEMES_DIR, { recursive: true });
+    const tmp = file + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify(preset, null, 2), 'utf-8');
+    fs.renameSync(tmp, file);
+    return true;
+  } catch (e) {
+    console.error('Failed to save theme:', e.message);
+    return false;
+  }
+}
+
+/** Delete one custom-theme sidecar. Returns true if it no longer exists. */
+function deleteTheme(id) {
+  const file = themeIdToFile(id);
+  if (!file) return false;
+  try { if (fs.existsSync(file)) fs.unlinkSync(file); return true; }
+  catch (e) { console.error('Failed to delete theme:', e.message); return false; }
 }
 
 function saveSettings(settings) {
@@ -2077,6 +2140,11 @@ async function handleClientMessage(ws, msg) {
       console.log(`  petTemplates: sent (${(tpl.templates || []).length})`);
     } catch (e) { console.error('  petTemplates error:', e.message); }
     try {
+      const themes = loadThemes();
+      ws.send(JSON.stringify({ type: 'themesLoaded', themes }));
+      console.log(`  customThemes: sent (${themes.length})`);
+    } catch (e) { console.error('  customThemes error:', e.message); }
+    try {
       const floorThemes = await loadFloorTiles();
       if (floorThemes) ws.send(JSON.stringify({ type: 'floorTilesLoaded', themes: floorThemes }));
       console.log(`  floorTiles: ${floorThemes ? `sent ${floorThemes.length} theme(s) [${floorThemes.map((t) => t.id).join(', ')}]` : 'skipped (no floors.png)'}`);
@@ -2180,6 +2248,28 @@ async function handleClientMessage(ws, msg) {
       for (const client of wsClients) {
         try { client.send(payload); } catch {}
       }
+    }
+  } else if (msg.type === 'saveTheme') {
+    // Upsert a custom theme sidecar by id, then broadcast the full list to every
+    // connected webview (including sender, so its picker refreshes).
+    const preset = msg.preset;
+    if (preset && preset.id && preset.name) {
+      const now = new Date().toISOString();
+      const existing = loadThemes().find((t) => t.id === preset.id);
+      const stored = {
+        ...preset,
+        createdAt: (existing && existing.createdAt) || preset.createdAt || now,
+        updatedAt: now,
+      };
+      if (saveTheme(stored)) {
+        const payload = JSON.stringify({ type: 'themesLoaded', themes: loadThemes() });
+        for (const client of wsClients) { try { client.send(payload); } catch {} }
+      }
+    }
+  } else if (msg.type === 'deleteTheme') {
+    if (msg.id && deleteTheme(msg.id)) {
+      const payload = JSON.stringify({ type: 'themesLoaded', themes: loadThemes() });
+      for (const client of wsClients) { try { client.send(payload); } catch {} }
     }
   } else if (msg.type === 'installCommunityAsset') {
     // Downloads a community asset to the per-user community-assets dir, then
@@ -2706,6 +2796,15 @@ const server = http.createServer(async (req, res) => {
     }
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
     res.end(JSON.stringify(response));
+    return;
+  }
+
+  // API: read-only list of saved custom themes (Phase D). The webview also gets
+  // these over WS (`themesLoaded`); this REST path lets external tools / CI
+  // inspect or export them without a socket. POST/DELETE go over WS.
+  if (urlPath === '/api/themes' && req.method === 'GET') {
+    res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+    res.end(JSON.stringify({ themes: loadThemes() }));
     return;
   }
 
