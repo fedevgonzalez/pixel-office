@@ -4,7 +4,8 @@ import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
 import { LAMP_OFF_SPRITE, LAMP_SPRITE, WALL_SCONCE_OFF_SPRITE, WALL_SCONCE_ON_SPRITE } from '../sprites/spriteData.js'
 import { getActiveFloorThemeId } from '../floorTiles.js'
-import { isExteriorTile } from './tileKinds.js'
+import { isExteriorTile, isNorthWall } from './tileKinds.js'
+import { WALL_DECOR_Z_EPSILON } from '../../constants.js'
 
 /** Convert flat tile array from layout into 2D grid */
 export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
@@ -19,8 +20,14 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
   return map
 }
 
-/** Convert placed furniture into renderable FurnitureInstance[] */
-export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): FurnitureInstance[] {
+/** Convert placed furniture into renderable FurnitureInstance[].
+ *  `tileMap` (optional) enables north-wall decor mounting: when a canPlaceOnWalls
+ *  item sits on a camera-facing wall its z-order is lifted so it draws ON the
+ *  wall's hanging face (in front of the wall) yet stays behind floor actors. */
+export function layoutToFurnitureInstances(
+  furniture: PlacedFurniture[],
+  tileMap?: TileTypeVal[][],
+): FurnitureInstance[] {
   // Pre-compute surface zY per tile so stackable items can sort in front of their host surface
   const surfaceZByTile = new Map<string, number>()
   for (const item of furniture) {
@@ -66,6 +73,16 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
           if (surfaceZ !== undefined && surfaceZ + 0.5 > zY) zY = surfaceZ + 0.5
         }
       }
+    }
+
+    // Wall decor on a camera-facing (north) wall mounts ON the wall's vertical
+    // face: lift zY just past the wall's z baseline ((row+1)*TILE_SIZE) so it
+    // draws over the face instead of being hidden behind the opaque wall sprite,
+    // while staying below floor actors on the row below (zY ≈ (row+1)*TILE_SIZE
+    // + ~24) so they still walk in front of it. Anchored at the item's top-left
+    // (the wall tile). No-op when tileMap is absent (backward compat / tests).
+    if (tileMap && entry.canPlaceOnWalls && isNorthWall(item.col, item.row, tileMap)) {
+      zY = (item.row + 1) * TILE_SIZE + WALL_DECOR_Z_EPSILON
     }
 
     // Day/night fixtures (desk lamp, wall sconce) carry two sprites: the placed

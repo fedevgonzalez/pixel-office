@@ -11,11 +11,21 @@
 
 import type { SpriteData, TileType as TileTypeVal, FloorColor, FurnitureInstance } from './types.js'
 import { TileType, TILE_SIZE } from './types.js'
+import { WALL_FACE_BAND_NATIVE } from '../constants.js'
 import { getColorizedSprite } from './colorize.js'
 import { getSpriteRenderSize } from './sprites/spriteCache.js'
+import { isNorthWall } from './layout/tileKinds.js'
 
-/** 16 wall sprites indexed by bitmask (0-15) */
+/** 16 wall sprites indexed by bitmask (0-15) — interior / side / south walls. */
 let wallSprites: SpriteData[] | null = null
+/** 16 wall sprites for camera-facing (north) walls — same bitmask indexing, but
+ *  each is taller: a masonry FACE band is appended below the base cell so the
+ *  wall reads as a vertical surface that hangs into the floor tile below. */
+let wallSpritesNorth: SpriteData[] | null = null
+/** Render height (logical px) of a base wall sprite BEFORE the north face band
+ *  is appended. North sprites anchor by this height (not their taller own
+ *  height) so the original cell stays put and only the extra band hangs DOWN. */
+let baseWallRenderHeight = TILE_SIZE
 
 // ── Chunky masonry detail ─────────────────────────────────────────
 //
@@ -100,9 +110,74 @@ function detailWallSprite(cell: SpriteData): SpriteData {
   )
 }
 
-/** Set wall sprites (called once when extension sends wallTilesLoaded) */
+/**
+ * Build a NORTH-wall variant of a RAW wall cell by appending a masonry FACE band
+ * below it. The raw walls.png cell is a warm-grey top band + a stark-white front
+ * face + a 1px dark border. For a north wall (floor below) the bottom border is
+ * a closed dark edge; we replace it with `WALL_FACE_BAND_NATIVE` extra rows of
+ * front-face (stark white, seeded per-column from the cell's existing face) and
+ * re-close the bottom with the cell's own dark edge color. Running this through
+ * `detailWallSprite` afterwards tones the new rows into the SAME running-bond
+ * brick as the rest of the face (its luminance test catches the white), so the
+ * band is visually seamless. Columns that are transparent at the cell's base
+ * (auto-tile corners/edges) stay transparent so no face sticks out past the wall.
+ */
+function extendToNorthWallSprite(rawCell: SpriteData): SpriteData {
+  const band = WALL_FACE_BAND_NATIVE
+  if (band <= 0 || rawCell.length === 0) return rawCell
+  const w = rawCell[0].length
+
+  // Per column: lightest opaque pixel (front-face color) and darkest opaque
+  // pixel (the dark edge color). Used to seed the band + re-close the bottom.
+  const faceColor: (string | null)[] = []
+  const edgeColor: (string | null)[] = []
+  for (let x = 0; x < w; x++) {
+    let lightest: string | null = null
+    let lightestL = -1
+    let darkest: string | null = null
+    let darkestL = 256
+    for (let y = 0; y < rawCell.length; y++) {
+      const p = rawCell[y][x]
+      if (p === '') continue
+      const L = pixelLum(p)
+      if (L > lightestL) { lightestL = L; lightest = p }
+      if (L < darkestL) { darkestL = L; darkest = p }
+    }
+    faceColor.push(lightest)
+    edgeColor.push(darkest)
+  }
+
+  // Keep all original rows EXCEPT a trailing all-edge bottom border row (we
+  // re-add a closing edge after the band). Detect that row: present only when
+  // this cell has no wall below (the north case). If the last row is not a
+  // closed edge (e.g. a mask that connects downward), leave it as-is.
+  const rows = rawCell.map((r) => r.slice())
+
+  const out: SpriteData = rows
+  for (let i = 0; i < band; i++) {
+    const isLast = i === band - 1
+    out.push(
+      faceColor.map((fc, x) => {
+        if (fc === null) return '' // column has no wall here → no face overhang
+        // Last band row closes the face with the cell's dark edge for a crisp base.
+        return isLast ? (edgeColor[x] ?? fc) : fc
+      }),
+    )
+  }
+  return out
+}
+
+/** Set wall sprites (called once when extension sends wallTilesLoaded).
+ *  Builds the regular set (detailed in place) AND a parallel north set whose
+ *  cells carry a hanging masonry face band, both from the same raw cells. */
 export function setWallSprites(sprites: SpriteData[]): void {
   wallSprites = sprites.map(detailWallSprite)
+  wallSpritesNorth = sprites.map((s) => detailWallSprite(extendToNorthWallSprite(s)))
+  // Anchor north sprites by the BASE (un-extended) height so the original cell
+  // stays aligned and only the band hangs below. All cells share one height.
+  baseWallRenderHeight = wallSprites[0]
+    ? getSpriteRenderSize(wallSprites[0]).height
+    : TILE_SIZE
 }
 
 /** Check if wall sprites have been loaded */
@@ -110,9 +185,35 @@ export function hasWallSprites(): boolean {
   return wallSprites !== null
 }
 
+/** 4-bit cardinal-neighbor bitmask (N=1, E=2, S=4, W=8) for auto-tiling. */
+function wallNeighborMask(col: number, row: number, tileMap: TileTypeVal[][]): number {
+  const tmRows = tileMap.length
+  const tmCols = tmRows > 0 ? tileMap[0].length : 0
+  let mask = 0
+  if (row > 0 && tileMap[row - 1][col] === TileType.WALL) mask |= 1            // N
+  if (col < tmCols - 1 && tileMap[row][col + 1] === TileType.WALL) mask |= 2   // E
+  if (row < tmRows - 1 && tileMap[row + 1][col] === TileType.WALL) mask |= 4   // S
+  if (col > 0 && tileMap[row][col - 1] === TileType.WALL) mask |= 8            // W
+  return mask
+}
+
+/**
+ * Bottom-anchor a wall sprite to its tile. North sprites are taller (they carry
+ * a hanging face band) and must anchor by the BASE height so the original cell
+ * stays put and only the band hangs DOWN past the tile; regular sprites anchor
+ * by their own rendered height. Using rendered height (post legacy auto-upscale)
+ * keeps the anchor correct when 16-native cells are upscaled ×3 to fill the tile.
+ */
+function wallOffsetY(sprite: SpriteData, isNorth: boolean): number {
+  const h = isNorth ? baseWallRenderHeight : getSpriteRenderSize(sprite).height
+  return TILE_SIZE - h
+}
+
 /**
  * Get the wall sprite for a tile based on its cardinal neighbors.
- * Returns the sprite + Y offset, or null to fall back to solid WALL_COLOR.
+ * North (camera-facing) walls draw the taller face-band variant; all others
+ * use the regular set. Returns the sprite + Y offset, or null to fall back to
+ * solid WALL_COLOR.
  */
 export function getWallSprite(
   col: number,
@@ -121,23 +222,12 @@ export function getWallSprite(
 ): { sprite: SpriteData; offsetY: number } | null {
   if (!wallSprites) return null
 
-  const tmRows = tileMap.length
-  const tmCols = tmRows > 0 ? tileMap[0].length : 0
-
-  // Build 4-bit neighbor bitmask
-  let mask = 0
-  if (row > 0 && tileMap[row - 1][col] === TileType.WALL) mask |= 1            // N
-  if (col < tmCols - 1 && tileMap[row][col + 1] === TileType.WALL) mask |= 2   // E
-  if (row < tmRows - 1 && tileMap[row + 1][col] === TileType.WALL) mask |= 4   // S
-  if (col > 0 && tileMap[row][col - 1] === TileType.WALL) mask |= 8            // W
-
-  const sprite = wallSprites[mask]
+  const mask = wallNeighborMask(col, row, tileMap)
+  const north = wallSpritesNorth !== null && isNorthWall(col, row, tileMap)
+  const sprite = (north ? wallSpritesNorth! : wallSprites)[mask]
   if (!sprite) return null
 
-  // Anchor sprite at bottom of tile — tall sprites extend upward.
-  // Use rendered height (post legacy auto-upscale) so the anchor stays correct
-  // when sprites authored at TILE_SIZE=16 are upscaled 3× to fill TILE_SIZE=48.
-  return { sprite, offsetY: TILE_SIZE - getSpriteRenderSize(sprite).height }
+  return { sprite, offsetY: wallOffsetY(sprite, north) }
 }
 
 /**
@@ -153,24 +243,16 @@ export function getColorizedWallSprite(
 ): { sprite: SpriteData; offsetY: number } | null {
   if (!wallSprites) return null
 
-  const tmRows = tileMap.length
-  const tmCols = tmRows > 0 ? tileMap[0].length : 0
-
-  // Build 4-bit neighbor bitmask (same as getWallSprite)
-  let mask = 0
-  if (row > 0 && tileMap[row - 1][col] === TileType.WALL) mask |= 1            // N
-  if (col < tmCols - 1 && tileMap[row][col + 1] === TileType.WALL) mask |= 2   // E
-  if (row < tmRows - 1 && tileMap[row + 1][col] === TileType.WALL) mask |= 4   // S
-  if (col > 0 && tileMap[row][col - 1] === TileType.WALL) mask |= 8            // W
-
-  const sprite = wallSprites[mask]
+  const mask = wallNeighborMask(col, row, tileMap)
+  const north = wallSpritesNorth !== null && isNorthWall(col, row, tileMap)
+  const sprite = (north ? wallSpritesNorth! : wallSprites)[mask]
   if (!sprite) return null
 
-  const cacheKey = `wall-${mask}-${color.h}-${color.s}-${color.b}-${color.c}`
+  const cacheKey = `wall-${north ? 'n-' : ''}${mask}-${color.h}-${color.s}-${color.b}-${color.c}`
   const colorized = getColorizedSprite(cacheKey, sprite, { ...color, colorize: true })
 
-  // See getWallSprite for why we use rendered height instead of raw length.
-  return { sprite: colorized, offsetY: TILE_SIZE - getSpriteRenderSize(colorized).height }
+  // Anchor by base height for north (band hangs below); see wallOffsetY.
+  return { sprite: colorized, offsetY: wallOffsetY(colorized, north) }
 }
 
 /**

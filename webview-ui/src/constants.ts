@@ -51,6 +51,21 @@ export const MATRIX_TRAIL_DIM_THRESHOLD = 0.66
 export const CHARACTER_SITTING_OFFSET_PX = 18
 export const CHARACTER_Z_SORT_OFFSET = 0.5
 export const OUTLINE_Z_SORT_OFFSET = 0.001
+
+// ── North wall face band ─────────────────────────────────────
+// Camera-facing (north) walls — a WALL tile with a FLOOR/exterior tile below —
+// render a slightly TALLER sprite whose extra masonry "face" rows hang DOWN past
+// the wall tile's bottom edge into the top of the floor tile below, so the wall
+// reads as a vertical surface (Stardew-style back wall) that decor mounts onto.
+// Native px (16px/tile density), appended below the base wall cell; the sprite
+// cache upscales ×3, so 6 native ≈ 18 screen px of overhang. The wall's z-order
+// stays at the wall-tile bottom (the hang is purely visual), so actors on the
+// floor below still occlude it. Keep small: a deep band would over-occlude feet.
+export const WALL_FACE_BAND_NATIVE = 0
+// Decor flagged canPlaceOnWalls and placed on a north wall is nudged just past
+// the wall's z baseline ((row+1)*TILE_SIZE) so it draws ON the face instead of
+// behind it, while staying below floor actors ((row+1)*TILE_SIZE + ~24).
+export const WALL_DECOR_Z_EPSILON = 0.5
 export const SELECTED_OUTLINE_ALPHA = 1.0
 export const HOVERED_OUTLINE_ALPHA = 0.5
 export const GHOST_PREVIEW_SPRITE_ALPHA = 0.5

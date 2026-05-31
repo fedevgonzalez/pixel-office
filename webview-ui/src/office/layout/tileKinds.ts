@@ -24,6 +24,27 @@ export function isFloorLike(t: TileTypeVal): boolean {
 }
 
 /**
+ * True when a WALL tile is camera-facing ("north"): it has a FLOOR or exterior
+ * tile directly below it (row+1). Rows increase downward, so a WALL with a
+ * room/floor below is the inner wall the viewer looks at from above — its
+ * vertical face is toward the camera and wall decor mounts on it.
+ *
+ * Returns false for:
+ *   • non-WALL tiles,
+ *   • WALL-below-WALL (interior wall body, no face visible from above),
+ *   • WALL-below-VOID / out-of-bounds (perimeter/exterior wall, out of scope).
+ *
+ * Pure + side-effect free; consumed by the wall sprite selector (face band)
+ * and the decor z-order pass (mount decor on the face, not in the floor).
+ */
+export function isNorthWall(col: number, row: number, tileMap: TileTypeVal[][]): boolean {
+  if (tileMap[row]?.[col] !== TileType.WALL) return false
+  const below = tileMap[row + 1]?.[col]
+  if (below === undefined) return false // out of bounds → treat as south/perimeter
+  return isFloorLike(below) || isExteriorTile(below)
+}
+
+/**
  * True for exterior tile types that a user may paint from the outdoor palette.
  * Currently the full exterior range is paintable; kept as its own predicate so
  * A3 can carve out non-paintable derived/decoration types later without

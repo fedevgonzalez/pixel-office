@@ -75,7 +75,7 @@ export class OfficeState {
     this.seats = layoutToSeats(this.layout.furniture)
     this.blockedTiles = getBlockedTiles(this.layout.furniture)
     this.doorTiles = this.computeDoorTiles()
-    this.furniture = layoutToFurnitureInstances(this.layout.furniture)
+    this.furniture = layoutToFurnitureInstances(this.layout.furniture, this.tileMap)
     this.characterBoundary = this.buildBoundarySet('character')
     this.petBoundary = this.buildBoundarySet('pet')
     this.walkableTiles = getWalkableTiles(this.tileMap, this.blockedTiles, this.doorTiles)
@@ -893,7 +893,7 @@ export class OfficeState {
     }
 
     if (autoOnTiles.size === 0) {
-      this.furniture = layoutToFurnitureInstances(this.layout.furniture)
+      this.furniture = layoutToFurnitureInstances(this.layout.furniture, this.tileMap)
       return
     }
 
@@ -916,7 +916,7 @@ export class OfficeState {
       return item
     })
 
-    this.furniture = layoutToFurnitureInstances(modifiedFurniture)
+    this.furniture = layoutToFurnitureInstances(modifiedFurniture, this.tileMap)
   }
 
   setAgentTool(id: number, tool: string | null): void {
