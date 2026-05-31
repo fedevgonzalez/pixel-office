@@ -1,5 +1,5 @@
-import { EditTool, TileType } from '../types.js'
-import type { TileType as TileTypeVal, OfficeLayout, FloorColor } from '../types.js'
+import { EditTool, TileType, ZoneType } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, FloorColor, ZoneType as ZoneTypeVal } from '../types.js'
 import { UNDO_STACK_MAX_SIZE, DEFAULT_FLOOR_COLOR, DEFAULT_WALL_COLOR } from '../../constants.js'
 
 export class EditorState {
@@ -28,6 +28,15 @@ export class EditorState {
   // The last col/row painted during a zone drag (avoids redundant repaints on same tile).
   zoneDragLastCol = -1
   zoneDragLastRow = -1
+
+  // Which zone type the ZONE_PAINT tool paints (focus = no-wander, play = pet
+  // play area). The paint direction (add vs clear) is still decided per-stroke;
+  // this picks which value "add" writes.
+  selectedZoneType: ZoneTypeVal = ZoneType.FOCUS
+
+  // Which interaction-point type the INTERACTION_PLACE tool places (e.g.
+  // 'coffee' / 'cooler' / 'break'). Right-click removes the point under cursor.
+  selectedInteractionType = 'coffee'
 
   // Which actor mask the BOUNDARY_PAINT tool edits: characters or pets.
   activeBoundaryActor: 'character' | 'pet' = 'character'

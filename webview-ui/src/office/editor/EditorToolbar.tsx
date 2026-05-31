@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { EditTool, TileType } from '../types.js'
-import type { TileType as TileTypeVal, FloorColor, MovementBoundary } from '../types.js'
+import { EditTool, TileType, ZoneType, INTERACTION_POINT_TYPES } from '../types.js'
+import type { TileType as TileTypeVal, FloorColor, MovementBoundary, ZoneType as ZoneTypeVal } from '../types.js'
 import { getCatalogByCategory, buildDynamicCatalog, getActiveCategories, FURNITURE_CATEGORIES } from '../layout/furnitureCatalog.js'
 import type { FurnitureCategory, LoadedAssetData } from '../layout/furnitureCatalog.js'
 import { isExteriorTile } from '../layout/tileKinds.js'
@@ -80,6 +80,14 @@ interface EditorToolbarProps {
   onBoundaryActorChange: (actor: 'character' | 'pet') => void
   /** Per-actor movement-boundary masks, for the save-time sanity warning. */
   movementBoundary?: MovementBoundary
+  /** Which zone type the Zones tool paints (focus = no-wander, play = pet play). */
+  selectedZoneType: ZoneTypeVal
+  /** Switch the Zones tool's active zone type. */
+  onZoneTypeChange: (zone: ZoneTypeVal) => void
+  /** Which interaction-point type the Interaction tool places. */
+  selectedInteractionType: string
+  /** Switch the Interaction tool's active type. */
+  onInteractionTypeChange: (type: string) => void
 }
 
 const FLOOR_PREVIEW_SIZE = 56
@@ -523,6 +531,10 @@ export function EditorToolbar({
   activeBoundaryActor,
   onBoundaryActorChange,
   movementBoundary,
+  selectedZoneType,
+  onZoneTypeChange,
+  selectedInteractionType,
+  onInteractionTypeChange,
 }: EditorToolbarProps) {
   // Persist the last-selected furniture category across editor open/close
   // cycles. Falls back to 'desks' if nothing is stored or the stored value
@@ -605,6 +617,7 @@ export function EditorToolbar({
   const isFurnitureActive = activeTool === EditTool.FURNITURE_PLACE || activeTool === EditTool.FURNITURE_PICK
   const isZoneActive = activeTool === EditTool.ZONE_PAINT
   const isBoundaryActive = activeTool === EditTool.BOUNDARY_PAINT
+  const isInteractionActive = activeTool === EditTool.INTERACTION_PLACE
 
   // Save-time sanity warning for the active actor's boundary mask. Computed from
   // the in-flight layout's masks. Empty string when nothing's wrong.
@@ -694,6 +707,13 @@ export function EditorToolbar({
           title="Paint where characters / pets may roam (drag to add, right-click to clear)"
         >
           Roam
+        </button>
+        <button
+          style={isInteractionActive ? activeBtnStyle : btnStyle}
+          onClick={() => onToolChange(EditTool.INTERACTION_PLACE)}
+          title="Place interaction points (coffee, water, break). Left-click places, right-click removes."
+        >
+          Points
         </button>
       </div>
 
@@ -952,10 +972,41 @@ export function EditorToolbar({
         </div>
       )}
 
-      {/* Sub-panel: Zones */}
+      {/* Sub-panel: Zones — focus (no-wander) vs play (pet play area) */}
       {isZoneActive && (
-        <div style={{ fontSize: '18px', color: 'var(--pixel-text-dim)', padding: '2px 4px' }}>
-          No wander — click tiles to mark. Click again to clear.
+        <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 6 }}>
+          {/* Zone-type toggle — just above the tool row */}
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <button
+              style={{
+                ...(selectedZoneType === ZoneType.FOCUS ? activeBtnStyle : btnStyle),
+                fontSize: '18px',
+                padding: '3px 8px',
+                ...(selectedZoneType === ZoneType.FOCUS ? { borderColor: 'rgba(100,140,220,0.9)' } : {}),
+              }}
+              onClick={() => onZoneTypeChange(ZoneType.FOCUS)}
+              title="Focus zone — agents avoid these tiles when idle (no-wander)"
+            >
+              Focus
+            </button>
+            <button
+              style={{
+                ...(selectedZoneType === ZoneType.PLAY ? activeBtnStyle : btnStyle),
+                fontSize: '18px',
+                padding: '3px 8px',
+                ...(selectedZoneType === ZoneType.PLAY ? { borderColor: 'rgba(110,210,120,0.9)' } : {}),
+              }}
+              onClick={() => onZoneTypeChange(ZoneType.PLAY)}
+              title="Play zone — pets head here to play"
+            >
+              Play
+            </button>
+          </div>
+          <div style={{ fontSize: '16px', color: 'var(--pixel-text-dim)', padding: '2px 4px', maxWidth: 260 }}>
+            {selectedZoneType === ZoneType.PLAY
+              ? 'Play (green) — pets go here to play. Drag to mark, drag again to clear.'
+              : 'Focus (blue) — no-wander. Drag to mark, drag again to clear.'}
+          </div>
         </div>
       )}
 
@@ -1014,6 +1065,33 @@ export function EditorToolbar({
               ⚠ {boundaryWarning}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sub-panel: Interaction points — type picker + instructions */}
+      {isInteractionActive && (
+        <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 6 }}>
+          {/* Type picker — just above the tool row */}
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+            {INTERACTION_POINT_TYPES.map((t) => (
+              <button
+                key={t.type}
+                style={{
+                  ...(selectedInteractionType === t.type ? activeBtnStyle : btnStyle),
+                  fontSize: '18px',
+                  padding: '3px 8px',
+                }}
+                onClick={() => onInteractionTypeChange(t.type)}
+                title={t.label + (t.behavior ? '' : ' (marker only)')}
+              >
+                {t.icon} {t.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: '16px', color: 'var(--pixel-text-dim)', padding: '2px 4px', maxWidth: 260 }}>
+            Left-click a tile to place a {INTERACTION_POINT_TYPES.find((t) => t.type === selectedInteractionType)?.label ?? 'point'};
+            right-click to remove. Idle agents head to coffee / water / break points.
+          </div>
         </div>
       )}
 

@@ -1,5 +1,5 @@
-import { TileType, TILE_SIZE, CharacterState } from '../types.js'
-import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture, ZoneType as ZoneTypeVal, MovementBoundary } from '../types.js'
+import { TileType, TILE_SIZE, CharacterState, INTERACTION_POINT_TYPES, DEFAULT_INTERACTION_RADIUS } from '../types.js'
+import type { TileType as TileTypeVal, FurnitureInstance, Character, SpriteData, Seat, FloorColor, Pet, PlacedFurniture, ZoneType as ZoneTypeVal, MovementBoundary, PlacedInteractionPoint } from '../types.js'
 import { PetState } from '../types.js'
 import { getCachedSprite, getOutlineSprite } from '../sprites/spriteCache.js'
 import { getCharacterSprites, BUBBLE_PERMISSION_SPRITE, BUBBLE_WAITING_SPRITE } from '../sprites/spriteData.js'
@@ -58,6 +58,12 @@ import {
   RESTING_AGENT_LABEL_BORDER_ALPHA,
   ZONE_FILL,
   ZONE_BORDER,
+  ZONE_PLAY_FILL,
+  ZONE_PLAY_BORDER,
+  INTERACTION_RING_FILL,
+  INTERACTION_RING_STROKE,
+  INTERACTION_MARKER_BG,
+  INTERACTION_MARKER_BORDER,
   BOUNDARY_CHAR_FILL,
   BOUNDARY_PET_FILL,
   BOUNDARY_BOTH_FILL,
@@ -623,11 +629,12 @@ export function renderZoneOverlay(
       if (!zone) continue
       const x = offsetX + c * s
       const y = offsetY + r * s
-      // Fill
-      ctx.fillStyle = ZONE_FILL
+      // Focus = blue, play = green so both zone kinds read at a glance.
+      const isPlay = zone === 'play'
+      ctx.fillStyle = isPlay ? ZONE_PLAY_FILL : ZONE_FILL
       ctx.fillRect(x, y, s, s)
-      // Border on edges where adjacent tile has different/no zone
-      ctx.strokeStyle = ZONE_BORDER
+      // Border on edges where adjacent tile has a different/no zone (same kind).
+      ctx.strokeStyle = isPlay ? ZONE_PLAY_BORDER : ZONE_BORDER
       ctx.lineWidth = Math.max(1, zoom)
       const left = c === 0 || zones[r * cols + (c - 1)] !== zone
       const right = c === cols - 1 || zones[r * cols + (c + 1)] !== zone
@@ -641,6 +648,62 @@ export function renderZoneOverlay(
       ctx.stroke()
     }
   }
+}
+
+// ── Interaction-point overlay (edit mode only) ──────────────────
+
+/**
+ * Edit-mode-only markers for placed interaction points (Phase C / D4): a faint
+ * reach ring (interactionRadius tiles, default 1) plus a labeled marker chip
+ * centered on the point's tile, so the user can see what's placed where. NEVER
+ * drawn in screenshot mode (the caller only passes these in edit mode).
+ */
+export function renderInteractionPoints(
+  ctx: CanvasRenderingContext2D,
+  points: PlacedInteractionPoint[],
+  offsetX: number,
+  offsetY: number,
+  zoom: number,
+): void {
+  if (points.length === 0) return
+  const s = TILE_SIZE * zoom
+  const iconFor = (type: string): string => {
+    const def = INTERACTION_POINT_TYPES.find((t) => t.type === type)
+    return def ? def.icon : '◆'
+  }
+  for (const p of points) {
+    const radius = Math.max(1, p.interactionRadius ?? DEFAULT_INTERACTION_RADIUS)
+    // Reach ring — the band of tiles around the point.
+    const ringX = offsetX + (p.col - radius) * s
+    const ringY = offsetY + (p.row - radius) * s
+    const ringSize = (radius * 2 + 1) * s
+    ctx.fillStyle = INTERACTION_RING_FILL
+    ctx.fillRect(ringX, ringY, ringSize, ringSize)
+    ctx.strokeStyle = INTERACTION_RING_STROKE
+    ctx.lineWidth = Math.max(1, zoom)
+    ctx.setLineDash([Math.max(2, zoom * 2), Math.max(2, zoom * 2)])
+    ctx.strokeRect(ringX + 0.5, ringY + 0.5, ringSize - 1, ringSize - 1)
+    ctx.setLineDash([])
+
+    // Marker chip on the point's own tile.
+    const cx = offsetX + (p.col + 0.5) * s
+    const cy = offsetY + (p.row + 0.5) * s
+    const chipR = Math.max(7, s * 0.34)
+    ctx.beginPath()
+    ctx.arc(cx, cy, chipR, 0, Math.PI * 2)
+    ctx.fillStyle = INTERACTION_MARKER_BG
+    ctx.fill()
+    ctx.lineWidth = Math.max(1.5, zoom)
+    ctx.strokeStyle = INTERACTION_MARKER_BORDER
+    ctx.stroke()
+    ctx.font = `${Math.round(chipR * 1.2)}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = '#fff'
+    ctx.fillText(iconFor(p.type), cx, cy + 0.5)
+  }
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'alphabetic'
 }
 
 // ── Movement boundary overlay (edit mode only) ──────────────────
@@ -1096,6 +1159,9 @@ export function renderFrame(
    *  tint overlay (blue=char, green=pet, teal=both). Only rendered when an
    *  `editor` object is present (i.e. edit mode, never screenshot mode). */
   movementBoundary?: MovementBoundary,
+  /** Placed interaction points (Phase C). Drawn as edit-mode-only markers + reach
+   *  rings. Only passed (and only rendered) in edit mode, never screenshot. */
+  interactionPoints?: PlacedInteractionPoint[],
 ): { offsetX: number; offsetY: number } {
   // Clear (screenshot mode fills with dark bg to avoid white halo on GitHub)
   if (hideBubbles) {
@@ -1173,6 +1239,10 @@ export function renderFrame(
     // screenshot mode because no editor object is passed there).
     if (movementBoundary) {
       renderBoundaryOverlay(ctx, movementBoundary, cols, rows, offsetX, offsetY, zoom)
+    }
+    // Interaction-point markers — edit-mode only.
+    if (interactionPoints && interactionPoints.length > 0) {
+      renderInteractionPoints(ctx, interactionPoints, offsetX, offsetY, zoom)
     }
     if (editor.showGhostBorder) {
       renderGhostBorder(ctx, offsetX, offsetY, zoom, cols, rows, editor.ghostBorderHoverCol, editor.ghostBorderHoverRow)

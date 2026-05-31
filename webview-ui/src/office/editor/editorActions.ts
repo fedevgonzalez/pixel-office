@@ -1,6 +1,6 @@
 import { TileType, MAX_COLS, MAX_ROWS, WorldBackgroundTheme } from '../types.js'
 import { DEFAULT_NEUTRAL_COLOR } from '../../constants.js'
-import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal, WorldBackgroundTheme as WorldBackgroundThemeVal } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal, WorldBackgroundTheme as WorldBackgroundThemeVal, PlacedInteractionPoint } from '../types.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../layout/furnitureCatalog.js'
 import { getPlacementBlockedTiles } from '../layout/layoutSerializer.js'
 import { getThemeConfig, getZoneTileType } from '../backgrounds/backgroundThemes.js'
@@ -91,6 +91,49 @@ export function paintMovementBoundary(
       [actor]: mask,
     },
   }
+}
+
+/**
+ * Place a first-class interaction point at a tile (Phase C / D4). If a point
+ * already sits on the exact tile, its `type` is updated in place (so a second
+ * click doesn't stack duplicates). The `interactionPoints` array is created
+ * lazily — once present it becomes the runtime source of truth (points-first,
+ * furniture-fallback), so newly-placed points fully drive behavior. Immutable;
+ * returns the same layout when nothing changes.
+ */
+export function placeInteractionPoint(
+  layout: OfficeLayout,
+  col: number,
+  row: number,
+  type: string,
+): OfficeLayout {
+  if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return layout
+  const points = layout.interactionPoints ?? []
+  const existingIdx = points.findIndex((p) => p.col === col && p.row === row)
+  if (existingIdx >= 0) {
+    if (points[existingIdx].type === type) return layout
+    const next = [...points]
+    next[existingIdx] = { ...points[existingIdx], type }
+    return { ...layout, interactionPoints: next }
+  }
+  const uid = `ip-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+  const point: PlacedInteractionPoint = { uid, type, col, row, requiredBy: 'both' }
+  return { ...layout, interactionPoints: [...points, point] }
+}
+
+/**
+ * Remove the interaction point on a tile (right-click in INTERACTION_PLACE).
+ * Immutable; returns the same layout when no point is on the tile. Leaves an
+ * empty `interactionPoints: []` in place so the runtime keeps using the explicit
+ * (now empty) list rather than silently falling back to furniture flags — once
+ * the user starts editing points, points are the source of truth (D4).
+ */
+export function deleteInteractionPoint(layout: OfficeLayout, col: number, row: number): OfficeLayout {
+  const points = layout.interactionPoints
+  if (!points || points.length === 0) return layout
+  const next = points.filter((p) => !(p.col === col && p.row === row))
+  if (next.length === points.length) return layout
+  return { ...layout, interactionPoints: next }
 }
 
 /** Place furniture. Returns new layout (immutable). */
@@ -420,6 +463,16 @@ export function resizeLayout(layout: OfficeLayout, deltas: ResizeDeltas): Resize
     ? pets.map((p) => ({ ...p, col: p.col + shiftCol, row: p.row + shiftRow }))
     : layout.pets
 
+  // Shift interaction points by the same offset (Phase C). On a shrink, points
+  // whose tile falls outside the new bounds are dropped (markers, not blocking
+  // furniture — no need to refuse the resize). An empty array is preserved so
+  // the points-first runtime source-of-truth survives.
+  const newInteractionPoints = layout.interactionPoints
+    ? layout.interactionPoints
+        .map((p) => ({ ...p, col: p.col + shiftCol, row: p.row + shiftRow }))
+        .filter((p) => p.col >= 0 && p.col < newCols && p.row >= 0 && p.row < newRows)
+    : layout.interactionPoints
+
   let next: OfficeLayout = {
     ...layout,
     cols: newCols,
@@ -430,6 +483,7 @@ export function resizeLayout(layout: OfficeLayout, deltas: ResizeDeltas): Resize
     zones: newZones,
     furniture: newFurniture,
     ...(newPets ? { pets: newPets } : {}),
+    ...(newInteractionPoints ? { interactionPoints: newInteractionPoints } : {}),
   }
   if (newChar || newPet) {
     next.movementBoundary = {

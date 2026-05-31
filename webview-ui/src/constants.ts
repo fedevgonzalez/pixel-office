@@ -82,8 +82,19 @@ export const GHOST_INVALID_TINT = '#ff0000'
 export const SELECTION_HIGHLIGHT_COLOR = '#007fd4'
 
 // ── Zone Overlay Colors (edit mode only) ─────────────────────
+// Focus zone = blue (no-wander, agents avoid when idle). Play zone = green
+// (pets head here to play). Distinguished in the overlay so both read at a glance.
 export const ZONE_FILL = 'rgba(100, 140, 220, 0.22)'
 export const ZONE_BORDER = 'rgba(100, 140, 220, 0.55)'
+export const ZONE_PLAY_FILL = 'rgba(110, 210, 120, 0.22)'
+export const ZONE_PLAY_BORDER = 'rgba(110, 210, 120, 0.6)'
+
+// ── Interaction-point Overlay (edit mode only) ───────────────
+// A reach ring + a marker dot/icon drawn over each placed interaction point.
+export const INTERACTION_RING_FILL = 'rgba(255, 200, 90, 0.16)'
+export const INTERACTION_RING_STROKE = 'rgba(255, 200, 90, 0.7)'
+export const INTERACTION_MARKER_BG = 'rgba(40, 30, 15, 0.85)'
+export const INTERACTION_MARKER_BORDER = 'rgba(255, 210, 110, 0.95)'
 
 // ── Movement Boundary Overlay Colors (edit mode only) ────────
 // Blue tint = character-allowed, green = pet-allowed, teal = both. Drawn only in

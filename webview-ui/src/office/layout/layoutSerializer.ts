@@ -355,20 +355,25 @@ export function validateLayout(layout: OfficeLayout): boolean {
 }
 
 /**
- * Derive interaction points from furniture flags ONCE (D4 / Phase C data part).
- * Coffee machines / coolers (`isInteractionPoint`) become explicit points,
- * anchored at the furniture's origin tile. `type` maps the furniture to a
- * behavior key. Behavior wiring is Phase C — A1 only persists the data so a
- * later save keeps it. Points-first, no auto-create after migration (OQ-8).
+ * Derive interaction points from furniture flags ONCE (D4 / Phase C). Every
+ * break-room / interaction furniture item (`isBreakRoom` OR `isInteractionPoint`
+ * — coffee machine, water cooler, break couch) becomes an explicit point
+ * anchored at the furniture's origin tile, with a behavior `type` key. This
+ * mirrors the LEGACY `getBreakRoomTiles` furniture scan exactly (which collected
+ * tiles around any `isBreakRoom` furniture), so the points-first runtime
+ * produces the same idle-agent destinations after migration — no behavior
+ * regression. Points-first, no auto-create after migration (OQ-8): once a v2
+ * layout carries this list, placing more furniture does NOT add points.
  */
 function deriveInteractionPointsFromFurniture(furniture: PlacedFurniture[]): PlacedInteractionPoint[] {
   const points: PlacedInteractionPoint[] = []
   for (const f of furniture) {
     const entry = getCatalogEntry(f.type)
-    if (!entry?.isInteractionPoint) continue
+    if (!entry?.isInteractionPoint && !entry?.isBreakRoom) continue
     const type = f.type === FurnitureType.COFFEE_MACHINE ? 'coffee'
       : f.type === FurnitureType.COOLER ? 'cooler'
-      : f.type
+      : f.type === FurnitureType.BREAK_COUCH ? 'break'
+      : 'break'
     points.push({
       uid: `ip-${f.uid}`,
       type,

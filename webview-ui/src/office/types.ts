@@ -146,6 +146,10 @@ export const EditTool = {
   /** Paint per-actor movement boundary (Phase B). The active actor mask is held
    *  in EditorState.activeBoundaryActor. */
   BOUNDARY_PAINT: 'boundary_paint',
+  /** Place / remove first-class interaction points (Phase C / D4). The type to
+   *  place is held in EditorState.selectedInteractionType; left-click places,
+   *  right-click removes the point under the cursor. */
+  INTERACTION_PLACE: 'interaction_place',
 } as const
 export type EditTool = (typeof EditTool)[keyof typeof EditTool]
 
@@ -372,6 +376,26 @@ export interface PlacedInteractionPoint {
   /** Set when this point was auto-derived from a furniture flag during migration */
   derivedFromFurnitureUid?: string
 }
+
+/**
+ * Interaction-point behavior catalog (Phase C). `coffee` / `cooler` have engine
+ * behavior (idle agents path to a walkable tile adjacent to them, like a break
+ * room); other types are markers only. Keyed by the `type` string stored on
+ * PlacedInteractionPoint, so this stays open to custom marker types. `behavior`
+ * = true means the runtime treats the point as a break/interaction destination.
+ */
+export const INTERACTION_POINT_TYPES = [
+  { type: 'coffee', label: 'Coffee', icon: '☕', behavior: true },
+  { type: 'cooler', label: 'Water cooler', icon: '🚰', behavior: true },
+  { type: 'break', label: 'Break spot', icon: '🛋', behavior: true },
+  { type: 'meeting', label: 'Meeting', icon: '📋', behavior: false },
+] as const
+export type InteractionPointTypeDef = (typeof INTERACTION_POINT_TYPES)[number]
+
+/** Default reach radius (in tiles) used when a point has no explicit
+ *  `interactionRadius`. The engine collects walkable tiles within this ring of
+ *  the point as its usable destinations. */
+export const DEFAULT_INTERACTION_RADIUS = 1
 
 export interface OfficeLayout {
   /** Schema version. Loaders accept 1 (legacy) and migrate to 2. */

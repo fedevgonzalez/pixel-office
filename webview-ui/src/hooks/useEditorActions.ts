@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef } from 'react'
 import type { OfficeState } from '../office/engine/officeState.js'
 import type { EditorState } from '../office/editor/editorState.js'
-import { EditTool, ZoneType } from '../office/types.js'
+import { EditTool } from '../office/types.js'
 import { TileType } from '../office/types.js'
-import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture } from '../office/types.js'
-import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout, resizeLayout, paintMovementBoundary } from '../office/editor/editorActions.js'
+import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture, ZoneType as ZoneTypeVal } from '../office/types.js'
+import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout, resizeLayout, paintMovementBoundary, placeInteractionPoint, deleteInteractionPoint } from '../office/editor/editorActions.js'
 import { getActiveFloorThemeId } from '../office/floorTiles.js'
 import type { ExpandDirection, ResizeDeltas } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
@@ -42,6 +42,13 @@ export interface EditorActions {
   handleEditorBoundaryClear: (col: number, row: number) => void
   /** Switch which actor mask the BOUNDARY_PAINT tool edits. */
   handleBoundaryActorChange: (actor: 'character' | 'pet') => void
+  /** Remove the interaction point under the cursor (right-click in
+   *  INTERACTION_PLACE mode). */
+  handleEditorInteractionRemove: (col: number, row: number) => void
+  /** Switch which interaction-point type the INTERACTION_PLACE tool places. */
+  handleInteractionTypeChange: (type: string) => void
+  /** Switch which zone type the ZONE_PAINT tool paints (focus / play). */
+  handleZoneTypeChange: (zone: ZoneTypeVal) => void
   handleEditorSelectionChange: () => void
   handleDragMove: (uid: string, newCol: number, newRow: number) => void
   /** Resize the map by ±1 row/col at one edge. Auto-fills new exterior margin
@@ -532,13 +539,15 @@ export function useEditorActions(
       if (tile === TileType.WALL || tile === TileType.VOID) return
       const zones = layout.zones ? [...layout.zones] : new Array(layout.cols * layout.rows).fill(null)
       const currentZone = zones[idx]
+      const paintZone = editorState.selectedZoneType
 
-      // First tile of drag determines direction: if zone already set → clearing, else → painting.
+      // First tile of drag determines direction: if the tile already holds the
+      // selected zone type → clearing, else → painting (the selected type).
       // This prevents inadvertent toggles when dragging back over a just-painted tile.
       if (editorState.zoneDragAdding === null) {
-        editorState.zoneDragAdding = currentZone !== ZoneType.FOCUS
+        editorState.zoneDragAdding = currentZone !== paintZone
       }
-      const newZoneValue = editorState.zoneDragAdding ? ZoneType.FOCUS : null
+      const newZoneValue: ZoneTypeVal | null = editorState.zoneDragAdding ? paintZone : null
 
       // No change needed (e.g. clearing a tile that was already clear)
       if (currentZone === newZoneValue) {
@@ -607,6 +616,12 @@ export function useEditorActions(
 
       editorState.boundaryDragLastCol = col
       editorState.boundaryDragLastRow = row
+    } else if (editorState.activeTool === EditTool.INTERACTION_PLACE) {
+      if (col < 0 || col >= layout.cols || row < 0 || row >= layout.rows) return
+      const newLayout = placeInteractionPoint(layout, col, row, editorState.selectedInteractionType)
+      if (newLayout !== layout) {
+        applyEdit(newLayout)
+      }
     } else if (editorState.activeTool === EditTool.SELECT) {
       const hit = layout.furniture.find((f) => {
         const entry = getCatalogEntry(f.type)
@@ -651,6 +666,33 @@ export function useEditorActions(
     saveLayout(newLayout)
   }, [getOfficeState, editorState, saveLayout])
 
+  // Remove the interaction point under the cursor (right-click in
+  // INTERACTION_PLACE mode). One undo entry per removal.
+  const handleEditorInteractionRemove = useCallback((col: number, row: number) => {
+    const os = getOfficeState()
+    const layout = os.getLayout()
+    const newLayout = deleteInteractionPoint(layout, col, row)
+    if (newLayout !== layout) {
+      applyEdit(newLayout)
+    }
+  }, [getOfficeState, applyEdit])
+
+  // Switch which interaction-point type the INTERACTION_PLACE tool places.
+  const handleInteractionTypeChange = useCallback((type: string) => {
+    editorState.selectedInteractionType = type
+    setEditorTick((n) => n + 1)
+  }, [editorState])
+
+  // Switch which zone type the ZONE_PAINT tool paints (focus / play). Reset any
+  // in-flight drag direction so the next stroke re-decides add vs clear.
+  const handleZoneTypeChange = useCallback((zone: ZoneTypeVal) => {
+    editorState.selectedZoneType = zone
+    editorState.zoneDragAdding = null
+    editorState.zoneDragLastCol = -1
+    editorState.zoneDragLastRow = -1
+    setEditorTick((n) => n + 1)
+  }, [editorState])
+
   return {
     isEditMode,
     editorTick,
@@ -678,6 +720,9 @@ export function useEditorActions(
     handleEditorTileAction,
     handleEditorEraseAction,
     handleEditorBoundaryClear,
+    handleEditorInteractionRemove,
+    handleInteractionTypeChange,
+    handleZoneTypeChange,
     handleEditorSelectionChange,
     handleDragMove,
     handleResizeEdge,

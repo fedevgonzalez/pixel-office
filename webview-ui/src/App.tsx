@@ -327,6 +327,7 @@ function App() {
         onEditorTileAction={editor.handleEditorTileAction}
         onEditorEraseAction={editor.handleEditorEraseAction}
         onEditorBoundaryClear={editor.handleEditorBoundaryClear}
+        onEditorInteractionRemove={editor.handleEditorInteractionRemove}
         onEditorSelectionChange={editor.handleEditorSelectionChange}
         onDeleteSelected={editor.handleDeleteSelected}
         onRotateSelected={editor.handleRotateSelected}
@@ -429,6 +430,10 @@ function App() {
             activeBoundaryActor={editorState.activeBoundaryActor}
             onBoundaryActorChange={editor.handleBoundaryActorChange}
             movementBoundary={layout.movementBoundary}
+            selectedZoneType={editorState.selectedZoneType}
+            onZoneTypeChange={editor.handleZoneTypeChange}
+            selectedInteractionType={editorState.selectedInteractionType}
+            onInteractionTypeChange={editor.handleInteractionTypeChange}
           />
         )
       })()}

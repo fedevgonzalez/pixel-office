@@ -16,6 +16,7 @@ import {
   PET_HIT_HEIGHT,
 } from '../../constants.js'
 import type { Character, Seat, FurnitureInstance, TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Pet, FloorColor, PetColors } from '../types.js'
+import { INTERACTION_POINT_TYPES, DEFAULT_INTERACTION_RADIUS } from '../types.js'
 import { createCharacter, updateCharacter } from './characters.js'
 import { createPet, updatePet, triggerPetReaction, perkUpPet, walkPetToTile as petWalkToTile, setPetSpeech, setPetReactionBubble } from './pets.js'
 import { matrixEffectSeeds } from './matrixEffect.js'
@@ -337,8 +338,65 @@ export class OfficeState {
     return null
   }
 
-  /** Find walkable tiles adjacent to break room furniture (coffee machines, couches) */
+  /**
+   * Walkable tiles that idle agents head to for a break / interaction (coffee
+   * machine, cooler, couch). Phase C / D4 resolves these from the explicit
+   * `layout.interactionPoints` FIRST; only when that field is absent does it
+   * fall back to the legacy furniture `isBreakRoom` scan (points-first,
+   * furniture-fallback, no double-counting). An empty (but present) list means
+   * "the user removed all points" → no break-room destinations, NOT a fallback.
+   */
   getBreakRoomTiles(): Array<{ col: number; row: number }> {
+    const points = this.layout.interactionPoints
+    if (points !== undefined) {
+      return this.interactionPointTiles(points, 'char')
+    }
+    return this.breakRoomTilesFromFurniture()
+  }
+
+  /**
+   * Collect walkable tiles within each interaction point's reach radius
+   * (default 1) for a given actor. Only points whose `type` has engine behavior
+   * (coffee/cooler/break — `behavior: true` in INTERACTION_POINT_TYPES) and
+   * whose `requiredBy` admits the actor contribute tiles. `requiredBy: 'both'`
+   * (or absent) admits both; 'char'/'pet' restrict to that actor. The point's
+   * own tile is skipped (it's where the appliance stands); we want the tiles
+   * AROUND it. Honors the per-actor movement boundary (Phase B) implicitly via
+   * the caller filtering, but also keeps only currently-walkable tiles.
+   */
+  private interactionPointTiles(
+    points: Array<{ type: string; col: number; row: number; interactionRadius?: number; requiredBy?: 'pet' | 'char' | 'both' }>,
+    actor: 'char' | 'pet',
+  ): Array<{ col: number; row: number }> {
+    const tiles: Array<{ col: number; row: number }> = []
+    const seen = new Set<string>()
+    const behaviorTypes = new Set<string>(INTERACTION_POINT_TYPES.filter((t) => t.behavior).map((t) => t.type))
+    for (const p of points) {
+      if (!behaviorTypes.has(p.type)) continue
+      const req = p.requiredBy ?? 'both'
+      if (req !== 'both' && req !== actor) continue
+      const radius = Math.max(1, p.interactionRadius ?? DEFAULT_INTERACTION_RADIUS)
+      for (let dr = -radius; dr <= radius; dr++) {
+        for (let dc = -radius; dc <= radius; dc++) {
+          if (dc === 0 && dr === 0) continue // the appliance tile itself
+          const col = p.col + dc
+          const row = p.row + dr
+          const key = `${col},${row}`
+          if (seen.has(key)) continue
+          if (isWalkable(col, row, this.tileMap, this.blockedTiles, this.doorTiles)) {
+            tiles.push({ col, row })
+            seen.add(key)
+          }
+        }
+      }
+    }
+    return tiles
+  }
+
+  /** Legacy fallback: walkable tiles adjacent to break-room furniture (coffee
+   *  machines, coolers, couches). Used only when `layout.interactionPoints` is
+   *  absent (un-migrated layout). */
+  private breakRoomTilesFromFurniture(): Array<{ col: number; row: number }> {
     const tiles: Array<{ col: number; row: number }> = []
     const seen = new Set<string>()
     for (const f of this.layout.furniture) {

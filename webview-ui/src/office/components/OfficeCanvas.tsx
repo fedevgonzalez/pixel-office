@@ -32,6 +32,9 @@ interface OfficeCanvasProps {
   /** Clear one cell of the active actor's movement boundary (right-click in
    *  BOUNDARY_PAINT mode). */
   onEditorBoundaryClear: (col: number, row: number) => void
+  /** Remove the interaction point under the cursor (right-click in
+   *  INTERACTION_PLACE mode). */
+  onEditorInteractionRemove: (col: number, row: number) => void
   onEditorSelectionChange: () => void
   onDeleteSelected: () => void
   onRotateSelected: () => void
@@ -49,7 +52,7 @@ interface OfficeCanvasProps {
   kioskFocusAgentIds?: number[]
 }
 
-export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorBoundaryClear, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef, dayNight, kioskFocusAgentIds }: OfficeCanvasProps) {
+export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, onEditorTileAction, onEditorEraseAction, onEditorBoundaryClear, onEditorInteractionRemove, onEditorSelectionChange, onDeleteSelected, onRotateSelected, onDragMove, editorTick: _editorTick, zoom, onZoomChange, panRef, dayNight, kioskFocusAgentIds }: OfficeCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const offsetRef = useRef({ x: 0, y: 0 })
@@ -424,6 +427,8 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
           // additionally guards on the editor object, but gate here too so the
           // overlay never tints the live kiosk view.
           isEditMode && !isScreenshotMode ? officeState.getLayout().movementBoundary : undefined,
+          // Interaction-point markers only in edit mode (never screenshot/kiosk).
+          isEditMode && !isScreenshotMode ? officeState.getLayout().interactionPoints : undefined,
         )
         offsetRef.current = { x: offsetX, y: offsetY }
 
@@ -673,6 +678,12 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
             boundaryClearDraggingRef.current = true
             onEditorBoundaryClear(tile.col, tile.row)
           }
+        } else if (tile && editorState.activeTool === EditTool.INTERACTION_PLACE) {
+          // Secondary button removes the interaction point under the cursor.
+          const layout = officeState.getLayout()
+          if (tile.col >= 0 && tile.col < layout.cols && tile.row >= 0 && tile.row < layout.rows) {
+            onEditorInteractionRemove(tile.col, tile.row)
+          }
         }
         return
       }
@@ -729,7 +740,7 @@ export function OfficeCanvas({ officeState, onClick, isEditMode, editorState, on
         onEditorTileAction(tile.col, tile.row)
       }
     },
-    [officeState, isEditMode, editorState, screenToTile, screenToWorld, onEditorTileAction, onEditorEraseAction, onEditorBoundaryClear, onEditorSelectionChange, onDeleteSelected, onRotateSelected, hitTestDeleteButton, hitTestRotateButton, panRef],
+    [officeState, isEditMode, editorState, screenToTile, screenToWorld, onEditorTileAction, onEditorEraseAction, onEditorBoundaryClear, onEditorInteractionRemove, onEditorSelectionChange, onDeleteSelected, onRotateSelected, hitTestDeleteButton, hitTestRotateButton, panRef],
   )
 
   const handleMouseUp = useCallback(
