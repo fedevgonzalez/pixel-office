@@ -17,6 +17,19 @@ export const TileType = {
   FLOOR_6: 6,
   FLOOR_7: 7,
   VOID: 8,
+  // ── Exterior tile types (contiguous from 9 so `t >= 9` ⇒ "is exterior").
+  //    Painted into the unified `tiles[]` grid (D1); no separate exterior array.
+  //    A1 introduces only the data model — sprites/rendering land in A2.
+  GRASS: 9,
+  GRASS_ALT: 10,
+  SIDEWALK: 11,
+  ROAD: 12,
+  ROAD_LINE: 13,
+  CURB: 14,
+  PATH: 15,
+  WATER: 16,
+  FENCE: 17,
+  DIRT: 18,
 } as const
 export type TileType = (typeof TileType)[keyof typeof TileType]
 
@@ -322,8 +335,44 @@ export const ZoneType = {
 } as const
 export type ZoneType = (typeof ZoneType)[keyof typeof ZoneType]
 
+/**
+ * Per-actor movement boundary masks, each parallel to `tiles` (length = cols*rows).
+ * `true` = that actor may enter the tile, `false` = blocked, `null` = no opinion
+ * for that cell. A whole mask that is `null`/absent means "unrestricted" — legacy
+ * behavior where the actor roams anywhere walkable (D3). Runtime converts each
+ * mask into a `Set<string>` once on rebuild (Phase B); A1 only carries the type.
+ */
+export interface MovementBoundary {
+  character?: Array<boolean | null> | null
+  pet?: Array<boolean | null> | null
+}
+
+/**
+ * First-class interaction point (coffee machine, water cooler, …). Resolved
+ * BEFORE furniture `isBreakRoom`/`isInteractionPoint` flags (D4). Migration
+ * derives these from furniture once; A1 only carries the type + populates them
+ * in `migrateLayout`. Behavior wiring lands in Phase C.
+ */
+export interface PlacedInteractionPoint {
+  /** Stable unique id */
+  uid: string
+  /** Behavior key — 'coffee'/'cooler' have engine behavior; custom = marker only */
+  type: string
+  /** Tile column */
+  col: number
+  /** Tile row */
+  row: number
+  /** Optional reach radius in tiles (defaults applied at runtime in Phase C) */
+  interactionRadius?: number
+  /** Which actors use this point. Absent = both (legacy/derived default). */
+  requiredBy?: 'pet' | 'char' | 'both'
+  /** Set when this point was auto-derived from a furniture flag during migration */
+  derivedFromFurnitureUid?: string
+}
+
 export interface OfficeLayout {
-  version: 1
+  /** Schema version. Loaders accept 1 (legacy) and migrate to 2. */
+  version: 1 | 2
   cols: number
   rows: number
   tiles: TileType[]
@@ -338,6 +387,16 @@ export interface OfficeLayout {
   pets?: PlacedPet[]
   /** World background theme and outdoor decorations */
   background?: WorldBackground
+  /**
+   * Per-actor movement boundary masks (Phase B). Optional & non-breaking:
+   * absent ⇒ unrestricted (legacy). When present, masks are parallel to `tiles`.
+   */
+  movementBoundary?: MovementBoundary
+  /**
+   * First-class interaction points (Phase C). Optional & non-breaking: absent
+   * ⇒ furniture-flag derivation is used. Migration populates this once.
+   */
+  interactionPoints?: PlacedInteractionPoint[]
 }
 
 export interface Character {

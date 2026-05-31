@@ -132,7 +132,12 @@ export function useExtensionMessages(
           return
         }
         const rawLayout = msg.layout as OfficeLayout | null
-        const layout = rawLayout && rawLayout.version === 1 ? migrateLayoutColors(rawLayout) : null
+        // Accept v1 (legacy) and v2 — migrateLayoutColors runs the full v1→v2
+        // migration. A v2 layout (e.g. after the next save persists it) must
+        // still load, not fall through to the default.
+        const layout = rawLayout && (rawLayout.version === 1 || rawLayout.version === 2)
+          ? migrateLayoutColors(rawLayout)
+          : null
         if (layout) {
           os.rebuildFromLayout(layout)
           onLayoutLoaded?.(layout)

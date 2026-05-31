@@ -1,9 +1,10 @@
 import { TileType, FurnitureType, DEFAULT_COLS, DEFAULT_ROWS, TILE_SIZE, Direction } from '../types.js'
-import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Seat, FurnitureInstance, FloorColor, SpriteData } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Seat, FurnitureInstance, FloorColor, SpriteData, PlacedInteractionPoint } from '../types.js'
 import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
 import { LAMP_OFF_SPRITE, LAMP_SPRITE } from '../sprites/spriteData.js'
 import { getActiveFloorThemeId } from '../floorTiles.js'
+import { isExteriorTile } from './tileKinds.js'
 
 /** Convert flat tile array from layout into 2D grid */
 export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
@@ -281,7 +282,19 @@ export function createDefaultLayout(): OfficeLayout {
     { uid: 'couch-1', type: FurnitureType.BREAK_COUCH, col: 15, row: 9 },
   ]
 
-  return { version: 1, cols: DEFAULT_COLS, rows: DEFAULT_ROWS, tiles, tileColors, furniture }
+  // v2 shape: interior-only, no exterior tiles painted (procedural background
+  // still renders), unrestricted movement boundary. Interaction points derived
+  // from the default break-room furniture for forward-compat.
+  return {
+    version: 2,
+    cols: DEFAULT_COLS,
+    rows: DEFAULT_ROWS,
+    tiles,
+    tileColors,
+    furniture,
+    movementBoundary: { character: null, pet: null },
+    interactionPoints: deriveInteractionPointsFromFurniture(furniture),
+  }
 }
 
 /** Serialize layout to JSON string */
@@ -293,11 +306,79 @@ export function serializeLayout(layout: OfficeLayout): string {
 export function deserializeLayout(json: string): OfficeLayout | null {
   try {
     const obj = JSON.parse(json)
-    if (obj && obj.version === 1 && Array.isArray(obj.tiles) && Array.isArray(obj.furniture)) {
+    if (
+      obj &&
+      (obj.version === 1 || obj.version === 2) &&
+      Array.isArray(obj.tiles) &&
+      Array.isArray(obj.furniture)
+    ) {
       return migrateLayout(obj as OfficeLayout)
     }
   } catch { /* ignore parse errors */ }
   return null
+}
+
+/** True if the layout has any painted exterior tile (TileType >= 9). Used by the
+ *  renderer (A2) to decide whether the grid owns the look (skip procedural
+ *  background) or the legacy procedural fallback still applies. */
+export function hasExteriorTiles(layout: OfficeLayout): boolean {
+  return layout.tiles.some((t) => isExteriorTile(t))
+}
+
+/**
+ * Dev-only invariant check: every parallel array must have length cols*rows.
+ * Length mismatch is the top regression risk once resize touches multiple
+ * arrays (Phase A.5). No-op in production-shaped callers; logs in dev. Returns
+ * true when the layout is internally consistent.
+ */
+export function validateLayout(layout: OfficeLayout): boolean {
+  const expected = layout.cols * layout.rows
+  const problems: string[] = []
+  const check = (name: string, arr: unknown[] | null | undefined) => {
+    if (arr && arr.length !== expected) {
+      problems.push(`${name}.length=${arr.length} (expected ${expected})`)
+    }
+  }
+  if (layout.tiles.length !== expected) {
+    problems.push(`tiles.length=${layout.tiles.length} (expected ${expected})`)
+  }
+  check('tileColors', layout.tileColors)
+  check('tileThemes', layout.tileThemes)
+  check('zones', layout.zones)
+  check('movementBoundary.character', layout.movementBoundary?.character ?? undefined)
+  check('movementBoundary.pet', layout.movementBoundary?.pet ?? undefined)
+  if (problems.length > 0) {
+    console.warn('[validateLayout] parallel-array length mismatch:', problems.join('; '))
+    return false
+  }
+  return true
+}
+
+/**
+ * Derive interaction points from furniture flags ONCE (D4 / Phase C data part).
+ * Coffee machines / coolers (`isInteractionPoint`) become explicit points,
+ * anchored at the furniture's origin tile. `type` maps the furniture to a
+ * behavior key. Behavior wiring is Phase C — A1 only persists the data so a
+ * later save keeps it. Points-first, no auto-create after migration (OQ-8).
+ */
+function deriveInteractionPointsFromFurniture(furniture: PlacedFurniture[]): PlacedInteractionPoint[] {
+  const points: PlacedInteractionPoint[] = []
+  for (const f of furniture) {
+    const entry = getCatalogEntry(f.type)
+    if (!entry?.isInteractionPoint) continue
+    const type = f.type === FurnitureType.COFFEE_MACHINE ? 'coffee'
+      : f.type === FurnitureType.COOLER ? 'cooler'
+      : f.type
+    points.push({
+      uid: `ip-${f.uid}`,
+      type,
+      col: f.col,
+      row: f.row,
+      requiredBy: 'both',
+      derivedFromFurnitureUid: f.uid,
+    })
+  }
+  return points
 }
 
 /**
@@ -309,9 +390,17 @@ export function migrateLayoutColors(layout: OfficeLayout): OfficeLayout {
 }
 
 /**
- * Migrate old layouts that use legacy tile types (TILE_FLOOR=1, WOOD_FLOOR=2, CARPET=3, DOORWAY=4)
- * to the new pattern-based system. Also backfills tileThemes for layouts that
- * predate per-tile theme support.
+ * Migrate old layouts to the current schema (v2).
+ *
+ * Backward compat (v1 → v2) is non-destructive and produces a render-identical
+ * scene (D7): tiles/colors/themes/zones are kept as-is, exterior tiles are left
+ * UNPAINTED (so the procedural background still renders until a preset is
+ * applied in A2), an empty/unrestricted `movementBoundary` is added (null masks
+ * = legacy "roam anywhere", Phase B), and `interactionPoints` are derived from
+ * furniture flags once (D4 / Phase C data part).
+ *
+ * Also handles legacy tile-type colorization (TILE_FLOOR=1, WOOD_FLOOR=2,
+ * CARPET=3, DOORWAY=4) and backfills tileThemes for pre-theme layouts.
  */
 function migrateLayout(layout: OfficeLayout): OfficeLayout {
   let out = layout
@@ -350,6 +439,23 @@ function migrateLayout(layout: OfficeLayout): OfficeLayout {
       return null
     })
     out = { ...out, tileThemes }
+  }
+
+  // ── v2 additive fields (non-destructive; render-identical) ──────────────
+  // Empty/unrestricted movement boundary: null masks = legacy "roam anywhere".
+  if (!out.movementBoundary) {
+    out = { ...out, movementBoundary: { character: null, pet: null } }
+  }
+
+  // Derive interaction points from furniture flags ONCE. Skip if already present
+  // (a v2 layout that has been edited owns its points — never re-derive).
+  if (!out.interactionPoints) {
+    out = { ...out, interactionPoints: deriveInteractionPointsFromFurniture(out.furniture) }
+  }
+
+  // Bump schema version last so the persisted layout round-trips as v2.
+  if (out.version !== 2) {
+    out = { ...out, version: 2 }
   }
 
   return out

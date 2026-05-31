@@ -9,7 +9,17 @@ export {
   createDefaultLayout,
   serializeLayout,
   deserializeLayout,
+  hasExteriorTiles,
+  validateLayout,
 } from './layoutSerializer.js'
+export {
+  isExteriorTile,
+  isFloorLike,
+  isPaintableExterior,
+  isExteriorDefaultWalkable,
+  EXTERIOR_DEFAULT_WALKABLE,
+  FIRST_EXTERIOR_TILE,
+} from './tileKinds.js'
 export {
   isWalkable,
   getWalkableTiles,

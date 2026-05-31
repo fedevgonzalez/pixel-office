@@ -9,8 +9,11 @@ import type { FloorColor } from './office/types.js'
 export const TILE_SIZE = 48
 export const DEFAULT_COLS = 20
 export const DEFAULT_ROWS = 11
-export const MAX_COLS = 64
-export const MAX_ROWS = 64
+// Max editable map size. Raised 64 → 96 for outdoor maps (map-editor overhaul,
+// OQ-3 LOCKED at 96, not 128). Bigger grids cost more undo-stack memory; cap
+// undo depth (UNDO_STACK_MAX_SIZE) and consider RLE later if perf needs it.
+export const MAX_COLS = 96
+export const MAX_ROWS = 96
 
 // ── Character Animation ─────────────────────────────────────
 // Speeds are world pixels per second. Original 48 was 3 old-tiles/sec at
