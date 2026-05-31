@@ -556,6 +556,269 @@ export const WALL_CABINET_SPRITE: SpriteData = (() => {
   ]
 })()
 
+/** Wall art: 16x16 (1x1) — a framed painting, front-facing, mounted on the
+ *  wall. Warm oak frame + simple stylised landscape (sky / sun / rolling hill).
+ *  Top rows transparent so it reads as hung above the wainscot, like the other
+ *  wall items (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_ART_SPRITE: SpriteData = (() => {
+  const O = '#23150b' // dark outline / frame edge
+  const F = '#9a6422' // frame wood (oak, matches shelf family)
+  const L = '#b57a26' // frame highlight
+  const D = '#6f4518' // frame shadow
+  const S = '#8ec3e0' // sky
+  const Y = '#e7c14e' // sun
+  const G = '#5a9a4e' // hill (green)
+  const J = '#3f7a3c' // hill shadow
+  const U = '#1c1208' // cast under-shadow
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, _, _],
+    [_, _, O, L, L, L, L, L, L, L, L, L, L, O, _, _],
+    [_, _, O, F, O, O, O, O, O, O, O, O, F, O, _, _],
+    [_, _, O, F, O, S, S, S, S, Y, Y, O, F, O, _, _],
+    [_, _, O, F, O, S, S, S, S, Y, Y, O, F, O, _, _],
+    [_, _, O, F, O, S, S, S, S, S, S, O, F, O, _, _],
+    [_, _, O, F, O, S, S, G, S, S, S, O, F, O, _, _],
+    [_, _, O, F, O, G, G, G, G, S, S, O, F, O, _, _],
+    [_, _, O, F, O, G, G, G, G, G, G, O, F, O, _, _],
+    [_, _, O, F, O, J, G, J, G, J, G, O, F, O, _, _],
+    [_, _, O, F, O, O, O, O, O, O, O, O, F, O, _, _],
+    [_, _, O, D, D, D, D, D, D, D, D, D, D, O, _, _],
+    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, _, _],
+    [_, _, _, U, U, U, U, U, U, U, U, U, U, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Wall window: 16x32 (1 tile wide, 2 tiles tall) — daylight window with a
+ *  sky / cloud view, a wooden frame + mullion cross, and a sill at the bottom.
+ *  Mounted high on the wall; the lower sill row sits at the bottom of the
+ *  footprint (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_WINDOW_SPRITE: SpriteData = (() => {
+  const O = '#23150b' // dark outline
+  const F = '#9a6422' // frame wood
+  const L = '#b57a26' // frame highlight
+  const D = '#6f4518' // frame shadow
+  const M = '#7e501c' // mullion bar
+  const S = '#8ec3e0' // sky (upper)
+  const T = '#a9d6ec' // sky (lighter, near top)
+  const C = '#eef4f8' // cloud
+  const W = '#c98f3c' // sill (light)
+  const V = '#7e501c' // sill shadow
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, L, L, L, L, L, L, L, L, L, L, L, L, L, L, O],
+    [O, F, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, F, O, T, T, T, O, M, M, O, T, C, C, O, F, O],
+    [O, F, O, T, C, T, O, M, M, O, T, C, C, O, F, O],
+    [O, F, O, S, C, C, O, M, M, O, S, S, S, O, F, O],
+    [O, F, O, S, S, S, O, M, M, O, S, S, S, O, F, O],
+    [O, F, O, M, M, M, M, M, M, M, M, M, M, O, F, O],
+    [O, F, O, M, M, M, M, M, M, M, M, M, M, O, F, O],
+    [O, F, O, S, S, S, O, M, M, O, S, C, C, O, F, O],
+    [O, F, O, S, S, S, O, M, M, O, S, C, C, O, F, O],
+    [O, F, O, S, S, S, O, M, M, O, C, C, S, O, F, O],
+    [O, F, O, S, S, S, O, M, M, O, S, S, S, O, F, O],
+    [O, F, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, D, D, D, D, D, D, D, D, D, D, D, D, D, D, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [_, O, W, W, W, W, W, W, W, W, W, W, W, W, O, _],
+    [_, O, V, V, V, V, V, V, V, V, V, V, V, V, O, _],
+    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Wall corkboard: 32x16 (2 tiles wide, 1 tile tall) — pin board with a thin
+ *  wood frame, a cork surface, and a few coloured sticky notes with pins.
+ *  Mounted on the wall (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_CORKBOARD_SPRITE: SpriteData = (() => {
+  const O = '#23150b' // dark outline / frame edge
+  const F = '#7e501c' // frame wood
+  const L = '#9a6422' // frame highlight
+  const D = '#5a3613' // frame shadow (bottom edge)
+  const K = '#c79a5b' // cork (light)
+  const k = '#b3854a' // cork (dark fleck)
+  const Y = '#e7d24e' // yellow note
+  const P = '#e08fb0' // pink note
+  const B = '#7fb6e0' // blue note
+  const N = '#c8443a' // red pin
+  const n = '#3a6ea5' // blue pin
+  const U = '#1c1208' // cast under-shadow
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, L, O],
+    [O, F, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, F, O, K, K, k, K, K, K, K, K, K, K, K, K, k, K, K, K, K, K, K, k, K, K, K, K, K, K, O, F, O],
+    [O, F, O, K, N, K, K, K, K, K, n, K, K, K, K, K, K, N, K, K, K, K, K, K, n, K, K, K, K, O, F, O],
+    [O, F, O, K, Y, Y, Y, K, K, B, B, B, K, K, k, K, P, P, P, P, K, K, Y, Y, Y, Y, K, k, K, O, F, O],
+    [O, F, O, K, Y, Y, Y, K, K, B, B, B, K, K, K, K, P, P, P, P, K, K, Y, Y, Y, Y, K, K, K, O, F, O],
+    [O, F, O, K, Y, Y, Y, K, k, B, B, B, K, K, K, K, P, P, P, P, K, K, Y, Y, Y, Y, K, K, K, O, F, O],
+    [O, F, O, K, K, K, K, K, K, B, B, B, K, K, K, N, K, K, K, K, K, K, K, K, K, K, n, K, K, O, F, O],
+    [O, F, O, K, K, k, K, K, K, K, K, K, K, K, K, K, K, K, K, k, K, K, K, K, K, K, K, K, K, O, F, O],
+    [O, F, O, K, K, K, K, k, K, K, K, K, K, k, K, K, K, K, K, K, K, K, K, k, K, K, K, K, K, O, F, O],
+    [O, F, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, D, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [_, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, _],
+  ]
+})()
+
+/** Wall neon: 32x16 (2 tiles wide, 1 tile tall) — a glowing cyan neon sign on
+ *  a dark backing plate (a simple soundwave / "~" shape with a warm dot).
+ *  Mounted on the wall (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_NEON_SPRITE: SpriteData = (() => {
+  const O = '#0d1418' // dark outline / plate edge
+  const P = '#16232b' // backing plate
+  const p = '#1d2f39' // plate sheen
+  const C = '#39e0e6' // neon core (cyan)
+  const G = '#1d8f96' // neon glow (dim cyan)
+  const A = '#ffd36b' // warm accent dot (core)
+  const a = '#9a7a2e' // warm accent glow
+  const U = '#05090b' // cast under-shadow
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, O],
+    [O, P, P, P, P, P, p, p, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, p, p, P, P, P, P, O],
+    [O, P, P, P, P, G, C, C, G, P, P, P, P, P, P, P, P, P, P, P, P, G, C, C, G, P, P, P, P, P, P, O],
+    [O, P, P, P, G, C, C, C, C, G, P, P, P, P, P, G, G, P, P, P, G, C, C, C, C, G, P, P, P, P, P, O],
+    [O, P, P, P, P, G, C, C, G, P, G, P, P, P, G, C, C, G, P, G, C, C, G, P, G, P, P, P, a, A, a, O],
+    [O, P, P, P, P, P, P, P, P, G, C, G, P, G, C, C, C, C, G, C, C, G, P, P, P, P, P, P, a, A, a, O],
+    [O, P, P, P, P, P, P, P, P, P, G, C, G, C, C, G, G, C, C, C, G, P, P, P, P, P, P, P, P, a, P, O],
+    [O, P, P, P, P, P, P, P, P, P, P, G, C, C, G, P, P, G, C, G, P, P, P, P, P, P, P, P, P, P, P, O],
+    [O, P, P, P, P, P, P, P, P, P, P, P, G, G, P, P, P, P, G, P, P, P, P, P, P, P, P, P, P, P, P, O],
+    [O, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, O],
+    [O, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, P, O],
+    [O, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, p, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [_, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, _],
+  ]
+})()
+
+/** Wall plant: 16x16 (1x1) — a wall-mounted pot with trailing ivy leaves.
+ *  Mounted on the wall (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_PLANT_SPRITE: SpriteData = (() => {
+  const O = '#23150b' // dark outline
+  const R = '#7e3c1f' // terracotta pot
+  const r = '#9c5230' // pot highlight
+  const M = '#5a3318' // pot shadow / mount bracket
+  const G = '#4f8a44' // leaf (mid green)
+  const g = '#3a6f34' // leaf (dark green)
+  const H = '#67ad58' // leaf highlight
+  return [
+    [_, _, _, _, _, _, O, O, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, O, G, G, O, _, _, O, O, _, _, _],
+    [_, _, _, O, O, G, H, G, G, O, O, g, G, O, _, _],
+    [_, _, O, G, G, G, G, g, G, G, G, G, g, O, _, _],
+    [_, O, g, G, H, G, O, O, O, G, g, G, G, O, _, _],
+    [_, O, G, g, G, O, R, R, R, O, G, H, g, O, _, _],
+    [_, _, O, O, O, R, r, r, r, R, O, O, O, _, _, _],
+    [_, _, _, _, O, R, r, R, r, R, O, _, _, _, _, _],
+    [_, _, _, _, O, R, R, r, R, R, O, _, _, _, _, _],
+    [_, _, _, _, O, M, R, R, R, M, O, _, _, _, _, _],
+    [_, _, _, _, _, O, M, M, M, O, _, _, _, _, _, _],
+    [_, _, _, _, _, _, O, O, O, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Wall TV: 32x16 (2 tiles wide, 1 tile tall) — a mounted flatscreen with a
+ *  dark bezel and a faint, slightly-lit screen. Front-facing, mounted on the
+ *  wall (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_TV_SPRITE: SpriteData = (() => {
+  const O = '#0a0c10' // outer bezel edge / outline
+  const B = '#1a1d24' // bezel
+  const b = '#2a2e38' // bezel highlight
+  const S = '#243440' // screen (faint, dark)
+  const s = '#2e4654' // screen sheen (slightly lit)
+  const G = '#39566a' // screen glint
+  const M = '#16181d' // wall mount shadow
+  const U = '#05070a' // cast under-shadow
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _, _, _],
+    [_, _, O, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, O, _, _, _],
+    [_, _, O, B, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, B, O, _, _, _],
+    [_, _, O, B, O, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, O, B, O, _, _, _],
+    [_, _, O, B, O, S, s, s, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, O, B, O, _, _, _],
+    [_, _, O, B, O, S, s, s, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, O, B, O, _, _, _],
+    [_, _, O, B, O, S, S, S, S, S, S, S, S, S, G, S, S, S, S, S, S, S, S, S, S, S, O, B, O, _, _, _],
+    [_, _, O, B, O, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, O, B, O, _, _, _],
+    [_, _, O, B, O, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, S, O, B, O, _, _, _],
+    [_, _, O, B, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, B, O, _, _, _],
+    [_, _, O, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, O, _, _, _],
+    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, M, M, M, M, M, M, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, M, M, M, M, M, M, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, U, _, _, _, _, _, _],
+  ]
+})()
+
+/** Wall mirror: 16x32 (1 tile wide, 2 tiles tall) — a framed mirror with a
+ *  light reflective fill, a soft diagonal sheen, and a warm wood frame.
+ *  Mounted high on the wall (canPlaceOnWalls, backgroundTiles == footprintH). */
+export const WALL_MIRROR_SPRITE: SpriteData = (() => {
+  const O = '#23150b' // dark outline
+  const F = '#9a6422' // frame wood
+  const L = '#b57a26' // frame highlight
+  const D = '#6f4518' // frame shadow
+  const R = '#aebfc9' // mirror glass (cool grey-blue)
+  const r = '#9aabb6' // mirror glass shadow
+  const H = '#dfe9ef' // sheen highlight
+  const U = '#1c1208' // cast under-shadow
+  return [
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _],
+    [_, O, L, L, L, L, L, L, L, L, L, L, L, L, O, _],
+    [_, O, F, O, O, O, O, O, O, O, O, O, O, F, O, _],
+    [_, O, F, O, R, R, R, R, R, H, R, R, O, F, O, _],
+    [_, O, F, O, R, R, R, R, H, H, R, R, O, F, O, _],
+    [_, O, F, O, R, R, R, H, H, R, R, R, O, F, O, _],
+    [_, O, F, O, R, R, H, H, R, R, R, R, O, F, O, _],
+    [_, O, F, O, R, H, H, R, R, R, R, r, O, F, O, _],
+    [_, O, F, O, H, H, R, R, R, R, r, r, O, F, O, _],
+    [_, O, F, O, R, R, R, R, R, r, r, r, O, F, O, _],
+    [_, O, F, O, R, R, R, R, r, r, r, r, O, F, O, _],
+    [_, O, F, O, R, R, R, r, r, r, r, r, O, F, O, _],
+    [_, O, F, O, R, R, r, r, r, r, r, r, O, F, O, _],
+    [_, O, F, O, R, r, r, r, r, r, r, r, O, F, O, _],
+    [_, O, F, O, r, r, r, r, r, r, r, r, O, F, O, _],
+    [_, O, F, O, r, r, r, r, r, r, r, r, O, F, O, _],
+    [_, O, F, O, O, O, O, O, O, O, O, O, O, F, O, _],
+    [_, O, D, D, D, D, D, D, D, D, D, D, D, D, O, _],
+    [_, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _],
+    [_, _, U, U, U, U, U, U, U, U, U, U, U, U, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
 /** Break couch: 32x16 (2 tiles wide, 1 tile tall) — comfy break room sofa */
 export const BREAK_COUCH_SPRITE: SpriteData = [
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],

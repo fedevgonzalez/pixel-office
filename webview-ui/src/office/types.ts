@@ -131,6 +131,13 @@ export const FurnitureType = {
   COUNTER_2X1: 'counter_2x1',
   WALL_SHELF: 'wall_shelf',
   WALL_CABINET: 'wall_cabinet',
+  WALL_ART: 'wall_art',
+  WALL_WINDOW: 'wall_window',
+  WALL_CORKBOARD: 'wall_corkboard',
+  WALL_NEON: 'wall_neon',
+  WALL_PLANT: 'wall_plant',
+  WALL_TV: 'wall_tv',
+  WALL_MIRROR: 'wall_mirror',
 } as const
 export type FurnitureType = (typeof FurnitureType)[keyof typeof FurnitureType]
 

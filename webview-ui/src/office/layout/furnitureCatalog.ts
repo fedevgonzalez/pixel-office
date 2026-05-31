@@ -18,6 +18,13 @@ import {
   COUNTER_2X1_SPRITE,
   WALL_SHELF_SPRITE,
   WALL_CABINET_SPRITE,
+  WALL_ART_SPRITE,
+  WALL_WINDOW_SPRITE,
+  WALL_CORKBOARD_SPRITE,
+  WALL_NEON_SPRITE,
+  WALL_PLANT_SPRITE,
+  WALL_TV_SPRITE,
+  WALL_MIRROR_SPRITE,
 } from '../sprites/spriteData.js'
 
 export interface LoadedAssetData {
@@ -68,6 +75,13 @@ export const FURNITURE_CATALOG: CatalogEntryWithCategory[] = [
   // ── Wall-mounted furniture (front-facing, hangs on wall tiles) ──
   { type: FurnitureType.WALL_SHELF,   label: 'Wall Shelf',   footprintW: 2, footprintH: 1, sprite: WALL_SHELF_SPRITE,   isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
   { type: FurnitureType.WALL_CABINET, label: 'Wall Cabinet', footprintW: 1, footprintH: 1, sprite: WALL_CABINET_SPRITE, isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
+  { type: FurnitureType.WALL_ART,       label: 'Wall Art',       footprintW: 1, footprintH: 1, sprite: WALL_ART_SPRITE,       isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
+  { type: FurnitureType.WALL_WINDOW,    label: 'Window',         footprintW: 1, footprintH: 2, sprite: WALL_WINDOW_SPRITE,    isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 2 },
+  { type: FurnitureType.WALL_CORKBOARD, label: 'Corkboard',      footprintW: 2, footprintH: 1, sprite: WALL_CORKBOARD_SPRITE, isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
+  { type: FurnitureType.WALL_NEON,      label: 'Neon Sign',      footprintW: 2, footprintH: 1, sprite: WALL_NEON_SPRITE,      isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
+  { type: FurnitureType.WALL_PLANT,     label: 'Wall Plant',     footprintW: 1, footprintH: 1, sprite: WALL_PLANT_SPRITE,     isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
+  { type: FurnitureType.WALL_TV,        label: 'Wall TV',        footprintW: 2, footprintH: 1, sprite: WALL_TV_SPRITE,        isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
+  { type: FurnitureType.WALL_MIRROR,    label: 'Mirror',         footprintW: 1, footprintH: 2, sprite: WALL_MIRROR_SPRITE,    isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 2 },
 
 ]
 
