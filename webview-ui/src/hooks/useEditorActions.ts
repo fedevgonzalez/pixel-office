@@ -4,9 +4,9 @@ import type { EditorState } from '../office/editor/editorState.js'
 import { EditTool, ZoneType } from '../office/types.js'
 import { TileType } from '../office/types.js'
 import type { OfficeLayout, EditTool as EditToolType, TileType as TileTypeVal, FloorColor, PlacedFurniture } from '../office/types.js'
-import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout } from '../office/editor/editorActions.js'
+import { paintTile, placeFurniture, removeFurniture, moveFurniture, rotateFurniture, toggleFurnitureState, canPlaceFurniture, getWallPlacementRow, expandLayout, resizeLayout } from '../office/editor/editorActions.js'
 import { getActiveFloorThemeId } from '../office/floorTiles.js'
-import type { ExpandDirection } from '../office/editor/editorActions.js'
+import type { ExpandDirection, ResizeDeltas } from '../office/editor/editorActions.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../office/layout/furnitureCatalog.js'
 import { defaultZoom } from '../office/toolUtils.js'
 import { ws } from '../wsClient.js'
@@ -39,6 +39,12 @@ export interface EditorActions {
   handleEditorEraseAction: (col: number, row: number) => void
   handleEditorSelectionChange: () => void
   handleDragMove: (uid: string, newCol: number, newRow: number) => void
+  /** Resize the map by ±1 row/col at one edge. Auto-fills new exterior margin
+   *  with the current theme preset on expand; refuses (sets resizeMessage) on a
+   *  shrink that would clip furniture/pets. */
+  handleResizeEdge: (edge: 'top' | 'bottom' | 'left' | 'right', delta: 1 | -1) => void
+  /** Transient message from the last resize attempt (e.g. shrink refusal). */
+  resizeMessage: string | null
 }
 
 export function useEditorActions(
@@ -49,6 +55,8 @@ export function useEditorActions(
   const [editorTick, setEditorTick] = useState(0)
   const [isDirty, setIsDirty] = useState(false)
   const [zoom, setZoom] = useState(defaultZoom)
+  const [resizeMessage, setResizeMessage] = useState<string | null>(null)
+  const resizeMsgTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const panRef = useRef({ x: 0, y: 0 })
   const lastSavedLayoutRef = useRef<OfficeLayout | null>(null)
@@ -323,6 +331,37 @@ export function useEditorActions(
     }
   }, [getOfficeState, applyEdit])
 
+  // Briefly surface a resize message (e.g. shrink refusal), auto-clearing.
+  const flashResizeMessage = useCallback((msg: string | null) => {
+    if (resizeMsgTimerRef.current) clearTimeout(resizeMsgTimerRef.current)
+    setResizeMessage(msg)
+    if (msg) {
+      resizeMsgTimerRef.current = setTimeout(() => setResizeMessage(null), 3500)
+    }
+  }, [])
+
+  const handleResizeEdge = useCallback((edge: 'top' | 'bottom' | 'left' | 'right', delta: 1 | -1) => {
+    const os = getOfficeState()
+    const layout = os.getLayout()
+    const deltas: ResizeDeltas = { top: 0, bottom: 0, left: 0, right: 0 }
+    deltas[edge] = delta
+    const result = resizeLayout(layout, deltas)
+    if (!result.ok) {
+      flashResizeMessage(result.error)
+      return
+    }
+    flashResizeMessage(null)
+    // Single undo entry per resize; rebuild with the shift so characters/pets
+    // re-anchor, then persist (matches the ghost-border expansion flow).
+    editorState.pushUndo(layout)
+    editorState.clearRedo()
+    editorState.isDirty = true
+    setIsDirty(true)
+    os.rebuildFromLayout(result.layout, result.shift)
+    saveLayout(result.layout)
+    setEditorTick((n) => n + 1)
+  }, [getOfficeState, editorState, saveLayout, flashResizeMessage])
+
   /**
    * Expand layout if click is on a ghost border tile (outside current bounds).
    * Returns the expanded layout and adjusted col/row, or null if no expansion needed.
@@ -564,5 +603,7 @@ export function useEditorActions(
     handleEditorEraseAction,
     handleEditorSelectionChange,
     handleDragMove,
+    handleResizeEdge,
+    resizeMessage,
   }
 }

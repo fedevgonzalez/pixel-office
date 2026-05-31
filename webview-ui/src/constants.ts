@@ -14,6 +14,9 @@ export const DEFAULT_ROWS = 11
 // undo depth (UNDO_STACK_MAX_SIZE) and consider RLE later if perf needs it.
 export const MAX_COLS = 96
 export const MAX_ROWS = 96
+// Pixel size of an exterior/outdoor tile swatch in the editor toolbar palette
+// (A3). Square; the underlying 16px-native sprite is nearest-upscaled to fit.
+export const EDITOR_OUTDOOR_SWATCH_SIZE = 44
 
 // ── Character Animation ─────────────────────────────────────
 // Speeds are world pixels per second. Original 48 was 3 old-tiles/sec at

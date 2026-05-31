@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { EditTool } from '../types.js'
+import { EditTool, TileType } from '../types.js'
 import type { TileType as TileTypeVal, FloorColor } from '../types.js'
 import { getCatalogByCategory, buildDynamicCatalog, getActiveCategories, FURNITURE_CATEGORIES } from '../layout/furnitureCatalog.js'
 import type { FurnitureCategory, LoadedAssetData } from '../layout/furnitureCatalog.js'
+import { isExteriorTile } from '../layout/tileKinds.js'
+import { getExteriorTileSprite } from '../backgrounds/exteriorTiles.js'
+import { EDITOR_OUTDOOR_SWATCH_SIZE } from '../../constants.js'
 
 const EDITOR_CATEGORY_STORAGE_KEY = 'pixel-office:editor:activeCategory'
 import { getCachedSprite } from '../sprites/spriteCache.js'
@@ -64,6 +67,13 @@ interface EditorToolbarProps {
   onSelectedFurnitureColorChange: (color: FloorColor | null) => void
   onFurnitureTypeChange: (type: string) => void
   loadedAssets?: LoadedAssetData
+  /** Current map dimensions (shown next to the resize controls). */
+  cols: number
+  rows: number
+  /** Resize the map by ±1 row/col at the given edge. */
+  onResizeEdge: (edge: 'top' | 'bottom' | 'left' | 'right', delta: 1 | -1) => void
+  /** Transient resize message (e.g. a shrink-refused warning). */
+  resizeMessage: string | null
 }
 
 const FLOOR_PREVIEW_SIZE = 56
@@ -137,6 +147,94 @@ function FloorPatternPreview({ patternIndex, color, themeId, selected, onClick }
         color: selected ? 'var(--pixel-accent)' : 'var(--pixel-text-dim)',
         background: 'rgba(0,0,0,0.4)',
       }}>{patternIndex}</span>
+    </button>
+  )
+}
+
+/** Paintable exterior (outdoor) tile types, in palette order. Each reuses the
+ *  same sprite the renderer draws (`getExteriorTileSprite`), so the swatch
+ *  matches what lands on the grid. WATER/FENCE are non-walkable (furniture can't
+ *  be placed on them); the rest are ground cover. */
+const OUTDOOR_TILES: Array<{ type: TileTypeVal; label: string }> = [
+  { type: TileType.GRASS, label: 'Grass' },
+  { type: TileType.GRASS_ALT, label: 'Grass 2' },
+  { type: TileType.PATH, label: 'Path' },
+  { type: TileType.SIDEWALK, label: 'Sidewalk' },
+  { type: TileType.ROAD, label: 'Road' },
+  { type: TileType.ROAD_LINE, label: 'Road line' },
+  { type: TileType.CURB, label: 'Curb' },
+  { type: TileType.DIRT, label: 'Dirt' },
+  { type: TileType.WATER, label: 'Water' },
+  { type: TileType.FENCE, label: 'Fence' },
+]
+
+/** Small sprite swatch for an outdoor tile type. Renders the exterior sprite via
+ *  `getExteriorTileSprite` (nearest-upscaled, never deformed). */
+function OutdoorTilePreview({ tileType, label, selected, onClick }: {
+  tileType: TileTypeVal
+  label: string
+  selected: boolean
+  onClick: () => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    canvas.width = EDITOR_OUTDOOR_SWATCH_SIZE
+    canvas.height = EDITOR_OUTDOOR_SWATCH_SIZE
+    ctx.imageSmoothingEnabled = false
+    ctx.clearRect(0, 0, EDITOR_OUTDOOR_SWATCH_SIZE, EDITOR_OUTDOOR_SWATCH_SIZE)
+    // FENCE has transparent gaps — draw a grass backdrop so it reads as a fence
+    // over grass (matching the in-game look) instead of floating pickets.
+    if (tileType === TileType.FENCE) {
+      const grass = getExteriorTileSprite(TileType.GRASS, 0, 0)
+      if (grass) {
+        const gz = Math.max(1, Math.round(EDITOR_OUTDOOR_SWATCH_SIZE / grass[0].length))
+        ctx.drawImage(getCachedSprite(grass, gz), 0, 0)
+      }
+    }
+    const sprite = getExteriorTileSprite(tileType, 0, 0)
+    if (!sprite) return
+    const srcSize = sprite.length > 0 ? sprite[0].length : 16
+    const zoom = Math.max(1, Math.round(EDITOR_OUTDOOR_SWATCH_SIZE / srcSize))
+    const cached = getCachedSprite(sprite, zoom)
+    const dx = Math.floor((EDITOR_OUTDOOR_SWATCH_SIZE - cached.width) / 2)
+    const dy = Math.floor((EDITOR_OUTDOOR_SWATCH_SIZE - cached.height) / 2)
+    ctx.drawImage(cached, dx, dy)
+  }, [tileType])
+
+  return (
+    <button
+      onClick={onClick}
+      title={label}
+      style={{
+        width: EDITOR_OUTDOOR_SWATCH_SIZE,
+        height: EDITOR_OUTDOOR_SWATCH_SIZE + 16,
+        padding: 0,
+        border: selected ? '2px solid var(--pixel-accent)' : '2px solid var(--pixel-border)',
+        borderRadius: 0,
+        cursor: 'pointer',
+        overflow: 'hidden',
+        flexShrink: 0,
+        background: 'var(--pixel-btn-bg)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'stretch',
+      }}
+    >
+      <canvas ref={canvasRef} style={{ width: EDITOR_OUTDOOR_SWATCH_SIZE, height: EDITOR_OUTDOOR_SWATCH_SIZE, display: 'block' }} />
+      <span style={{
+        fontSize: 11,
+        lineHeight: '16px',
+        textAlign: 'center',
+        color: selected ? 'var(--pixel-accent)' : 'var(--pixel-text-dim)',
+        background: 'rgba(0,0,0,0.4)',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      }}>{label}</span>
     </button>
   )
 }
@@ -326,6 +424,10 @@ export function EditorToolbar({
   onSelectedFurnitureColorChange,
   onFurnitureTypeChange,
   loadedAssets,
+  cols,
+  rows,
+  onResizeEdge,
+  resizeMessage,
 }: EditorToolbarProps) {
   // Persist the last-selected furniture category across editor open/close
   // cycles. Falls back to 'desks' if nothing is stored or the stored value
@@ -396,7 +498,13 @@ export function EditorToolbar({
 
   const thumbSize = 36 // 2x for items
 
-  const isFloorActive = activeTool === EditTool.TILE_PAINT || activeTool === EditTool.EYEDROPPER
+  // TILE_PAINT drives both the interior floor palette and the outdoor palette —
+  // they differ only by which TileType is selected. Split the sub-panels on the
+  // selected type so each shows its own swatches.
+  const tilePaintActive = activeTool === EditTool.TILE_PAINT || activeTool === EditTool.EYEDROPPER
+  const outdoorSelected = isExteriorTile(selectedTileType)
+  const isFloorActive = tilePaintActive && !outdoorSelected
+  const isOutdoorActive = tilePaintActive && outdoorSelected
   const isWallActive = activeTool === EditTool.WALL_PAINT
   const isEraseActive = activeTool === EditTool.ERASE
   const isFurnitureActive = activeTool === EditTool.FURNITURE_PLACE || activeTool === EditTool.FURNITURE_PICK
@@ -424,10 +532,33 @@ export function EditorToolbar({
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
         <button
           style={isFloorActive ? activeBtnStyle : btnStyle}
-          onClick={() => onToolChange(EditTool.TILE_PAINT)}
+          onClick={() => {
+            // If an exterior tile is selected, switch the selection back to an
+            // interior floor so the Floor sub-panel (not the Outdoor one) shows.
+            // When already on Outdoor (also TILE_PAINT) just swap the selected
+            // type — don't re-toggle the tool (that would drop to SELECT).
+            if (outdoorSelected) {
+              onTileTypeChange(TileType.FLOOR_1)
+              if (activeTool !== EditTool.TILE_PAINT) onToolChange(EditTool.TILE_PAINT)
+            } else {
+              onToolChange(EditTool.TILE_PAINT)
+            }
+          }}
           title="Paint floor tiles"
         >
           Floor
+        </button>
+        <button
+          style={isOutdoorActive ? activeBtnStyle : btnStyle}
+          onClick={() => {
+            // Selecting Outdoor picks an exterior tile (defaulting to Grass) so
+            // the outdoor palette opens; painting reuses the TILE_PAINT flow.
+            if (!outdoorSelected) onTileTypeChange(TileType.GRASS)
+            if (activeTool !== EditTool.TILE_PAINT) onToolChange(EditTool.TILE_PAINT)
+          }}
+          title="Paint outdoor / exterior tiles (grass, path, road…)"
+        >
+          Outdoor
         </button>
         <button
           style={isWallActive ? activeBtnStyle : btnStyle}
@@ -543,6 +674,64 @@ export function EditorToolbar({
               </select>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Sub-panel: Outdoor / exterior tiles */}
+      {isOutdoorActive && (
+        <div style={{ display: 'flex', flexDirection: 'column-reverse', gap: 6 }}>
+          {/* Color toggle + Pick — just above tool row (shared with Floor) */}
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <button
+              style={showColor ? activeBtnStyle : btnStyle}
+              onClick={() => setShowColor((v) => !v)}
+              title="Adjust outdoor tile color"
+            >
+              Color
+            </button>
+            <button
+              style={activeTool === EditTool.EYEDROPPER ? activeBtnStyle : btnStyle}
+              onClick={() => onToolChange(EditTool.EYEDROPPER)}
+              title="Pick tile + color from existing tile"
+            >
+              Pick
+            </button>
+          </div>
+
+          {/* Color controls (collapsible) — reuse floorColor as the paint color */}
+          {showColor && (
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 3,
+              padding: '4px 6px',
+              background: 'var(--pixel-surface)',
+              border: '2px solid var(--pixel-border)',
+              borderRadius: 0,
+            }}>
+              <HueSatPad
+                h={floorColor.h}
+                s={floorColor.s}
+                mode="colorize"
+                onChange={(h, s) => onFloorColorChange({ ...floorColor, h, s })}
+              />
+              <ColorSlider label="B" value={floorColor.b} min={-100} max={100} onChange={(v) => handleColorChange('b', v)} />
+              <ColorSlider label="C" value={floorColor.c} min={-100} max={100} onChange={(v) => handleColorChange('c', v)} />
+            </div>
+          )}
+
+          {/* Exterior tile swatches — horizontal carousel */}
+          <div style={{ display: 'flex', gap: 4, overflowX: 'auto', flexWrap: 'nowrap', paddingBottom: 2 }}>
+            {OUTDOOR_TILES.map(({ type, label }) => (
+              <OutdoorTilePreview
+                key={type}
+                tileType={type}
+                label={label}
+                selected={selectedTileType === type}
+                onClick={() => onTileTypeChange(type)}
+              />
+            ))}
+          </div>
         </div>
       )}
 
@@ -713,6 +902,68 @@ export function EditorToolbar({
               </label>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Resize controls — per-edge +/− (always visible in edit mode). Appears at
+          the top of the toolbar (container is column-reverse). Expanding an edge
+          auto-fills the new margin with the current theme preset. */}
+      <ResizePanel cols={cols} rows={rows} onResizeEdge={onResizeEdge} resizeMessage={resizeMessage} />
+    </div>
+  )
+}
+
+/** Per-edge resize controls: 4 edges × (+/−), with the live cols×rows readout
+ *  and any transient refusal message. Wired to the layout-resize action. */
+function ResizePanel({ cols, rows, onResizeEdge, resizeMessage }: {
+  cols: number
+  rows: number
+  onResizeEdge: (edge: 'top' | 'bottom' | 'left' | 'right', delta: 1 | -1) => void
+  resizeMessage: string | null
+}) {
+  const edgeRow = (edge: 'top' | 'bottom' | 'left' | 'right', label: string) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+      <span style={{ fontSize: 16, color: 'var(--pixel-text-dim)', width: 54, flexShrink: 0 }}>{label}</span>
+      <button
+        style={{ ...btnStyle, fontSize: '18px', padding: '1px 8px' }}
+        onClick={() => onResizeEdge(edge, -1)}
+        title={`Remove a ${edge === 'left' || edge === 'right' ? 'column' : 'row'} from the ${edge}`}
+        aria-label={`Shrink ${edge}`}
+      >
+        −
+      </button>
+      <button
+        style={{ ...btnStyle, fontSize: '18px', padding: '1px 8px' }}
+        onClick={() => onResizeEdge(edge, 1)}
+        title={`Add a ${edge === 'left' || edge === 'right' ? 'column' : 'row'} at the ${edge} (auto-filled with the theme exterior)`}
+        aria-label={`Expand ${edge}`}
+      >
+        +
+      </button>
+    </div>
+  )
+
+  return (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 3,
+      padding: '4px 6px',
+      background: 'var(--pixel-surface)',
+      border: '2px solid var(--pixel-border)',
+      borderRadius: 0,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 16, color: 'var(--pixel-text)' }}>
+        <span style={{ fontWeight: 'bold' }}>Map size</span>
+        <span style={{ color: 'var(--pixel-text-dim)' }}>{cols}×{rows}</span>
+      </div>
+      {edgeRow('top', 'Top')}
+      {edgeRow('bottom', 'Bottom')}
+      {edgeRow('left', 'Left')}
+      {edgeRow('right', 'Right')}
+      {resizeMessage && (
+        <div style={{ fontSize: 14, color: 'var(--pixel-reset-text)', maxWidth: 240, lineHeight: '16px' }}>
+          {resizeMessage}
         </div>
       )}
     </div>

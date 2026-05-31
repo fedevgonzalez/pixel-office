@@ -401,8 +401,9 @@ function App() {
       {!isKioskMode && editor.isEditMode && (() => {
         // Compute selected furniture color from current layout
         const selUid = editorState.selectedFurnitureUid
+        const layout = officeState.getLayout()
         const selColor = selUid
-          ? officeState.getLayout().furniture.find((f) => f.uid === selUid)?.color ?? null
+          ? layout.furniture.find((f) => f.uid === selUid)?.color ?? null
           : null
         return (
           <EditorToolbar
@@ -420,6 +421,10 @@ function App() {
             onSelectedFurnitureColorChange={editor.handleSelectedFurnitureColorChange}
             onFurnitureTypeChange={editor.handleFurnitureTypeChange}
             loadedAssets={loadedAssets}
+            cols={layout.cols}
+            rows={layout.rows}
+            onResizeEdge={editor.handleResizeEdge}
+            resizeMessage={editor.resizeMessage}
           />
         )
       })()}

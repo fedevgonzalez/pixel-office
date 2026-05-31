@@ -1,6 +1,6 @@
-import { TileType, MAX_COLS, MAX_ROWS } from '../types.js'
+import { TileType, MAX_COLS, MAX_ROWS, WorldBackgroundTheme } from '../types.js'
 import { DEFAULT_NEUTRAL_COLOR } from '../../constants.js'
-import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal, WorldBackgroundTheme } from '../types.js'
+import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, FloorColor, ZoneType as ZoneTypeVal, WorldBackgroundTheme as WorldBackgroundThemeVal } from '../types.js'
 import { getCatalogEntry, getRotatedType, getToggledType } from '../layout/furnitureCatalog.js'
 import { getPlacementBlockedTiles } from '../layout/layoutSerializer.js'
 import { getThemeConfig, getZoneTileType } from '../backgrounds/backgroundThemes.js'
@@ -242,6 +242,167 @@ export function expandLayout(
   }
 }
 
+/** Per-edge tile deltas for a resize. Positive = add tiles (expand), negative
+ *  = remove tiles (shrink). Each edge is independent. */
+export interface ResizeDeltas {
+  top: number
+  bottom: number
+  left: number
+  right: number
+}
+
+/** Result of a resize: the new layout + the coordinate shift applied to
+ *  existing cells (so callers can re-anchor characters/ghosts), OR an error
+ *  string explaining why the resize was refused (clip / max-size). */
+export type ResizeResult =
+  | { ok: true; layout: OfficeLayout; shift: { col: number; row: number } }
+  | { ok: false; error: string }
+
+/**
+ * General per-edge resize. Reallocates EVERY parallel array (tiles, tileColors,
+ * tileThemes, zones, and movementBoundary.character/pet if present) to the new
+ * cols×rows, preserving existing cells at their shifted positions. Furniture and
+ * pets are shifted by the same offset.
+ *
+ * - EXPAND (positive deltas): new margin cells start VOID, then are AUTO-FILLED
+ *   with the current theme's preset ring (via getZoneTileType / the same band
+ *   logic applyThemePreset uses) so the user instantly gets a themed exterior to
+ *   edit. If the layout has no theme config (e.g. 'void'), new cells stay VOID.
+ * - SHRINK (negative deltas): REFUSED with an error if removing those rows/cols
+ *   would clip any furniture footprint or any pet (the caller surfaces the
+ *   message). Otherwise the clipped band is dropped.
+ *
+ * Clamped to MAX_COLS/MAX_ROWS (96) and a 1×1 minimum. Single immutable result;
+ * the caller wraps it in one undo entry. Always passes validateLayout (all
+ * parallel arrays === newCols*newRows).
+ */
+export function resizeLayout(layout: OfficeLayout, deltas: ResizeDeltas): ResizeResult {
+  const { top, bottom, left, right } = deltas
+  if (top === 0 && bottom === 0 && left === 0 && right === 0) {
+    return { ok: true, layout, shift: { col: 0, row: 0 } }
+  }
+
+  const { cols, rows } = layout
+  const newCols = cols + left + right
+  const newRows = rows + top + bottom
+
+  if (newCols < 1 || newRows < 1) {
+    return { ok: false, error: 'Map must stay at least 1×1.' }
+  }
+  if (newCols > MAX_COLS || newRows > MAX_ROWS) {
+    return { ok: false, error: `Max map size is ${MAX_COLS}×${MAX_ROWS}.` }
+  }
+
+  // Existing cell (oc, or) maps to new cell (oc + shiftCol, or + shiftRow).
+  // A positive `left`/`top` shifts existing content right/down; a negative one
+  // (shrink) shifts it up/left and clips the removed band.
+  const shiftCol = left
+  const shiftRow = top
+
+  // ── Shrink clip-check: refuse if any furniture footprint or pet would fall
+  //    outside the new bounds after the shift. We check BEFORE allocating.
+  const wouldClip: string[] = []
+  for (const f of layout.furniture) {
+    const entry = getCatalogEntry(f.type)
+    const fw = entry?.footprintW ?? 1
+    const fh = entry?.footprintH ?? 1
+    const nc = f.col + shiftCol
+    const nr = f.row + shiftRow
+    // Wall items may legally hang above the top edge (negative rows), like in
+    // canPlaceFurniture — only their bottom row must stay in-bounds vertically.
+    const topRowMustBeIn = !entry?.canPlaceOnWalls
+    if (nc < 0 || nc + fw > newCols || (topRowMustBeIn && nr < 0) || nr + fh > newRows) {
+      wouldClip.push(entry?.label ?? f.type)
+    }
+  }
+  if (wouldClip.length > 0) {
+    const uniq = Array.from(new Set(wouldClip)).slice(0, 3).join(', ')
+    return { ok: false, error: `Shrink would clip furniture (${uniq}${wouldClip.length > 3 ? '…' : ''}). Move it first.` }
+  }
+  const pets = layout.pets ?? []
+  const petClips = pets.some((p) => {
+    const nc = p.col + shiftCol
+    const nr = p.row + shiftRow
+    return nc < 0 || nc >= newCols || nr < 0 || nr >= newRows
+  })
+  if (petClips) {
+    return { ok: false, error: 'Shrink would clip a pet. Move it first.' }
+  }
+
+  const existingColors = layout.tileColors || new Array(layout.tiles.length).fill(null)
+  const existingThemes = layout.tileThemes || new Array(layout.tiles.length).fill(null)
+  const existingZones = layout.zones || new Array(layout.tiles.length).fill(null)
+  const charMask = layout.movementBoundary?.character
+  const petMask = layout.movementBoundary?.pet
+
+  const n = newCols * newRows
+  const newTiles: TileTypeVal[] = new Array(n).fill(TileType.VOID as TileTypeVal)
+  const newColors: Array<FloorColor | null> = new Array(n).fill(null)
+  const newThemes: Array<string | null> = new Array(n).fill(null)
+  const newZones: Array<ZoneTypeVal | null> = new Array(n).fill(null)
+  const newChar: Array<boolean | null> | null = charMask ? new Array(n).fill(null) : null
+  const newPet: Array<boolean | null> | null = petMask ? new Array(n).fill(null) : null
+
+  // Copy existing cells that survive the shift into their new positions.
+  for (let r = 0; r < rows; r++) {
+    const nr = r + shiftRow
+    if (nr < 0 || nr >= newRows) continue
+    for (let c = 0; c < cols; c++) {
+      const nc = c + shiftCol
+      if (nc < 0 || nc >= newCols) continue
+      const oldIdx = r * cols + c
+      const newIdx = nr * newCols + nc
+      newTiles[newIdx] = layout.tiles[oldIdx]
+      newColors[newIdx] = existingColors[oldIdx]
+      newThemes[newIdx] = existingThemes[oldIdx]
+      newZones[newIdx] = existingZones[oldIdx]
+      if (newChar && charMask) newChar[newIdx] = charMask[oldIdx] ?? null
+      if (newPet && petMask) newPet[newIdx] = petMask[oldIdx] ?? null
+    }
+  }
+
+  // Shift furniture + pets by the same offset.
+  const newFurniture: PlacedFurniture[] = layout.furniture.map((f) => ({
+    ...f,
+    col: f.col + shiftCol,
+    row: f.row + shiftRow,
+  }))
+  const newPets = pets.length > 0
+    ? pets.map((p) => ({ ...p, col: p.col + shiftCol, row: p.row + shiftRow }))
+    : layout.pets
+
+  let next: OfficeLayout = {
+    ...layout,
+    cols: newCols,
+    rows: newRows,
+    tiles: newTiles,
+    tileColors: newColors,
+    tileThemes: newThemes,
+    zones: newZones,
+    furniture: newFurniture,
+    ...(newPets ? { pets: newPets } : {}),
+  }
+  if (newChar || newPet) {
+    next.movementBoundary = {
+      ...layout.movementBoundary,
+      ...(newChar ? { character: newChar } : {}),
+      ...(newPet ? { pet: newPet } : {}),
+    }
+  }
+
+  // On EXPAND, auto-fill the newly-added margin (still VOID) with the current
+  // theme's preset ring so the user gets a themed exterior immediately. This is
+  // fill-empty-only by construction (only the new VOID margin gets touched —
+  // surviving cells were copied above and the rest of the grid is unchanged
+  // interior), and reuses the exact same band logic as applyThemePreset.
+  const expanding = left > 0 || right > 0 || top > 0 || bottom > 0
+  if (expanding) {
+    next = applyThemePreset(next, next.background?.theme ?? WorldBackgroundTheme.VOID)
+  }
+
+  return { ok: true, layout: next, shift: { col: shiftCol, row: shiftRow } }
+}
+
 /**
  * Bounding box (inclusive) of the interior building region: all non-VOID,
  * non-exterior tiles (WALL + FLOOR_1..7). Falls back to the full grid when the
@@ -285,7 +446,7 @@ function getBuildingBBox(layout: OfficeLayout): { minCol: number; minRow: number
  */
 function fillThemePreset(
   layout: OfficeLayout,
-  themeId: WorldBackgroundTheme,
+  themeId: WorldBackgroundThemeVal,
   overwrite: boolean,
 ): OfficeLayout {
   const config = getThemeConfig(themeId)
@@ -359,7 +520,7 @@ function fillThemePreset(
  * exterior tiles. Single undo entry, idempotent, valid layout. This is what the
  * "pick a theme" UI calls (A3 wires it up).
  */
-export function applyThemePreset(layout: OfficeLayout, themeId: WorldBackgroundTheme): OfficeLayout {
+export function applyThemePreset(layout: OfficeLayout, themeId: WorldBackgroundThemeVal): OfficeLayout {
   return fillThemePreset(layout, themeId, false)
 }
 
@@ -368,6 +529,6 @@ export function applyThemePreset(layout: OfficeLayout, themeId: WorldBackgroundT
  * (overwrite all exterior)" action). Rewrites every exterior tile to the
  * theme's ring; interior tiles are never touched. Single undo entry.
  */
-export function applyThemePresetOverwrite(layout: OfficeLayout, themeId: WorldBackgroundTheme): OfficeLayout {
+export function applyThemePresetOverwrite(layout: OfficeLayout, themeId: WorldBackgroundThemeVal): OfficeLayout {
   return fillThemePreset(layout, themeId, true)
 }
