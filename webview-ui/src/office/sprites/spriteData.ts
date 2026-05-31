@@ -363,6 +363,83 @@ export const LAMP_SPRITE: SpriteData = [
     [_, _, _, _, "#2a2018", "#2a2018", "#2a2018", "#4f4a58", "#4f4a58", "#4f4a58", "#4f4a58", "#4f4a58", "#4f4a58", "#2a2018", "#2a2018", _],
 ]
 
+// ── Wall sconce (day/night) ─────────────────────────────────────
+// A wall-mounted brass lamp: a back-plate + arm bracket, a half-dome shade,
+// and a bulb. Like the desk LAMP it has two states that share the EXACT same
+// silhouette so the day→night swap reads as the SAME fixture turning on; only
+// the bulb fill + the warm spill change. Mounted on a wall tile
+// (canPlaceOnWalls, backgroundTiles == footprintH == 1). 16x16 native.
+//   #2a2018  warm-dark 1px outline (both states)
+//   brass:   #c79a44 hi / #9a7426 mid / #6f521a dark (plate, arm, shade rim)
+//   OFF bulb: #b7b2a4 glass / #8f8a7d glass-shadow (unlit)
+//   ON  bulb: #fff6c2 hot / #fef174 body / #fbd23f rim
+//   ON  spill: #f0c84e warm light pooling below the shade
+
+/** Wall sconce — OFF (day): brass bracket + half-dome shade, unlit glass bulb,
+ *  no glow. 16x16 (1x1). */
+export const WALL_SCONCE_OFF_SPRITE: SpriteData = (() => {
+  const O = '#2a2018' // outline
+  const P = '#9a7426' // brass mid (back-plate / arm)
+  const H = '#c79a44' // brass highlight
+  const D = '#6f521a' // brass shadow
+  const G = '#b7b2a4' // glass bulb (unlit)
+  const g = '#8f8a7d' // glass shadow
+  return [
+    [_, _, _, _, _, _, O, O, O, O, _, _, _, _, _, _],
+    [_, _, _, _, _, O, H, P, P, D, O, _, _, _, _, _],
+    [_, _, _, _, _, O, H, P, P, D, O, _, _, _, _, _],
+    [_, _, _, _, _, _, O, P, D, O, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, O, O, _, _, _, _, _, _, _],
+    [_, _, _, _, O, O, O, P, P, O, O, O, _, _, _, _],
+    [_, _, _, O, H, H, H, H, H, H, H, D, O, _, _, _],
+    [_, _, O, H, P, P, P, P, P, P, P, P, D, O, _, _],
+    [_, _, O, D, D, D, D, D, D, D, D, D, D, O, _, _],
+    [_, _, _, O, O, G, G, G, G, G, G, O, O, _, _, _],
+    [_, _, _, _, O, G, G, g, g, G, G, O, _, _, _, _],
+    [_, _, _, _, _, O, g, g, g, g, O, _, _, _, _, _],
+    [_, _, _, _, _, _, O, g, g, O, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, O, O, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Wall sconce — ON (night): same bracket + shade, warm glowing bulb and a
+ *  soft warm light spill pooling below. 16x16 (1x1). */
+export const WALL_SCONCE_ON_SPRITE: SpriteData = (() => {
+  const O = '#2a2018' // outline
+  const P = '#9a7426' // brass mid (back-plate / arm)
+  const H = '#c79a44' // brass highlight
+  const D = '#6f521a' // brass shadow
+  const W = '#fff6c2' // bulb hot core
+  const B = '#fef174' // bulb body
+  const R = '#fbd23f' // bulb rim
+  const s = '#f0c84e' // warm light spill
+  return [
+    [_, _, _, _, _, _, O, O, O, O, _, _, _, _, _, _],
+    [_, _, _, _, _, O, H, P, P, D, O, _, _, _, _, _],
+    [_, _, _, _, _, O, H, P, P, D, O, _, _, _, _, _],
+    [_, _, _, _, _, _, O, P, D, O, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, O, O, _, _, _, _, _, _, _],
+    [_, _, _, _, O, O, O, P, P, O, O, O, _, _, _, _],
+    [_, _, _, O, H, H, H, H, H, H, H, D, O, _, _, _],
+    [_, _, O, H, P, P, P, P, P, P, P, P, D, O, _, _],
+    [_, _, O, D, D, D, D, D, D, D, D, D, D, O, _, _],
+    [_, _, _, O, O, W, W, B, B, W, W, O, O, _, _, _],
+    [_, _, _, s, O, B, B, R, R, B, B, O, s, _, _, _],
+    [_, _, _, s, s, O, R, R, R, R, O, s, s, _, _, _],
+    [_, _, _, _, s, s, O, R, R, O, s, s, _, _, _, _],
+    [_, _, _, _, _, s, s, O, O, s, s, _, _, _, _, _],
+    [_, _, _, _, _, _, s, s, s, s, _, _, _, _, _, _],
+    [_, _, _, _, _, _, _, s, s, _, _, _, _, _, _, _],
+  ]
+})()
+
+/** Catalog/palette icon for the wall sconce — the glowing ON variant, mirroring
+ *  how the desk LAMP shows its ON sprite in the palette. The serializer swaps to
+ *  WALL_SCONCE_OFF_SPRITE during the day. */
+export const WALL_SCONCE_SPRITE: SpriteData = WALL_SCONCE_ON_SPRITE
+
 // ── Break Room & Misc Furniture Sprites ─────────────────────────
 
 /** Door: 16x32 (1 tile wide, 2 tiles tall) — front-facing office door */
@@ -557,79 +634,89 @@ export const WALL_CABINET_SPRITE: SpriteData = (() => {
 })()
 
 /** Wall art: 16x16 (1x1) — a framed painting, front-facing, mounted on the
- *  wall. Warm oak frame + simple stylised landscape (sky / sun / rolling hill).
- *  Top rows transparent so it reads as hung above the wainscot, like the other
- *  wall items (canPlaceOnWalls, backgroundTiles == footprintH). */
+ *  wall. A chunky double oak frame (reads crisp at 1-tile scale) wrapping a
+ *  stylised landscape: sky band with a sun, then layered rolling hills. Fills
+ *  almost the whole tile so it reads clearly as a hung picture, not a tiny
+ *  prop. Cast under-shadow on the last row so it reads mounted above the floor
+ *  plane (canPlaceOnWalls, backgroundTiles == footprintH). */
 export const WALL_ART_SPRITE: SpriteData = (() => {
   const O = '#23150b' // dark outline / frame edge
   const F = '#9a6422' // frame wood (oak, matches shelf family)
-  const L = '#b57a26' // frame highlight
-  const D = '#6f4518' // frame shadow
+  const L = '#b57a26' // frame highlight (top/left bevel)
+  const D = '#6f4518' // frame shadow (bottom bevel)
   const S = '#8ec3e0' // sky
-  const Y = '#e7c14e' // sun
-  const G = '#5a9a4e' // hill (green)
-  const J = '#3f7a3c' // hill shadow
+  const T = '#a9d6ec' // sky (lighter, near top)
+  const Y = '#f1cf5a' // sun core
+  const y = '#e7c14e' // sun rim
+  const G = '#5a9a4e' // near hill (green)
+  const H = '#6fb35e' // near hill highlight
+  const J = '#3f7a3c' // far hill (darker green)
   const U = '#1c1208' // cast under-shadow
   return [
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, _, _],
-    [_, _, O, L, L, L, L, L, L, L, L, L, L, O, _, _],
-    [_, _, O, F, O, O, O, O, O, O, O, O, F, O, _, _],
-    [_, _, O, F, O, S, S, S, S, Y, Y, O, F, O, _, _],
-    [_, _, O, F, O, S, S, S, S, Y, Y, O, F, O, _, _],
-    [_, _, O, F, O, S, S, S, S, S, S, O, F, O, _, _],
-    [_, _, O, F, O, S, S, G, S, S, S, O, F, O, _, _],
-    [_, _, O, F, O, G, G, G, G, S, S, O, F, O, _, _],
-    [_, _, O, F, O, G, G, G, G, G, G, O, F, O, _, _],
-    [_, _, O, F, O, J, G, J, G, J, G, O, F, O, _, _],
-    [_, _, O, F, O, O, O, O, O, O, O, O, F, O, _, _],
-    [_, _, O, D, D, D, D, D, D, D, D, D, D, O, _, _],
-    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, _, _],
-    [_, _, _, U, U, U, U, U, U, U, U, U, U, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [O, L, L, L, L, L, L, L, L, L, L, L, L, L, F, O],
+    [O, L, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, L, O, T, T, T, T, T, y, Y, T, T, T, O, F, O],
+    [O, L, O, T, T, T, T, T, Y, Y, y, T, S, O, F, O],
+    [O, L, O, S, S, S, S, S, y, Y, S, S, S, O, F, O],
+    [O, L, O, S, S, S, S, S, S, S, S, S, S, O, F, O],
+    [O, L, O, S, S, S, J, J, S, S, S, J, S, O, F, O],
+    [O, L, O, S, J, J, J, J, J, S, J, J, J, O, F, O],
+    [O, L, O, J, J, J, J, J, J, J, J, J, J, O, F, O],
+    [O, L, O, G, H, G, G, G, H, G, G, G, G, O, F, O],
+    [O, L, O, G, G, G, H, G, G, G, G, H, G, O, F, O],
+    [O, L, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, F, D, D, D, D, D, D, D, D, D, D, D, D, D, O],
+    [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
+    [_, U, U, U, U, U, U, U, U, U, U, U, U, U, U, _],
   ]
 })()
 
-/** Wall window: 16x32 (1 tile wide, 2 tiles tall) — daylight window with a
- *  sky / cloud view, a wooden frame + mullion cross, and a sill at the bottom.
- *  Mounted high on the wall; the lower sill row sits at the bottom of the
- *  footprint (canPlaceOnWalls, backgroundTiles == footprintH). */
+/** Wall window: 16x32 (1 tile wide, 2 tiles tall) — a clearly-readable daylight
+ *  window: a chunky oak frame, a bold mullion CROSS splitting the glass into 4
+ *  panes, a sky gradient with a sun and clouds, and a thick sill. The whole
+ *  frame fills the full 2-tile height (rows 0-25) so at normal zoom it reads
+ *  unmistakably as a window mounted on the wall, not a small prop. Cast
+ *  under-shadow on the last used row (canPlaceOnWalls, backgroundTiles == 2). */
 export const WALL_WINDOW_SPRITE: SpriteData = (() => {
-  const O = '#23150b' // dark outline
+  const O = '#23150b' // dark outline / frame edge
   const F = '#9a6422' // frame wood
   const L = '#b57a26' // frame highlight
   const D = '#6f4518' // frame shadow
-  const M = '#7e501c' // mullion bar
-  const S = '#8ec3e0' // sky (upper)
+  const M = '#7e501c' // mullion bar (wood)
+  const m = '#6f4518' // mullion shadow edge
+  const S = '#8ec3e0' // sky (mid)
   const T = '#a9d6ec' // sky (lighter, near top)
   const C = '#eef4f8' // cloud
+  const Y = '#f4d65f' // sun
   const W = '#c98f3c' // sill (light)
   const V = '#7e501c' // sill shadow
+  const U = '#1c1208' // cast under-shadow
   return [
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
-    [O, L, L, L, L, L, L, L, L, L, L, L, L, L, L, O],
-    [O, F, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
-    [O, F, O, T, T, T, O, M, M, O, T, C, C, O, F, O],
-    [O, F, O, T, C, T, O, M, M, O, T, C, C, O, F, O],
-    [O, F, O, S, C, C, O, M, M, O, S, S, S, O, F, O],
-    [O, F, O, S, S, S, O, M, M, O, S, S, S, O, F, O],
-    [O, F, O, M, M, M, M, M, M, M, M, M, M, O, F, O],
-    [O, F, O, M, M, M, M, M, M, M, M, M, M, O, F, O],
-    [O, F, O, S, S, S, O, M, M, O, S, C, C, O, F, O],
-    [O, F, O, S, S, S, O, M, M, O, S, C, C, O, F, O],
-    [O, F, O, S, S, S, O, M, M, O, C, C, S, O, F, O],
-    [O, F, O, S, S, S, O, M, M, O, S, S, S, O, F, O],
-    [O, F, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
-    [O, D, D, D, D, D, D, D, D, D, D, D, D, D, D, O],
+    [O, L, L, L, L, L, L, L, L, L, L, L, L, L, F, O],
+    [O, L, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, L, O, T, T, T, T, m, M, T, T, Y, Y, O, F, O],
+    [O, L, O, T, T, C, T, m, M, T, T, Y, Y, O, F, O],
+    [O, L, O, T, C, C, C, m, M, T, T, T, S, O, F, O],
+    [O, L, O, S, S, C, S, m, M, S, S, S, S, O, F, O],
+    [O, L, O, S, S, S, S, m, M, S, S, S, S, O, F, O],
+    [O, L, O, m, m, m, m, m, M, m, m, m, m, O, F, O],
+    [O, L, O, M, M, M, M, M, M, M, M, M, M, O, F, O],
+    [O, L, O, S, S, S, S, m, M, S, C, C, S, O, F, O],
+    [O, L, O, S, S, S, S, m, M, S, C, C, C, O, F, O],
+    [O, L, O, S, S, S, S, m, M, S, S, C, C, O, F, O],
+    [O, L, O, S, S, S, S, m, M, S, S, S, S, O, F, O],
+    [O, L, O, S, S, S, S, m, M, S, S, S, S, O, F, O],
+    [O, L, O, O, O, O, O, O, O, O, O, O, O, O, F, O],
+    [O, F, D, D, D, D, D, D, D, D, D, D, D, D, D, O],
     [O, O, O, O, O, O, O, O, O, O, O, O, O, O, O, O],
-    [_, O, W, W, W, W, W, W, W, W, W, W, W, W, O, _],
-    [_, O, V, V, V, V, V, V, V, V, V, V, V, V, O, _],
-    [_, _, O, O, O, O, O, O, O, O, O, O, O, O, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
-    [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
+    [O, O, W, W, W, W, W, W, W, W, W, W, W, W, O, O],
+    [O, W, W, W, W, W, W, W, W, W, W, W, W, W, W, O],
+    [O, V, V, V, V, V, V, V, V, V, V, V, V, V, V, O],
+    [O, O, V, V, V, V, V, V, V, V, V, V, V, V, O, O],
+    [_, O, O, O, O, O, O, O, O, O, O, O, O, O, O, _],
+    [_, _, U, U, U, U, U, U, U, U, U, U, U, U, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],
     [_, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _],

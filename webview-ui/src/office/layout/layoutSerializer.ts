@@ -2,7 +2,7 @@ import { TileType, FurnitureType, DEFAULT_COLS, DEFAULT_ROWS, TILE_SIZE, Directi
 import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Seat, FurnitureInstance, FloorColor, SpriteData, PlacedInteractionPoint } from '../types.js'
 import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
-import { LAMP_OFF_SPRITE, LAMP_SPRITE } from '../sprites/spriteData.js'
+import { LAMP_OFF_SPRITE, LAMP_SPRITE, WALL_SCONCE_OFF_SPRITE, WALL_SCONCE_ON_SPRITE } from '../sprites/spriteData.js'
 import { getActiveFloorThemeId } from '../floorTiles.js'
 import { isExteriorTile } from './tileKinds.js'
 
@@ -68,16 +68,17 @@ export function layoutToFurnitureInstances(furniture: PlacedFurniture[]): Furnit
       }
     }
 
-    // Desk lamp has day/night states: the placed instance shows the unlit OFF
-    // sprite by day; the renderer swaps to `onSprite` (glowing) at night. The
-    // catalog keeps the ON sprite as its palette icon. Other furniture has no
-    // alternate sprite.
+    // Day/night fixtures (desk lamp, wall sconce) carry two sprites: the placed
+    // instance shows the unlit OFF sprite by day; the renderer swaps to
+    // `onSprite` (glowing) at night. The catalog keeps the ON sprite as the
+    // palette icon. Other furniture has no alternate sprite.
     const isLamp = item.type === FurnitureType.LAMP
-    const baseSprite = isLamp ? LAMP_OFF_SPRITE : entry.sprite
+    const isSconce = item.type === FurnitureType.WALL_SCONCE
+    const baseSprite = isLamp ? LAMP_OFF_SPRITE : isSconce ? WALL_SCONCE_OFF_SPRITE : entry.sprite
 
     // Colorize sprite if this furniture has a color override
     let sprite = baseSprite
-    let onSprite: SpriteData | undefined = isLamp ? LAMP_SPRITE : undefined
+    let onSprite: SpriteData | undefined = isLamp ? LAMP_SPRITE : isSconce ? WALL_SCONCE_ON_SPRITE : undefined
     if (item.color) {
       const { h, s, b: bv, c: cv } = item.color
       const key = `furn-${item.type}-${h}-${s}-${bv}-${cv}-${item.color.colorize ? 1 : 0}`

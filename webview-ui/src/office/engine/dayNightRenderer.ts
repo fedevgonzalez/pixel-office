@@ -20,6 +20,7 @@ export type LightType = 'warm' | 'cool'
 /** Furniture types that emit light */
 const LIGHT_EMITTERS: Record<string, LightType> = {
   lamp: 'warm',
+  wall_sconce: 'warm',
   pc: 'cool',
   coffee_machine: 'warm',
   street_lamp: 'warm',

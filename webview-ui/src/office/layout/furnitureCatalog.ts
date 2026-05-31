@@ -26,6 +26,7 @@ import {
   WALL_TV_SPRITE,
   WALL_MIRROR_SPRITE,
   WALL_PROJECTOR_SPRITE,
+  WALL_SCONCE_SPRITE,
 } from '../sprites/spriteData.js'
 
 export interface LoadedAssetData {
@@ -84,6 +85,7 @@ export const FURNITURE_CATALOG: CatalogEntryWithCategory[] = [
   { type: FurnitureType.WALL_TV,        label: 'Wall TV',        footprintW: 2, footprintH: 1, sprite: WALL_TV_SPRITE,        isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
   { type: FurnitureType.WALL_MIRROR,    label: 'Mirror',         footprintW: 1, footprintH: 2, sprite: WALL_MIRROR_SPRITE,    isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 2 },
   { type: FurnitureType.WALL_PROJECTOR, label: 'Wall Projector', footprintW: 2, footprintH: 1, sprite: WALL_PROJECTOR_SPRITE, isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
+  { type: FurnitureType.WALL_SCONCE,    label: 'Wall Sconce',    footprintW: 1, footprintH: 1, sprite: WALL_SCONCE_SPRITE,    isDesk: false, category: 'wall', canPlaceOnWalls: true, backgroundTiles: 1 },
 
 ]
 
