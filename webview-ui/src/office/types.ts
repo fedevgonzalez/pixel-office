@@ -113,15 +113,31 @@ export interface AgentContext {
 }
 
 /**
- * Generic usage source shown in the kiosk usage panel. Pixel-office doesn't
+ * One inline metric inside a usage source (e.g. a "5h" or "7d" quota window).
+ * Producer-defined and tool-agnostic; the panel renders these side by side
+ * under the source label.
+ */
+export interface UsageMetric {
+  label: string
+  primary: string
+  percent?: number
+  color?: string
+  secondary?: string
+}
+
+/**
+ * Generic usage source shown in the kiosk sidebar footer. Pixel-office doesn't
  * know which tool a source represents — the local reporter composes the label
- * and primary/secondary strings. Keep in sync with sanitizeUsageSource in
+ * and metrics. A source with `metrics` renders as a labeled group (label as a
+ * header, metrics in a row); a source with just `primary` renders as a single
+ * value (back-compat). Keep in sync with sanitizeUsageSource in
  * standalone-server.js.
  */
 export interface UsageSource {
   id: string
   label: string
-  primary: string
+  metrics?: UsageMetric[]
+  primary?: string
   secondary?: string
   percent?: number
   color?: string

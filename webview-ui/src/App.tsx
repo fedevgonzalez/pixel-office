@@ -4,7 +4,6 @@ import { OfficeCanvas } from './office/components/OfficeCanvas.js'
 import { ToolOverlay } from './office/components/ToolOverlay.js'
 import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
 import { KioskStatsOverlay } from './office/components/KioskStatsOverlay.js'
-import { KioskUsagePanel } from './office/components/KioskUsagePanel.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
 import { ShareThemeModal } from './components/ShareThemeModal.js'
@@ -20,7 +19,6 @@ import { useScreenWakeLock } from './hooks/useScreenWakeLock.js'
 import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
-import { KioskClock } from './components/KioskClock.js'
 import { Toast } from './components/Toast.js'
 import { isKioskMode, isScreenshotMode } from './wsClient.js'
 import { useDayNight } from './hooks/useDayNight.js'
@@ -508,6 +506,7 @@ function App() {
           subagentCharacters={subagentCharacters}
           agentFinishedAt={agentFinishedAt}
           agentContext={agentContext}
+          usageSources={usageSources}
         />
       )}
 
@@ -519,10 +518,6 @@ function App() {
           subagentTools={subagentTools}
           subagentCharacters={subagentCharacters}
         />
-      )}
-
-      {isKioskMode && !isScreenshotMode && !dailySummaryActive && (
-        <KioskUsagePanel sources={usageSources} />
       )}
 
       {isKioskMode && !isScreenshotMode && agents.length === 0 && (
@@ -556,9 +551,6 @@ function App() {
         </div>
       )}
 
-      {isKioskMode && !isScreenshotMode && !dailySummaryActive && (
-        <KioskClock dayNight={dayNight.state} />
-      )}
 
       {!isKioskMode && isDebugMode && (
         <DebugView

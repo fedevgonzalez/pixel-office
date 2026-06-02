@@ -110,13 +110,34 @@ function authorizeUsageWrite(req) {
   return typeof got === 'string' && got === expected;
 }
 
+// One inline metric of a usage source (e.g. a "5h"/"7d" quota window). Needs a
+// label + primary; percent/color/secondary optional.
+function sanitizeUsageMetric(m) {
+  if (!m || typeof m !== 'object') return null;
+  const label = typeof m.label === 'string' ? m.label.slice(0, 24) : null;
+  const primary = typeof m.primary === 'string' ? m.primary.slice(0, 24) : null;
+  if (!label || !primary) return null;
+  const out = { label, primary };
+  if (typeof m.percent === 'number' && Number.isFinite(m.percent)) out.percent = Math.max(0, Math.min(1, m.percent));
+  if (typeof m.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(m.color)) out.color = m.color;
+  if (typeof m.secondary === 'string') out.secondary = m.secondary.slice(0, 48);
+  return out;
+}
+
 function sanitizeUsageSource(s) {
   if (!s || typeof s !== 'object') return null;
   const id = typeof s.id === 'string' ? s.id.slice(0, 64) : null;
   const label = typeof s.label === 'string' ? s.label.slice(0, 64) : null;
+  if (!id || !label) return null;
+  const out = { id, label };
+  if (Array.isArray(s.metrics)) {
+    const metrics = s.metrics.map(sanitizeUsageMetric).filter(Boolean).slice(0, 6);
+    if (metrics.length) out.metrics = metrics;
+  }
   const primary = typeof s.primary === 'string' ? s.primary.slice(0, 64) : null;
-  if (!id || !label || !primary) return null;
-  const out = { id, label, primary };
+  if (primary) out.primary = primary;
+  // A source must carry at least one renderable value.
+  if (!out.metrics && !out.primary) return null;
   if (typeof s.secondary === 'string') out.secondary = s.secondary.slice(0, 96);
   if (typeof s.percent === 'number' && Number.isFinite(s.percent)) {
     out.percent = Math.max(0, Math.min(1, s.percent));
@@ -181,7 +202,9 @@ function getActiveUsageSources() {
   }
   const multiOwner = new Set(live.map((s) => s.owner)).size > 1;
   return live.map((s) => {
-    const out = { id: multiOwner ? `${s.owner}:${s.id}` : s.id, label: s.label, primary: s.primary, updatedAt: s.updatedAt };
+    const out = { id: multiOwner ? `${s.owner}:${s.id}` : s.id, label: s.label, updatedAt: s.updatedAt };
+    if (s.metrics !== undefined) out.metrics = s.metrics;
+    if (s.primary !== undefined) out.primary = s.primary;
     if (s.secondary !== undefined) out.secondary = s.secondary;
     if (s.percent !== undefined) out.percent = s.percent;
     if (s.color !== undefined) out.color = s.color;

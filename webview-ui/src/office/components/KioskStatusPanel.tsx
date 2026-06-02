@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import type { ToolActivity, AgentContext } from '../types.js'
+import type { ToolActivity, AgentContext, UsageSource } from '../types.js'
 import type { OfficeState } from '../engine/officeState.js'
 import type { SubagentCharacter } from '../../hooks/useExtensionMessages.js'
 import {
@@ -9,7 +9,11 @@ import {
   KIOSK_FINISHED_COLOR,
   KIOSK_AGENT_CONTEXT_BAR_HEIGHT,
   KIOSK_CONTEXT_HEALTH_BANDS,
+  KIOSK_USAGE_STALE_MS,
 } from '../../constants.js'
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const
 
 /** Color for a context-occupancy fraction, per the health bands. */
 function contextHealthColor(pct: number): string {
@@ -27,6 +31,78 @@ interface KioskStatusPanelProps {
   subagentCharacters: SubagentCharacter[]
   agentFinishedAt: Record<number, number>
   agentContext: Record<number, AgentContext>
+  usageSources: UsageSource[]
+}
+
+/** Account quota block: label header + its metrics (5h / 7d) side by side. */
+function UsageBlock({ source }: { source: UsageSource }) {
+  const stale = Date.now() - source.updatedAt > KIOSK_USAGE_STALE_MS
+  const metrics = source.metrics ?? []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, opacity: stale ? 0.45 : 1 }}>
+      <div
+        style={{
+          fontSize: 26,
+          fontWeight: 'bold',
+          color: 'rgba(255,245,235,0.9)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {source.label}
+      </div>
+      {metrics.length > 0 ? (
+        <div style={{ display: 'flex', gap: 18 }}>
+          {metrics.map((m) => (
+            <div key={m.label} style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 22, color: 'rgba(255,245,235,0.55)', letterSpacing: '0.02em' }}>{m.label}</span>
+                <span
+                  style={{
+                    fontSize: 26,
+                    fontWeight: 'bold',
+                    color: m.color || 'rgba(255,245,235,0.95)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {m.primary}
+                </span>
+              </div>
+              {typeof m.percent === 'number' && (
+                <div
+                  style={{
+                    height: 10,
+                    background: 'rgba(255,245,235,0.14)',
+                    border: '1px solid rgba(255,245,235,0.22)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${Math.max(0, Math.min(1, m.percent)) * 100}%`,
+                      height: '100%',
+                      background: m.color || 'var(--pixel-accent)',
+                      transition: 'width 300ms linear',
+                    }}
+                  />
+                </div>
+              )}
+              {m.secondary && (
+                <span style={{ fontSize: 16, color: 'rgba(255,245,235,0.5)' }}>{m.secondary}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        source.primary && (
+          <span style={{ fontSize: 26, fontWeight: 'bold', color: source.color || 'rgba(255,245,235,0.95)' }}>
+            {source.primary}
+          </span>
+        )
+      )}
+    </div>
+  )
 }
 
 /** Full-width context-window meter: fills to the occupancy % and is tinted by
@@ -104,6 +180,7 @@ export function KioskStatusPanel({
   subagentCharacters,
   agentFinishedAt,
   agentContext,
+  usageSources,
 }: KioskStatusPanelProps) {
   // Force periodic re-render to pick up officeState mutations (imperative state)
   // Using a longer interval since status changes propagate via props too
@@ -167,7 +244,13 @@ export function KioskStatusPanel({
     return priority(a) - priority(b)
   })
 
-  if (entries.length === 0 && restingCount === 0) return null
+  if (entries.length === 0 && restingCount === 0 && usageSources.length === 0) return null
+
+  // Clock — panel re-renders every KIOSK_STATUS_PANEL_UPDATE_MS, so reading the
+  // wall clock at render keeps the minute fresh without a separate timer.
+  const clockNow = new Date()
+  const timeStr = `${String(clockNow.getHours()).padStart(2, '0')}:${String(clockNow.getMinutes()).padStart(2, '0')}`
+  const dateStr = `${WEEKDAYS[clockNow.getDay()]} ${clockNow.getDate()} ${MONTHS[clockNow.getMonth()]}`
 
   return (
     <div
@@ -290,29 +373,66 @@ export function KioskStatusPanel({
           </div>
         )
       })}
-      {restingCount > 0 && (
+      {/* Footer pinned to the bottom: on-break count, per-account usage, clock.
+          Full panel width — reads as part of the sidebar, not a floating box. */}
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 16, paddingTop: 16 }}>
+        {restingCount > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <span
+              style={{
+                fontSize: `${RESTING_COUNT_LABEL_FONT_SIZE}px`,
+                color: 'rgba(255, 245, 235, 0.35)',
+                background: 'var(--pixel-surface-soft)',
+                border: '1px solid var(--pixel-border-soft)',
+                padding: '8px 16px',
+                borderRadius: 0,
+              }}
+            >
+              {restingCount} on break
+            </span>
+          </div>
+        )}
+
+        {usageSources.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 14,
+              paddingTop: 14,
+              borderTop: '2px solid rgba(90, 74, 106, 0.5)',
+            }}
+          >
+            {usageSources.map((s) => (
+              <UsageBlock key={s.id} source={s} />
+            ))}
+          </div>
+        )}
+
+        {/* Clock */}
         <div
           style={{
-            marginTop: 'auto',
             display: 'flex',
-            justifyContent: 'center',
-            padding: '12px 10px',
+            alignItems: 'baseline',
+            gap: 12,
+            paddingTop: 12,
+            borderTop: '2px solid rgba(90, 74, 106, 0.5)',
           }}
         >
           <span
             style={{
-              fontSize: `${RESTING_COUNT_LABEL_FONT_SIZE}px`,
-              color: 'rgba(255, 245, 235, 0.35)',
-              background: 'var(--pixel-surface-soft)',
-              border: '1px solid var(--pixel-border-soft)',
-              padding: '8px 16px',
-              borderRadius: 0,
+              fontSize: 44,
+              fontWeight: 'bold',
+              color: 'rgba(255,245,235,0.95)',
+              fontVariantNumeric: 'tabular-nums',
+              lineHeight: 1,
             }}
           >
-            {restingCount} on break
+            {timeStr}
           </span>
+          <span style={{ fontSize: 22, color: 'rgba(255,245,235,0.5)' }}>{dateStr}</span>
         </div>
-      )}
+      </div>
     </div>
   )
 }

@@ -866,21 +866,24 @@ function formatReset(iso) {
 }
 
 function reloginSource(acct, primary = 're-login') {
-  return { id: `${acct.id}-5h`, label: acct.label, primary, color: '#e0573f' };
+  return { id: acct.id, label: acct.label, primary, color: '#e0573f' };
 }
 
-function pushWindow(sources, acct, key, short, w) {
-  if (!w || typeof w.utilization !== 'number') return;
+function windowMetric(short, w) {
+  if (!w || typeof w.utilization !== 'number') return null;
   const pct = Math.max(0, Math.min(1, w.utilization / 100));
-  const src = {
-    id: `${acct.id}-${key}`,
-    label: `${acct.label} · ${short}`,
-    primary: `${Math.round(w.utilization)}%`,
-    percent: pct,
-    color: usageColor(pct),
-  };
-  if (w.resets_at) src.secondary = `↻ ${formatReset(w.resets_at)}`;
-  sources.push(src);
+  const m = { label: short, primary: `${Math.round(w.utilization)}%`, percent: pct, color: usageColor(pct) };
+  if (w.resets_at) m.secondary = `↻ ${formatReset(w.resets_at)}`;
+  return m;
+}
+
+// One usage source per account, carrying its quota windows as inline metrics
+// (5h / 7d shown side by side under the account label). Null if no window has
+// a usable utilization number.
+function accountSource(acct, usage) {
+  const metrics = [windowMetric('5h', usage.five_hour), windowMetric('7d', usage.seven_day)].filter(Boolean);
+  if (!metrics.length) return null;
+  return { id: acct.id, label: acct.label, metrics };
 }
 
 // Build usage sources for every stored account. The account currently in the
@@ -912,8 +915,8 @@ async function computeUsageSources() {
     if (!accessToken) { sources.push(reloginSource(acct)); continue; }
     const u = await fetchUsageRaw(accessToken);
     if (!u.ok || !u.data) { sources.push(reloginSource(acct, u.status === 401 ? 're-login' : 'error')); continue; }
-    pushWindow(sources, acct, '5h', '5h', u.data.five_hour);
-    pushWindow(sources, acct, '7d', '7d', u.data.seven_day);
+    const src = accountSource(acct, u.data);
+    sources.push(src || reloginSource(acct, 'error'));
   }
   if (mutated) saveUsageStore(store);
   return sources;

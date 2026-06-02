@@ -390,28 +390,9 @@ export const KIOSK_STATS_GAP_PX = 18
 /** Distance from the top-left corner of the viewport */
 export const KIOSK_STATS_OFFSET_PX = 18
 
-// ── Kiosk Usage Panel (bottom-right; account quota bars) ─────
-// Sized for legibility on a wall-mounted TV viewed from across the room.
-/** Distance from the bottom-right viewport edge (px) */
-export const KIOSK_USAGE_MARGIN = 22
-/** Default opacity — high so values stay crisp against the scene */
-export const KIOSK_USAGE_OPACITY = 0.95
-/** Inner padding of the panel box (px) */
-export const KIOSK_USAGE_PADDING_Y = 20
-export const KIOSK_USAGE_PADDING_X = 28
-/** Gap between source rows (px) */
-export const KIOSK_USAGE_GAP_PX = 14
-/** Font size of the source label */
-export const KIOSK_USAGE_LABEL_FONT_SIZE = 22
-/** Font size of the primary value (e.g. "82%") */
-export const KIOSK_USAGE_PRIMARY_FONT_SIZE = 34
-/** Font size of the secondary line (e.g. "↻ 19:40") */
-export const KIOSK_USAGE_SECONDARY_FONT_SIZE = 18
-/** Width of the progress bar (px) */
-export const KIOSK_USAGE_BAR_WIDTH = 230
-/** Height of the progress bar (px) */
-export const KIOSK_USAGE_BAR_HEIGHT = 12
-/** Source is considered stale after this many ms without an update */
+// ── Kiosk Usage (account quota blocks, in the sidebar footer) ─
+/** A usage source is considered stale after this many ms without an update;
+ *  the sidebar dims it. */
 export const KIOSK_USAGE_STALE_MS = 90_000
 
 // ── Kiosk Agent Context meter (full-width bar, inline per agent) ──
@@ -436,14 +417,6 @@ export const KIOSK_CONTEXT_HEALTH_BANDS: ReadonlyArray<{ max: number; color: str
   { max: 0.85, color: '#f97316' },
   { max: Infinity, color: '#ef4444' },
 ]
-
-// ── Kiosk Clock Widget ───────────────────────────────────────
-/** How often the kiosk clock re-reads wall time (ms) */
-export const KIOSK_CLOCK_UPDATE_MS = 60_000
-/** Default opacity of the widget — dim so it recedes into the scene */
-export const KIOSK_CLOCK_OPACITY = 0.75
-/** Margin from the bottom-right viewport edge (px) */
-export const KIOSK_CLOCK_MARGIN = 16
 
 // ── Resting Agent System ────────────────────────────────────
 /** Sprite alpha for resting (on-break) agents — dimmer than active */
