@@ -3,6 +3,8 @@ import type { UsageSource } from '../types.js'
 import {
   KIOSK_USAGE_MARGIN,
   KIOSK_USAGE_OPACITY,
+  KIOSK_USAGE_PADDING_Y,
+  KIOSK_USAGE_PADDING_X,
   KIOSK_USAGE_GAP_PX,
   KIOSK_USAGE_LABEL_FONT_SIZE,
   KIOSK_USAGE_PRIMARY_FONT_SIZE,
@@ -38,7 +40,7 @@ export function KioskUsagePanel({ sources }: KioskUsagePanelProps) {
         display: 'flex',
         flexDirection: 'column',
         gap: KIOSK_USAGE_GAP_PX,
-        padding: '16px 22px',
+        padding: `${KIOSK_USAGE_PADDING_Y}px ${KIOSK_USAGE_PADDING_X}px`,
         background: 'var(--pixel-kiosk-panel-bg)',
         backdropFilter: 'var(--pixel-kiosk-blur)',
         border: '2px solid var(--pixel-border)',
@@ -93,9 +95,9 @@ export function KioskUsagePanel({ sources }: KioskUsagePanelProps) {
                 style={{
                   width: KIOSK_USAGE_BAR_WIDTH,
                   height: KIOSK_USAGE_BAR_HEIGHT,
-                  marginTop: 4,
-                  background: 'rgba(255, 245, 235, 0.12)',
-                  border: '1px solid rgba(255, 245, 235, 0.18)',
+                  marginTop: 7,
+                  background: 'rgba(255, 245, 235, 0.16)',
+                  border: '1px solid rgba(255, 245, 235, 0.28)',
                 }}
               >
                 <div
@@ -110,7 +112,7 @@ export function KioskUsagePanel({ sources }: KioskUsagePanelProps) {
             {s.secondary && (
               <div
                 style={{
-                  marginTop: 2,
+                  marginTop: 4,
                   fontSize: KIOSK_USAGE_SECONDARY_FONT_SIZE,
                   color: 'var(--pixel-text-dim)',
                   opacity: 0.75,

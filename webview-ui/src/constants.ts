@@ -391,22 +391,26 @@ export const KIOSK_STATS_GAP_PX = 18
 export const KIOSK_STATS_OFFSET_PX = 18
 
 // ── Kiosk Usage Panel (bottom-right; account quota bars) ─────
+// Sized for legibility on a wall-mounted TV viewed from across the room.
 /** Distance from the bottom-right viewport edge (px) */
-export const KIOSK_USAGE_MARGIN = 16
-/** Default opacity — slightly dimmed so it doesn't fight the scene */
-export const KIOSK_USAGE_OPACITY = 0.88
+export const KIOSK_USAGE_MARGIN = 22
+/** Default opacity — high so values stay crisp against the scene */
+export const KIOSK_USAGE_OPACITY = 0.95
+/** Inner padding of the panel box (px) */
+export const KIOSK_USAGE_PADDING_Y = 20
+export const KIOSK_USAGE_PADDING_X = 28
 /** Gap between source rows (px) */
-export const KIOSK_USAGE_GAP_PX = 6
+export const KIOSK_USAGE_GAP_PX = 14
 /** Font size of the source label */
-export const KIOSK_USAGE_LABEL_FONT_SIZE = 16
+export const KIOSK_USAGE_LABEL_FONT_SIZE = 22
 /** Font size of the primary value (e.g. "82%") */
-export const KIOSK_USAGE_PRIMARY_FONT_SIZE = 22
+export const KIOSK_USAGE_PRIMARY_FONT_SIZE = 34
 /** Font size of the secondary line (e.g. "↻ 19:40") */
-export const KIOSK_USAGE_SECONDARY_FONT_SIZE = 13
+export const KIOSK_USAGE_SECONDARY_FONT_SIZE = 18
 /** Width of the progress bar (px) */
-export const KIOSK_USAGE_BAR_WIDTH = 140
+export const KIOSK_USAGE_BAR_WIDTH = 230
 /** Height of the progress bar (px) */
-export const KIOSK_USAGE_BAR_HEIGHT = 6
+export const KIOSK_USAGE_BAR_HEIGHT = 12
 /** Source is considered stale after this many ms without an update */
 export const KIOSK_USAGE_STALE_MS = 90_000
 
