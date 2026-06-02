@@ -1998,6 +1998,12 @@ function handleReporterMessage(ws, msg) {
     if (agentId == null) return;
     removeAgent(agentId, `remote session ended (${machineId})`);
     remoteAgents.delete(remoteKey);
+  } else if (msg.type === 'usage-report') {
+    // Generic quota panel: the reporter composes opaque usage sources (e.g.
+    // "<account> · 5h" → 49%). Keyed by machineId so each reporter owns its
+    // set; sources older than USAGE_STALE_MS are dropped automatically.
+    setUsageForOwner(machineId, msg.sources);
+    broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
   }
 }
 
@@ -2010,6 +2016,9 @@ function cleanupReporter(ws) {
       removeAgent(agentId, `reporter disconnected (${machineId})`);
       remoteAgents.delete(remoteKey);
     }
+  }
+  if (clearUsageForOwner(machineId)) {
+    broadcast({ type: 'usageUpdate', sources: getActiveUsageSources(), updatedAt: usageUpdatedAt });
   }
   reporterClients.delete(ws);
   console.log(`Reporter disconnected: ${machineId}`);

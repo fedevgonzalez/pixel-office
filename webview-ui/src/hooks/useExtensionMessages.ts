@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { OfficeState } from '../office/engine/officeState.js'
-import type { OfficeLayout, ToolActivity, AgentContext } from '../office/types.js'
+import type { OfficeLayout, ToolActivity, AgentContext, UsageSource } from '../office/types.js'
 import { extractToolName } from '../office/toolUtils.js'
 import { migrateLayoutColors } from '../office/layout/layoutSerializer.js'
 import { buildDynamicCatalog } from '../office/layout/furnitureCatalog.js'
@@ -87,6 +87,9 @@ export interface ExtensionMessageState {
    *  green "just finished" pulse so the user can spot completed turns at a
    *  glance. */
   agentFinishedAt: Record<number, number>
+  /** Generic usage panel data pushed by the local reporter (account quotas).
+   *  Empty when no reporter is publishing usage. */
+  usageSources: UsageSource[]
 }
 
 function saveAgentSeats(os: OfficeState): void {
@@ -115,6 +118,7 @@ export function useExtensionMessages(
   const [petTemplates, setPetTemplates] = useState<PetTemplate[]>([])
   const [customThemes, setCustomThemesState] = useState<CustomThemePreset[]>([])
   const [dailySummaryActive, setDailySummaryActive] = useState(false)
+  const [usageSources, setUsageSources] = useState<UsageSource[]>([])
   const dailySummaryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [agentContext, setAgentContext] = useState<Record<number, AgentContext>>({})
   const [agentFinishedAt, setAgentFinishedAt] = useState<Record<number, number>>({})
@@ -472,6 +476,8 @@ export function useExtensionMessages(
         setWorkspaceFolders(folders)
       } else if (msg.type === 'settingsLoaded') {
         if (typeof msg.soundEnabled === 'boolean') setSoundEnabled(msg.soundEnabled)
+      } else if (msg.type === 'usageUpdate') {
+        setUsageSources(Array.isArray(msg.sources) ? (msg.sources as UsageSource[]) : [])
       } else if (msg.type === 'agentContext') {
         const id = msg.id as number
         const pct = typeof msg.pct === 'number' ? msg.pct : null
@@ -502,5 +508,5 @@ export function useExtensionMessages(
     return () => window.removeEventListener('message', handler)
   }, [getOfficeState])
 
-  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, customThemes, dailySummaryActive, agentContext, agentFinishedAt }
+  return { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, workspaceFolders, petTemplates, customThemes, dailySummaryActive, agentContext, agentFinishedAt, usageSources }
 }

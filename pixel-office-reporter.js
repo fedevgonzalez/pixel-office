@@ -12,6 +12,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execFileSync } = require('child_process');
 // Prefer 'ws' package (EventEmitter API) over native WebSocket (browser API, no .on())
 let WebSocket;
 try { WebSocket = require('ws'); } catch {
@@ -31,6 +32,27 @@ const SCAN_INTERVAL_MS = 5000;
 const RECONNECT_DELAY_MS = 5000;
 const AUTO_DETECT_MAX_AGE_MS = 8 * 60 * 60 * 1000; // 8 hours
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min — match server's IDLE_LEAVE_MS (server handles resting state)
+
+// ── Claude account /usage panel ──────────────────────────────
+// Reads OAuth tokens for one or more Claude accounts and polls the same
+// endpoint the `/usage` slash command uses, surfacing each account's 5h /
+// weekly rate-limit utilization so the kiosk shows when to switch accounts.
+// Accounts are captured into the store below via `--add-usage-account`; the
+// store holds tokens for accounts that may NOT be the one currently logged in
+// (the Keychain only ever holds the active one). This file is the allowed home
+// for tool-specific reading — the server stays generic (opaque usage sources).
+const USAGE_STORE_PATH = path.join(os.homedir(), '.pixel-office', 'usage-accounts.json');
+const USAGE_POLL_INTERVAL_MS = 60 * 1000; // access tokens live ~24h, so 60s never forces a refresh
+const USAGE_TOKEN_SKEW_MS = 5 * 60 * 1000; // refresh a stored token only once it's within 5 min of expiry
+const ANTHROPIC_API_BASE = 'https://api.anthropic.com';
+const CLAUDE_OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
+const CLAUDE_OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
+const CLAUDE_KEYCHAIN_SERVICE = 'Claude Code-credentials';
+const OAUTH_HEADERS = {
+  'anthropic-beta': 'oauth-2025-04-20',
+  'anthropic-version': '2023-06-01',
+  'User-Agent': 'claude-cli/reporter (external)',
+};
 
 // Claude stamps the bare model id in the JSONL even on the 1M-context variant,
 // so the literal model string is ambiguous. Default to the standard 200k and
@@ -713,6 +735,241 @@ function reportSessionContexts() {
   }
 }
 
+// ── Claude /usage: token reading, OAuth, account store, polling ──────────────
+
+// Read the OAuth blob for the currently logged-in account: macOS Keychain, or
+// ~/.claude/.credentials.json on other platforms. Returns null if unreadable.
+function readClaudeOAuth() {
+  let raw = null;
+  if (process.platform === 'darwin') {
+    try {
+      raw = execFileSync('security', ['find-generic-password', '-s', CLAUDE_KEYCHAIN_SERVICE, '-w'], { encoding: 'utf8', timeout: 5000 });
+    } catch { return null; }
+  } else {
+    try { raw = fs.readFileSync(path.join(os.homedir(), '.claude', '.credentials.json'), 'utf8'); }
+    catch { return null; }
+  }
+  try {
+    const d = JSON.parse(raw);
+    const o = d.claudeAiOauth || d;
+    if (!o || !o.accessToken) return null;
+    return { accessToken: o.accessToken, refreshToken: o.refreshToken || null, expiresAt: o.expiresAt || 0 };
+  } catch { return null; }
+}
+
+async function anthropicGet(pathname, accessToken) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(ANTHROPIC_API_BASE + pathname, {
+      headers: { Authorization: `Bearer ${accessToken}`, ...OAUTH_HEADERS },
+      signal: ctrl.signal,
+    });
+    const data = res.ok ? await res.json().catch(() => null) : null;
+    return { ok: res.ok, status: res.status, data };
+  } catch {
+    return { ok: false, status: 0, data: null };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function fetchUsageRaw(accessToken) {
+  return anthropicGet('/api/oauth/usage', accessToken);
+}
+
+async function fetchProfile(accessToken) {
+  const r = await anthropicGet('/api/oauth/profile', accessToken);
+  if (!r.ok || !r.data || !r.data.account) return null;
+  const a = r.data.account;
+  const org = r.data.organization || {};
+  return { uuid: a.uuid, email: a.email, displayName: a.display_name || a.full_name || null, orgName: org.name || null };
+}
+
+// Exchange a refresh token for a fresh token pair. Anthropic ROTATES refresh
+// tokens, so the response's refresh_token (when present) must be persisted.
+async function refreshOAuth(refreshToken) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 10000);
+  try {
+    const res = await fetch(CLAUDE_OAUTH_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...OAUTH_HEADERS },
+      body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLAUDE_OAUTH_CLIENT_ID }),
+      signal: ctrl.signal,
+    });
+    if (!res.ok) return null;
+    const d = await res.json().catch(() => null);
+    if (!d || !d.access_token) return null;
+    return {
+      accessToken: d.access_token,
+      refreshToken: d.refresh_token || refreshToken,
+      expiresAt: Date.now() + (d.expires_in ? d.expires_in * 1000 : 0),
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Map a Keychain access token → account uuid, cached so we hit /profile only
+// when the live token actually changes.
+let _keychainUuidCache = { token: null, uuid: null };
+async function keychainUuidFor(accessToken) {
+  if (!accessToken) return null;
+  if (_keychainUuidCache.token === accessToken) return _keychainUuidCache.uuid;
+  const p = await fetchProfile(accessToken);
+  _keychainUuidCache = { token: accessToken, uuid: p ? p.uuid : null };
+  return _keychainUuidCache.uuid;
+}
+
+function slugify(s) {
+  return String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 32) || 'account';
+}
+
+function loadUsageStore() {
+  try {
+    const d = JSON.parse(fs.readFileSync(USAGE_STORE_PATH, 'utf8'));
+    if (d && Array.isArray(d.accounts)) return d;
+  } catch {}
+  return { accounts: [] };
+}
+
+function saveUsageStore(store) {
+  try {
+    fs.mkdirSync(path.dirname(USAGE_STORE_PATH), { recursive: true });
+    fs.writeFileSync(USAGE_STORE_PATH, JSON.stringify(store, null, 2), { mode: 0o600 });
+  } catch (e) {
+    log(`Failed to save usage account store: ${e.message}`);
+  }
+}
+
+// Bar color = how "full" the window is → tells you when to switch accounts.
+function usageColor(pct) {
+  if (pct >= 0.8) return '#e0573f'; // red: time to switch accounts
+  if (pct >= 0.5) return '#e0b341'; // amber
+  return '#6bbf59';                  // green
+}
+
+// Locale-neutral reset stamp: "14:30" today, "Wed 14:30" otherwise.
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+function formatReset(iso) {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const sameDay = d.toDateString() === new Date().toDateString();
+    return sameDay ? time : `${WEEKDAYS[d.getDay()]} ${time}`;
+  } catch { return ''; }
+}
+
+function reloginSource(acct, primary = 're-login') {
+  return { id: `${acct.id}-5h`, label: acct.label, primary, color: '#e0573f' };
+}
+
+function pushWindow(sources, acct, key, short, w) {
+  if (!w || typeof w.utilization !== 'number') return;
+  const pct = Math.max(0, Math.min(1, w.utilization / 100));
+  const src = {
+    id: `${acct.id}-${key}`,
+    label: `${acct.label} · ${short}`,
+    primary: `${Math.round(w.utilization)}%`,
+    percent: pct,
+    color: usageColor(pct),
+  };
+  if (w.resets_at) src.secondary = `↻ ${formatReset(w.resets_at)}`;
+  sources.push(src);
+}
+
+// Build usage sources for every stored account. The account currently in the
+// Keychain is read live (Claude Code keeps it fresh → no rotation conflict);
+// any other account uses its stored token and self-refreshes only when expired.
+async function computeUsageSources() {
+  const store = loadUsageStore();
+  if (!store.accounts.length) return [];
+  const liveCred = readClaudeOAuth();
+  const liveUuid = liveCred ? await keychainUuidFor(liveCred.accessToken) : null;
+  let mutated = false;
+  const sources = [];
+  for (const acct of store.accounts) {
+    let accessToken = null;
+    if (liveCred && liveUuid && liveUuid === acct.accountUuid) {
+      accessToken = liveCred.accessToken; // active account: fresh, never self-refreshed
+    } else if (acct.expiresAt && acct.expiresAt - Date.now() > USAGE_TOKEN_SKEW_MS) {
+      accessToken = acct.accessToken;
+    } else if (acct.refreshToken) {
+      const r = await refreshOAuth(acct.refreshToken);
+      if (r) {
+        acct.accessToken = r.accessToken;
+        acct.refreshToken = r.refreshToken;
+        acct.expiresAt = r.expiresAt;
+        accessToken = r.accessToken;
+        mutated = true;
+      }
+    }
+    if (!accessToken) { sources.push(reloginSource(acct)); continue; }
+    const u = await fetchUsageRaw(accessToken);
+    if (!u.ok || !u.data) { sources.push(reloginSource(acct, u.status === 401 ? 're-login' : 'error')); continue; }
+    pushWindow(sources, acct, '5h', '5h', u.data.five_hour);
+    pushWindow(sources, acct, '7d', '7d', u.data.seven_day);
+  }
+  if (mutated) saveUsageStore(store);
+  return sources;
+}
+
+let usageSourcesCache = [];
+async function pollUsage() {
+  try { usageSourcesCache = await computeUsageSources(); }
+  catch (e) { log(`Error polling /usage: ${e.message}`); }
+}
+
+// Re-send cached usage every scan even if unchanged — it's the staleness
+// heartbeat the server uses to drop dead producers.
+function sendUsageHeartbeat() {
+  if (usageSourcesCache.length) send({ type: 'usage-report', sources: usageSourcesCache });
+}
+
+// CLI subcommands to manage the account store, then exit.
+async function runUsageCli(cmd) {
+  if (cmd === '--list-usage-accounts') {
+    const store = loadUsageStore();
+    if (!store.accounts.length) { console.log('(no accounts saved)'); return; }
+    for (const a of store.accounts) console.log(`- ${a.id}\t${a.label}\t${a.email || ''}\t${a.color || ''}`);
+    return;
+  }
+  if (cmd === '--remove-usage-account') {
+    const id = process.argv[3];
+    if (!id) throw new Error('usage: --remove-usage-account <id>');
+    const store = loadUsageStore();
+    const before = store.accounts.length;
+    store.accounts = store.accounts.filter((a) => a.id !== id);
+    saveUsageStore(store);
+    console.log(before === store.accounts.length ? `(no account '${id}')` : `Removed account '${id}'.`);
+    return;
+  }
+  // --add-usage-account "<label>" [#color] — snapshots the account currently
+  // logged in to Claude Code into the store (re-run to re-snapshot / relabel).
+  const label = process.argv[3];
+  const color = process.argv[4] || null;
+  if (!label) throw new Error('usage: --add-usage-account "<label>" [#color]');
+  const cred = readClaudeOAuth();
+  if (!cred) throw new Error('Could not read Claude Code credentials (Keychain / ~/.claude/.credentials.json).');
+  const profile = await fetchProfile(cred.accessToken);
+  if (!profile) throw new Error('The logged-in account token is invalid or expired. Open Claude Code to refresh it and retry.');
+  const store = loadUsageStore();
+  const id = slugify(label);
+  const entry = {
+    id, label, color, accountUuid: profile.uuid, email: profile.email,
+    accessToken: cred.accessToken, refreshToken: cred.refreshToken, expiresAt: cred.expiresAt,
+  };
+  const idx = store.accounts.findIndex((a) => a.id === id);
+  if (idx >= 0) store.accounts[idx] = entry; else store.accounts.push(entry);
+  saveUsageStore(store);
+  console.log(`Saved account '${label}' (${profile.email} · ${profile.orgName || '-'}) as id '${id}'.`);
+}
+
 // --- Scan: detect active sessions from all providers and report them ---
 function scan() {
   if (!connected) return;
@@ -758,6 +1015,10 @@ function scan() {
   // Push each tracked session's context-window occupancy (shown inline per
   // agent in the sidebar).
   reportSessionContexts();
+
+  // Heartbeat the Claude account /usage panel (cached; refreshed on its own
+  // slower interval to avoid hammering the API).
+  sendUsageHeartbeat();
 }
 
 // --- WebSocket connection with auto-reconnect ---
@@ -792,6 +1053,12 @@ function connect() {
 }
 
 // --- Main ---
+// CLI subcommands manage the /usage account store, then exit (no WS connection).
+if (['--add-usage-account', '--list-usage-accounts', '--remove-usage-account'].includes(process.argv[2])) {
+  runUsageCli(process.argv[2]).then(() => process.exit(0)).catch((e) => { console.error(e.message || e); process.exit(1); });
+  return;
+}
+
 log(`Pixel Office Reporter`);
 log(`Machine ID: ${MACHINE_ID}`);
 log(`Claude projects: ${CLAUDE_PROJECTS_ROOT}`);
@@ -801,6 +1068,10 @@ log(`Server: ${SERVER_URL}`);
 
 connect();
 setInterval(scan, SCAN_INTERVAL_MS);
+
+// Poll the Claude account /usage endpoint on its own (slower) cadence.
+pollUsage();
+setInterval(pollUsage, USAGE_POLL_INTERVAL_MS);
 
 process.on('SIGINT', () => {
   log('Shutting down...');

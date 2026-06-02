@@ -390,6 +390,26 @@ export const KIOSK_STATS_GAP_PX = 18
 /** Distance from the top-left corner of the viewport */
 export const KIOSK_STATS_OFFSET_PX = 18
 
+// ── Kiosk Usage Panel (bottom-right; account quota bars) ─────
+/** Distance from the bottom-right viewport edge (px) */
+export const KIOSK_USAGE_MARGIN = 16
+/** Default opacity — slightly dimmed so it doesn't fight the scene */
+export const KIOSK_USAGE_OPACITY = 0.88
+/** Gap between source rows (px) */
+export const KIOSK_USAGE_GAP_PX = 6
+/** Font size of the source label */
+export const KIOSK_USAGE_LABEL_FONT_SIZE = 16
+/** Font size of the primary value (e.g. "82%") */
+export const KIOSK_USAGE_PRIMARY_FONT_SIZE = 22
+/** Font size of the secondary line (e.g. "↻ 19:40") */
+export const KIOSK_USAGE_SECONDARY_FONT_SIZE = 13
+/** Width of the progress bar (px) */
+export const KIOSK_USAGE_BAR_WIDTH = 140
+/** Height of the progress bar (px) */
+export const KIOSK_USAGE_BAR_HEIGHT = 6
+/** Source is considered stale after this many ms without an update */
+export const KIOSK_USAGE_STALE_MS = 90_000
+
 // ── Kiosk Agent Context meter (full-width bar, inline per agent) ──
 /** Height of the per-agent context bar (px) */
 export const KIOSK_AGENT_CONTEXT_BAR_HEIGHT = 12

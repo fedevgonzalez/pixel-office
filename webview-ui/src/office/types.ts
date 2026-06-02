@@ -112,6 +112,22 @@ export interface AgentContext {
   limit?: number
 }
 
+/**
+ * Generic usage source shown in the kiosk usage panel. Pixel-office doesn't
+ * know which tool a source represents — the local reporter composes the label
+ * and primary/secondary strings. Keep in sync with sanitizeUsageSource in
+ * standalone-server.js.
+ */
+export interface UsageSource {
+  id: string
+  label: string
+  primary: string
+  secondary?: string
+  percent?: number
+  color?: string
+  updatedAt: number
+}
+
 export const FurnitureType = {
   // Original hand-drawn sprites (kept for backward compat)
   DESK: 'desk',

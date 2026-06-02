@@ -4,6 +4,7 @@ import { OfficeCanvas } from './office/components/OfficeCanvas.js'
 import { ToolOverlay } from './office/components/ToolOverlay.js'
 import { KioskStatusPanel } from './office/components/KioskStatusPanel.js'
 import { KioskStatsOverlay } from './office/components/KioskStatsOverlay.js'
+import { KioskUsagePanel } from './office/components/KioskUsagePanel.js'
 import { EditorToolbar } from './office/editor/EditorToolbar.js'
 import { EditorState } from './office/editor/editorState.js'
 import { ShareThemeModal } from './components/ShareThemeModal.js'
@@ -141,7 +142,7 @@ function App() {
 
   const isEditDirty = useCallback(() => editor.isEditMode && editor.isDirty, [editor.isEditMode, editor.isDirty])
 
-  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates, customThemes, dailySummaryActive, agentContext, agentFinishedAt } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
+  const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates, customThemes, dailySummaryActive, agentContext, agentFinishedAt, usageSources } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const dayNight = useDayNight()
 
@@ -518,6 +519,10 @@ function App() {
           subagentTools={subagentTools}
           subagentCharacters={subagentCharacters}
         />
+      )}
+
+      {isKioskMode && !isScreenshotMode && !dailySummaryActive && (
+        <KioskUsagePanel sources={usageSources} />
       )}
 
       {isKioskMode && !isScreenshotMode && agents.length === 0 && (
