@@ -799,9 +799,13 @@ async function refreshOAuth(refreshToken) {
       body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: refreshToken, client_id: CLAUDE_OAUTH_CLIENT_ID }),
       signal: ctrl.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      const body = await res.text().catch(() => '');
+      log(`Token refresh failed: HTTP ${res.status} ${body.slice(0, 120)}`);
+      return null;
+    }
     const d = await res.json().catch(() => null);
-    if (!d || !d.access_token) return null;
+    if (!d || !d.access_token) { log('Token refresh failed: malformed response'); return null; }
     return {
       accessToken: d.access_token,
       refreshToken: d.refresh_token || refreshToken,
