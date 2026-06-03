@@ -44,6 +44,7 @@ const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 min — match server's IDLE_LEAVE_
 const USAGE_STORE_PATH = path.join(os.homedir(), '.pixel-office', 'usage-accounts.json');
 const USAGE_POLL_INTERVAL_MS = 60 * 1000; // access tokens live ~24h, so 60s never forces a refresh
 const USAGE_TOKEN_SKEW_MS = 5 * 60 * 1000; // refresh a stored token only once it's within 5 min of expiry
+const USAGE_LAST_GOOD_TTL_MS = 60 * 60 * 1000; // hold an account's last good reading this long across failures, then drop it
 const ANTHROPIC_API_BASE = 'https://api.anthropic.com';
 const CLAUDE_OAUTH_TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
 const CLAUDE_OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
@@ -869,10 +870,11 @@ function reloginSource(acct, primary = 're-login') {
   return { id: acct.id, label: acct.label, primary, color: '#e0573f' };
 }
 
-// Last successfully-built source per account. On a failed poll we re-emit this
-// instead of overwriting the panel with an error, so the kiosk keeps the last
-// known value and just updates whenever a poll succeeds again.
-const lastGoodSourceById = new Map(); // acct.id -> source (with metrics)
+// Last successfully-built source per account, with its timestamp. On a failed
+// poll we re-emit this (so the kiosk keeps the last value and updates whenever
+// a poll succeeds) — but only for USAGE_LAST_GOOD_TTL_MS. Once a reading ages
+// past that window without refreshing, the account is dropped from the panel.
+const lastGoodSourceById = new Map(); // acct.id -> { source, ts }
 
 // Fetch /usage with one retry on a TRANSIENT failure (timeout / 5xx / 429 /
 // network). Auth failures (401/403) aren't retried — they need a real refresh.
@@ -929,19 +931,30 @@ async function computeUsageSources() {
       }
     }
     const cached = lastGoodSourceById.get(acct.id);
-    // No token (refresh failed): keep the last good value if we have one; only
-    // ask for re-login when we've genuinely never gotten a reading.
-    if (!accessToken) { sources.push(cached || reloginSource(acct)); continue; }
+    const everHadValue = !!cached;
+    // The last good reading, but only if still within the keep window. Past
+    // that, freshCached is null → the account drops from the panel (omitted).
+    const freshCached = cached && Date.now() - cached.ts < USAGE_LAST_GOOD_TTL_MS ? cached.source : null;
+
+    // No token (refresh failed): hold the last value while fresh; if we never
+    // had one, ask for re-login; if it aged out, omit (disconnect).
+    if (!accessToken) {
+      if (freshCached) sources.push(freshCached);
+      else if (!everHadValue) sources.push(reloginSource(acct));
+      continue;
+    }
     const u = await fetchUsageResilient(accessToken);
     if (!u.ok || !u.data) {
-      // Transient failure or hard 401. Prefer the last good value; fall back to
-      // a neutral placeholder ('…') unless it's a 401 we can't recover from.
-      sources.push(cached || reloginSource(acct, u.status === 401 ? 're-login' : '…'));
+      // Transient failure or hard 401: same rule — hold while fresh, otherwise
+      // show re-login/'…' only if we never had a value, else omit (disconnect).
+      if (freshCached) sources.push(freshCached);
+      else if (!everHadValue) sources.push(reloginSource(acct, u.status === 401 ? 're-login' : '…'));
       continue;
     }
     const src = accountSource(acct, u.data);
-    if (src) { lastGoodSourceById.set(acct.id, src); sources.push(src); }
-    else sources.push(cached || reloginSource(acct, '…'));
+    if (src) { lastGoodSourceById.set(acct.id, { source: src, ts: Date.now() }); sources.push(src); }
+    else if (freshCached) sources.push(freshCached);
+    else if (!everHadValue) sources.push(reloginSource(acct, '…'));
   }
   if (mutated) saveUsageStore(store);
   return sources;
