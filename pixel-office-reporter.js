@@ -869,6 +869,22 @@ function reloginSource(acct, primary = 're-login') {
   return { id: acct.id, label: acct.label, primary, color: '#e0573f' };
 }
 
+// Last successfully-built source per account. On a failed poll we re-emit this
+// instead of overwriting the panel with an error, so the kiosk keeps the last
+// known value and just updates whenever a poll succeeds again.
+const lastGoodSourceById = new Map(); // acct.id -> source (with metrics)
+
+// Fetch /usage with one retry on a TRANSIENT failure (timeout / 5xx / 429 /
+// network). Auth failures (401/403) aren't retried — they need a real refresh.
+async function fetchUsageResilient(accessToken) {
+  let r = await fetchUsageRaw(accessToken);
+  if (!r.ok && r.status !== 401 && r.status !== 403) {
+    await new Promise((res) => setTimeout(res, 1500));
+    r = await fetchUsageRaw(accessToken);
+  }
+  return r;
+}
+
 function windowMetric(short, w) {
   if (!w || typeof w.utilization !== 'number') return null;
   const pct = Math.max(0, Math.min(1, w.utilization / 100));
@@ -912,11 +928,20 @@ async function computeUsageSources() {
         mutated = true;
       }
     }
-    if (!accessToken) { sources.push(reloginSource(acct)); continue; }
-    const u = await fetchUsageRaw(accessToken);
-    if (!u.ok || !u.data) { sources.push(reloginSource(acct, u.status === 401 ? 're-login' : 'error')); continue; }
+    const cached = lastGoodSourceById.get(acct.id);
+    // No token (refresh failed): keep the last good value if we have one; only
+    // ask for re-login when we've genuinely never gotten a reading.
+    if (!accessToken) { sources.push(cached || reloginSource(acct)); continue; }
+    const u = await fetchUsageResilient(accessToken);
+    if (!u.ok || !u.data) {
+      // Transient failure or hard 401. Prefer the last good value; fall back to
+      // a neutral placeholder ('…') unless it's a 401 we can't recover from.
+      sources.push(cached || reloginSource(acct, u.status === 401 ? 're-login' : '…'));
+      continue;
+    }
     const src = accountSource(acct, u.data);
-    sources.push(src || reloginSource(acct, 'error'));
+    if (src) { lastGoodSourceById.set(acct.id, src); sources.push(src); }
+    else sources.push(cached || reloginSource(acct, '…'));
   }
   if (mutated) saveUsageStore(store);
   return sources;
