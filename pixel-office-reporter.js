@@ -908,9 +908,20 @@ function accountSource(acct, usage) {
   return { id: acct.id, label: acct.label, metrics };
 }
 
-// Build usage sources for every stored account. The account currently in the
-// Keychain is read live (Claude Code keeps it fresh → no rotation conflict);
-// any other account uses its stored token and self-refreshes only when expired.
+// Build usage sources for every stored account.
+//
+// Token-chain lifecycle (survives /login account switches with NO manual step):
+// refresh tokens are single-use — Claude Code rotates its own chain, so a
+// stored COPY of the Keychain tokens silently dies within hours. Instead:
+//   - While an account is ACTIVE in the Keychain, read it live and keep the
+//     store's copy in sync every poll (chain still owned by Claude Code,
+//     `independent: false`).
+//   - The moment it goes ABSENT (user switched accounts), ADOPT its chain:
+//     rotate the last-synced refresh token once. Claude Code abandoned that
+//     chain at the switch, so consuming it is conflict-free; from then on the
+//     reporter owns an independent chain (`independent: true`) that it renews
+//     on expiry indefinitely. (Verified live 2026-06-03: an adopted chain
+//     keeps refreshing after the user logs back into the other account.)
 async function computeUsageSources() {
   const store = loadUsageStore();
   if (!store.accounts.length) return [];
@@ -922,16 +933,41 @@ async function computeUsageSources() {
     let accessToken = null;
     if (liveCred && liveUuid && liveUuid === acct.accountUuid) {
       accessToken = liveCred.accessToken; // active account: fresh, never self-refreshed
-    } else if (acct.expiresAt && acct.expiresAt - Date.now() > USAGE_TOKEN_SKEW_MS) {
-      accessToken = acct.accessToken;
-    } else if (acct.refreshToken) {
-      const r = await refreshOAuth(acct.refreshToken);
-      if (r) {
-        acct.accessToken = r.accessToken;
-        acct.refreshToken = r.refreshToken;
-        acct.expiresAt = r.expiresAt;
-        accessToken = r.accessToken;
+      // Sync the Keychain chain into the store so the adoption below always
+      // has an un-consumed refresh token to rotate when this account goes absent.
+      if (acct.accessToken !== liveCred.accessToken || acct.refreshToken !== liveCred.refreshToken) {
+        acct.accessToken = liveCred.accessToken;
+        acct.refreshToken = liveCred.refreshToken;
+        acct.expiresAt = liveCred.expiresAt;
+        acct.independent = false;
         mutated = true;
+      }
+    } else {
+      // Absent account: adopt the chain once (rotate → reporter-owned), then
+      // renew only on expiry.
+      if (acct.refreshToken && acct.independent !== true) {
+        const r = await refreshOAuth(acct.refreshToken);
+        if (r) {
+          acct.accessToken = r.accessToken;
+          acct.refreshToken = r.refreshToken;
+          acct.expiresAt = r.expiresAt;
+          acct.independent = true;
+          mutated = true;
+          log(`Adopted token chain for absent account '${acct.id}'`);
+        }
+      }
+      if (acct.expiresAt && acct.expiresAt - Date.now() > USAGE_TOKEN_SKEW_MS) {
+        accessToken = acct.accessToken;
+      } else if (acct.refreshToken) {
+        const r = await refreshOAuth(acct.refreshToken);
+        if (r) {
+          acct.accessToken = r.accessToken;
+          acct.refreshToken = r.refreshToken;
+          acct.expiresAt = r.expiresAt;
+          acct.independent = true;
+          accessToken = r.accessToken;
+          mutated = true;
+        }
       }
     }
     const cached = lastGoodSourceById.get(acct.id);
@@ -1008,6 +1044,9 @@ async function runUsageCli(cmd) {
   const entry = {
     id, label, color, accountUuid: profile.uuid, email: profile.email,
     accessToken: cred.accessToken, refreshToken: cred.refreshToken, expiresAt: cred.expiresAt,
+    // Chain is still Claude Code's; the poll loop adopts it (rotates once)
+    // when this account goes absent from the Keychain.
+    independent: false,
   };
   const idx = store.accounts.findIndex((a) => a.id === id);
   if (idx >= 0) store.accounts[idx] = entry; else store.accounts.push(entry);
