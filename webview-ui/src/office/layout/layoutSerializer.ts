@@ -49,22 +49,22 @@ function spriteAverageHex(sprite: SpriteData): string {
   return hex
 }
 
-/** Representative rendered color of the floor tile at (col,row). Painted tile
- *  color wins; otherwise the average of the tile's theme texture; tan fallback. */
-function floorTileHex(
+/** The floor tile at (col,row) as the doorway sees it: the actual rendered
+ *  (colorized) sprite when available, plus a representative hex fallback. */
+function floorTileInfo(
   col: number,
   row: number,
   tileMap: TileTypeVal[][],
   tileColors?: Array<FloorColor | null>,
   tileThemes?: Array<string | null>,
   cols?: number,
-): string {
+): { hex: string; sprite?: SpriteData } {
   const t = tileMap[row]?.[col]
-  if (t === undefined || t === TileType.WALL || t === TileType.VOID) return DOORWAY_FALLBACK_HEX
+  if (t === undefined || t === TileType.WALL || t === TileType.VOID) return { hex: DOORWAY_FALLBACK_HEX }
   const idx = cols !== undefined ? row * cols + col : -1
   const painted = idx >= 0 ? tileColors?.[idx] : undefined
   const theme = (idx >= 0 ? tileThemes?.[idx] : null) ?? getActiveFloorThemeId()
-  // Painted tiles render texture × tint — average the actual COLORIZED sprite,
+  // Painted tiles render texture × tint — use the actual COLORIZED sprite,
   // not the flat tint (a dark tint like b:-44 alone reads near-black even
   // though the rendered floor is a mid brown).
   if (painted) {
@@ -72,32 +72,60 @@ function floorTileHex(
     const hex = spriteAverageHex(colorized)
     // getColorizedFloorSprite returns a magenta error tile when sprites
     // haven't loaded yet — fall back to the flat tint approximation then.
-    if (hex !== DOORWAY_FALLBACK_HEX && hex !== '#ff00ff') return hex
-    return wallColorToHex(painted)
+    if (hex !== DOORWAY_FALLBACK_HEX && hex !== '#ff00ff') return { hex, sprite: colorized }
+    return { hex: wallColorToHex(painted) }
   }
   const floorSprite = getFloorSprite((t as number) - 1, theme)
-  if (floorSprite) return spriteAverageHex(floorSprite)
-  return DOORWAY_FALLBACK_HEX
+  if (floorSprite) return { hex: spriteAverageHex(floorSprite), sprite: floorSprite }
+  return { hex: DOORWAY_FALLBACK_HEX }
 }
 
-/** Remap the doorway placeholder colors of an open-door sprite to the given
- *  floor hex (dimmed). Cached per (sprite, hex). */
+/** Fill the doorway placeholder pixels of an open-door sprite with the REAL
+ *  floor texture beyond (dimmed for interior depth), so an open door shows
+ *  actual brick/grass/carpet rather than a flat approximation. Falls back to
+ *  a flat dimmed fill when no floor sprite is available. Cached per
+ *  (door sprite, floor sprite, hex). */
 const doorwayRecolorCache = new Map<string, SpriteData>()
 const doorwaySpriteIds = new WeakMap<SpriteData, number>()
 let nextDoorwaySpriteId = 1
-function recolorDoorway(sprite: SpriteData, floorHex: string): SpriteData {
+function spriteId(sprite: SpriteData): number {
   let id = doorwaySpriteIds.get(sprite)
   if (!id) {
     id = nextDoorwaySpriteId++
     doorwaySpriteIds.set(sprite, id)
   }
-  const key = `${id}|${floorHex}`
+  return id
+}
+function recolorDoorway(
+  sprite: SpriteData,
+  floor: { hex: string; sprite?: SpriteData },
+  /** Door sprite native px per tile (sprite width / footprintW) — maps doorway
+   *  pixels onto the floor texture's own native resolution. */
+  doorPxPerTile: number,
+): SpriteData {
+  const key = `${spriteId(sprite)}|${floor.sprite ? spriteId(floor.sprite) : 0}|${floor.hex}`
   const cached = doorwayRecolorCache.get(key)
   if (cached) return cached
-  const dark = dimHex(floorHex, DOORWAY_DIM)
-  const floor = dimHex(floorHex, DOORWAY_FLOOR_DIM)
-  const out = sprite.map((row) => row.map((c) =>
-    c === DOORWAY_PLACEHOLDER_DARK ? dark : c === DOORWAY_PLACEHOLDER_FLOOR ? floor : c,
+  const flatDark = dimHex(floor.hex, DOORWAY_DIM)
+  const flatFloor = dimHex(floor.hex, DOORWAY_FLOOR_DIM)
+  const f = floor.sprite
+  const fh = f?.length ?? 0
+  const fw = fh > 0 ? f![0].length : 0
+  const scale = f && doorPxPerTile > 0 ? fw / doorPxPerTile : 0
+  const sample = (x: number, y: number, dim: number): string => {
+    if (!f || scale <= 0) return dim === DOORWAY_DIM ? flatDark : flatFloor
+    const tx = Math.floor(x * scale) % fw
+    const ty = Math.floor(y * scale) % fh
+    const c = f[ty]?.[tx]
+    if (!c) return dim === DOORWAY_DIM ? flatDark : flatFloor
+    return dimHex(c, dim)
+  }
+  const out = sprite.map((row, y) => row.map((c, x) =>
+    c === DOORWAY_PLACEHOLDER_DARK
+      ? sample(x, y, DOORWAY_DIM)
+      : c === DOORWAY_PLACEHOLDER_FLOOR
+        ? sample(x, y, DOORWAY_FLOOR_DIM)
+        : c,
   ))
   doorwayRecolorCache.set(key, out)
   return out
@@ -235,16 +263,17 @@ export function layoutToFurnitureInstances(
           triggerTiles.push(`${item.col + dc},${item.row + dr}`)
         }
       }
-      // Doorway see-through: remap the open sprites' doorway placeholders to
-      // the floor just INSIDE the wall (the camera looks north), dimmed.
-      let insideHex = DOORWAY_FALLBACK_HEX
+      // Doorway see-through: fill the open sprites' doorway placeholders with
+      // the floor texture just INSIDE the wall (the camera looks north), dimmed.
+      let inside: { hex: string; sprite?: SpriteData } = { hex: DOORWAY_FALLBACK_HEX }
       if (tileMap) {
         const insideRow = item.row + entry.footprintH - 2
-        insideHex = floorTileHex(item.col, insideRow, tileMap, tileColors, tileThemes, layoutCols)
+        inside = floorTileInfo(item.col, insideRow, tileMap, tileColors, tileThemes, layoutCols)
       }
+      const doorPxPerTile = (entry.sprite[0]?.length ?? 0) / entry.footprintW
       doorData = {
-        openNorthSprite: entry.openNorthSprite && recolorDoorway(entry.openNorthSprite, insideHex),
-        openSouthSprite: entry.openSouthSprite && recolorDoorway(entry.openSouthSprite, insideHex),
+        openNorthSprite: entry.openNorthSprite && recolorDoorway(entry.openNorthSprite, inside, doorPxPerTile),
+        openSouthSprite: entry.openSouthSprite && recolorDoorway(entry.openSouthSprite, inside, doorPxPerTile),
         triggerTiles,
         doorCenterY: (item.row + entry.footprintH - 0.5) * TILE_SIZE,
       }
