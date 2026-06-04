@@ -2,6 +2,7 @@ import { TileType, FurnitureType, DEFAULT_COLS, DEFAULT_ROWS, TILE_SIZE, Directi
 import type { TileType as TileTypeVal, OfficeLayout, PlacedFurniture, Seat, FurnitureInstance, FloorColor, SpriteData, PlacedInteractionPoint } from '../types.js'
 import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
+import { getSpriteRenderSize } from '../sprites/spriteCache.js'
 import { LAMP_OFF_SPRITE, LAMP_SPRITE, WALL_SCONCE_OFF_SPRITE, WALL_SCONCE_ON_SPRITE } from '../sprites/spriteData.js'
 import { getActiveFloorThemeId } from '../floorTiles.js'
 import { isExteriorTile, isNorthWall } from './tileKinds.js'
@@ -51,6 +52,13 @@ export function layoutToFurnitureInstances(
     const y = item.row * TILE_SIZE
     const spriteH = entry.sprite.length
     let zY = y + spriteH
+    // Doors anchor to the BOTTOM of their footprint: door sprites are shorter
+    // than their footprint (the wall's top cap stays visible above them), so
+    // top-anchoring would float them above the doorway.
+    let drawY = y
+    if (entry.isDoor || entry.isPetDoor) {
+      drawY = (item.row + entry.footprintH) * TILE_SIZE - getSpriteRenderSize(entry.sprite).height
+    }
 
     // Chair z-sorting: ensure characters sitting on chairs render correctly
     if (entry.category === 'chairs') {
@@ -135,7 +143,7 @@ export function layoutToFurnitureInstances(
       }
     }
 
-    instances.push({ sprite, x, y, zY, ...(onSprite ? { onSprite } : {}), ...(doorData ?? {}) })
+    instances.push({ sprite, x, y: drawY, zY, ...(onSprite ? { onSprite } : {}), ...(doorData ?? {}) })
   }
   return instances
 }
