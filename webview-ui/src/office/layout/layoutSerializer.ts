@@ -85,6 +85,18 @@ export function layoutToFurnitureInstances(
       zY = (item.row + 1) * TILE_SIZE + WALL_DECOR_Z_EPSILON
     }
 
+    // Doors cut INTO a wall: when the door's bottom tile is a WALL tile (a
+    // south/perimeter wall it passes through), the default zY ties with that
+    // wall sprite's z baseline and the wall draws over the door — an invisible
+    // doorway that makes actors look like they phase through brick. Lift the
+    // door just past the wall while staying behind actors on the row below.
+    if (tileMap && entry.isDoor) {
+      const bottomRow = item.row + entry.footprintH - 1
+      if (tileMap[bottomRow]?.[item.col] === TileType.WALL) {
+        zY = (bottomRow + 1) * TILE_SIZE + WALL_DECOR_Z_EPSILON
+      }
+    }
+
     // Day/night fixtures (desk lamp, wall sconce) carry two sprites: the placed
     // instance shows the unlit OFF sprite by day; the renderer swaps to
     // `onSprite` (glowing) at night. The catalog keeps the ON sprite as the
@@ -109,19 +121,42 @@ export function layoutToFurnitureInstances(
 }
 
 /** Get all tiles blocked by furniture footprints, optionally excluding a set of tiles.
- *  Skips top backgroundTiles rows so characters can walk through them. */
-export function getBlockedTiles(furniture: PlacedFurniture[], excludeTiles?: Set<string>): Set<string> {
+ *  Skips top backgroundTiles rows so characters can walk through them.
+ *
+ *  South-wall decor guard (`tileMap` optional, backward compat): wall-category
+ *  decor hanging over a floor tile that sits directly ABOVE a wall tile is
+ *  mounted on a south-facing wall. An actor standing on that floor tile would
+ *  render sandwiched "inside" the window/mirror (the sprite z-sorts in front of
+ *  them), so those tiles are blocked too. North-wall decor is unaffected — its
+ *  overlap tile has floor below, and actors correctly draw in front of it. */
+export function getBlockedTiles(
+  furniture: PlacedFurniture[],
+  excludeTiles?: Set<string>,
+  tileMap?: TileTypeVal[][],
+): Set<string> {
   const tiles = new Set<string>()
   for (const item of furniture) {
     const entry = getCatalogEntry(item.type)
     if (!entry) continue
     const bgRows = entry.backgroundTiles || 0
     for (let dr = 0; dr < entry.footprintH; dr++) {
-      if (dr < bgRows) continue // skip background rows — characters can walk through
       for (let dc = 0; dc < entry.footprintW; dc++) {
         const key = `${item.col + dc},${item.row + dr}`
         if (excludeTiles && excludeTiles.has(key)) continue
-        tiles.add(key)
+        if (dr >= bgRows) {
+          tiles.add(key)
+          continue
+        }
+        // Background row: normally walk-through, EXCEPT south-wall decor overlap
+        if (tileMap && entry.category === 'wall' && !entry.isDoor) {
+          const c = item.col + dc
+          const r = item.row + dr
+          const here = tileMap[r]?.[c]
+          const below = tileMap[r + 1]?.[c]
+          if (here !== undefined && here !== TileType.WALL && here !== TileType.VOID && below === TileType.WALL) {
+            tiles.add(key)
+          }
+        }
       }
     }
   }

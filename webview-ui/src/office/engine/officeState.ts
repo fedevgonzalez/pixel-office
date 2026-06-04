@@ -73,7 +73,7 @@ export class OfficeState {
     this.layout = layout || createDefaultLayout()
     this.tileMap = layoutToTileMap(this.layout)
     this.seats = layoutToSeats(this.layout.furniture)
-    this.blockedTiles = getBlockedTiles(this.layout.furniture)
+    this.blockedTiles = getBlockedTiles(this.layout.furniture, undefined, this.tileMap)
     this.doorTiles = this.computeDoorTiles()
     this.furniture = layoutToFurnitureInstances(this.layout.furniture, this.tileMap)
     this.characterBoundary = this.buildBoundarySet('character')
@@ -107,7 +107,7 @@ export class OfficeState {
     this.layout = layout
     this.tileMap = layoutToTileMap(layout)
     this.seats = layoutToSeats(layout.furniture)
-    this.blockedTiles = getBlockedTiles(layout.furniture)
+    this.blockedTiles = getBlockedTiles(layout.furniture, undefined, this.tileMap)
     this.doorTiles = this.computeDoorTiles()
     this.rebuildFurnitureInstances()
     // Rebuild per-actor boundary Sets ONCE here (never per frame).
