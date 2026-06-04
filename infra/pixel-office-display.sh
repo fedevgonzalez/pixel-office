@@ -46,6 +46,21 @@ start_kiosk() {
     rm -f "$XINITRC"
     cat > "$XINITRC" <<'XEOF'
 #!/bin/bash
+# Monitor watchdog: after a reboot the monitor's EDID handshake can lose the
+# race against Xorg startup — X falls back to a dummy framebuffer with no
+# output active and the screen stays black even though Chrome is running.
+# Re-check forever (also covers unplug/replug): if an output is connected but
+# no mode is active (no '*' in xrandr), re-enable it at its preferred mode.
+# The loop exits on its own when X dies (xrandr fails), so kiosk restarts
+# don't accumulate orphan watchers.
+(
+    while out=$(xrandr --query 2>/dev/null); do
+        if echo "$out" | grep -q ' connected' && ! echo "$out" | grep -q '\*'; then
+            xrandr --auto
+        fi
+        sleep 5
+    done
+) &
 unclutter -idle 1 -root &
 xset s off
 xset -dpms
