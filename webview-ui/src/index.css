@@ -9,6 +9,11 @@
 :root {
   /* Core backgrounds */
   --pixel-bg: #1f1a24;
+  /* Boot loader (assets/loader-coffee.png sprite strip) */
+  --loader-frame-size: 48px;
+  --loader-frame-count: 8;
+  --loader-scale: 3;
+  --loader-cycle-duration: 2s;
   --pixel-surface: rgba(0, 0, 0, 0.25);
   /* Soft elevated surfaces — used inside modals as cards, swatch tiles, etc. */
   --pixel-surface-soft: rgba(255, 245, 235, 0.05);
@@ -278,6 +283,22 @@ button[aria-busy='true'] {
 }
 .pixel-modal-rise {
   animation: pixel-modal-rise 160ms ease-out;
+}
+
+/* Boot loader: pixel-art coffee mug filling up (8-frame sprite strip).
+   Frame size/count must match assets/loader-coffee.png (8 frames of 48x48). */
+@keyframes pixel-loader-fill {
+  from { background-position-x: 0; }
+  to { background-position-x: calc(-1 * var(--loader-frame-size) * var(--loader-frame-count)); }
+}
+.pixel-loader-coffee {
+  width: var(--loader-frame-size);
+  height: var(--loader-frame-size);
+  background-image: url('/assets/loader-coffee.png');
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  transform: scale(var(--loader-scale));
+  animation: pixel-loader-fill var(--loader-cycle-duration) steps(var(--loader-frame-count)) infinite;
 }
 
 /* Gallery card hover with subtle step transition. */

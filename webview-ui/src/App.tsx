@@ -279,26 +279,18 @@ function App() {
 
   if (!layoutReady) {
     // Screenshot mode: render a bare dark stage so CI tooling that waits on
-    // data-screenshot-ready never captures the "Loading..." placeholder.
-    // Kiosk mode: same bare dark stage — a "Loading..." badge on the wall
-    // display is just visual noise during boot.
-    if (isScreenshotMode || isKioskMode) {
+    // data-screenshot-ready never captures the loading placeholder.
+    if (isScreenshotMode) {
       return <div style={{ width: '100%', height: '100%', background: 'var(--pixel-bg)' }} />
     }
+    // Boot loader: pixel-art coffee mug filling up (styles in index.css).
     return (
-      <div role="status" style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--pixel-text)' }}>
-        <span
-          className="pixel-agents-pulse"
-          style={{
-            background: 'var(--pixel-bg)',
-            border: '2px solid var(--pixel-border)',
-            padding: '12px 24px',
-            boxShadow: 'var(--pixel-shadow)',
-            borderRadius: 0,
-          }}
-        >
-          Loading...
-        </span>
+      <div
+        role="status"
+        aria-label="Loading"
+        style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--pixel-bg)' }}
+      >
+        <div className="pixel-loader-coffee" />
       </div>
     )
   }
