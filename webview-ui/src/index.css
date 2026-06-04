@@ -318,9 +318,9 @@ button[aria-busy='true'] {
   animation: pixel-loader-dots var(--loader-cycle-duration) steps(1) infinite;
 }
 @keyframes pixel-loader-dots {
-  0% { content: '...'; }
+  0% { content: '.'; }
   33% { content: '..'; }
-  66% { content: '.'; }
+  66% { content: '...'; }
 }
 
 /* Gallery card hover with subtle step transition. */
