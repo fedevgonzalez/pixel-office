@@ -59,8 +59,12 @@ export class OfficeState {
   subagentMeta: Map<number, { parentAgentId: number; parentToolId: string }> = new Map()
   private nextSubagentId = -1
 
-  /** Tiles occupied by doors — walkable even though underlying tile is WALL */
+  /** Tiles occupied by doors — walkable even though underlying tile is WALL.
+   *  Pet doors are NOT included: characters never path through them. */
   doorTiles: Set<string> = new Set()
+
+  /** Door tiles for PETS: regular doors plus pet doors. Pets path through both. */
+  petDoorTiles: Set<string> = new Set()
 
   /** Per-actor allowed-tile Sets, built ONCE on rebuild from
    *  layout.movementBoundary (Phase B / D2-D3). `undefined` = unrestricted
@@ -259,7 +263,7 @@ export class OfficeState {
   private relocatePetToWalkable(pet: Pet): void {
     const pool = this.getPetWalkableTiles()
     if (pool.length === 0) return
-    const near = findNearestWalkable(pet.tileCol, pet.tileRow, this.tileMap, this.blockedTiles, this.doorTiles, this.petBoundary)
+    const near = findNearestWalkable(pet.tileCol, pet.tileRow, this.tileMap, this.blockedTiles, this.petDoorTiles, this.petBoundary)
     const spawn = near ?? pool[Math.floor(Math.random() * pool.length)]
     pet.tileCol = spawn.col
     pet.tileRow = spawn.row
@@ -296,14 +300,20 @@ export class OfficeState {
     return null
   }
 
-  /** Compute the set of tiles occupied by doors (both rows) for walkability override */
+  /** Compute the door-tile sets for walkability override. Regular doors go in
+   *  `doorTiles` (characters + pets); pet doors only in `petDoorTiles` (pets). */
   private computeDoorTiles(): Set<string> {
     const tiles = new Set<string>()
+    this.petDoorTiles = new Set<string>()
     for (const f of this.layout.furniture) {
       const entry = getCatalogEntry(f.type)
-      if (!entry?.isDoor) continue
+      if (!entry?.isDoor && !entry?.isPetDoor) continue
       for (let dr = 0; dr < entry.footprintH; dr++) {
-        tiles.add(`${f.col},${f.row + dr}`)
+        for (let dc = 0; dc < entry.footprintW; dc++) {
+          const key = `${f.col + dc},${f.row + dr}`
+          this.petDoorTiles.add(key)
+          if (!entry.isPetDoor) tiles.add(key)
+        }
       }
     }
     return tiles
@@ -1051,7 +1061,7 @@ export class OfficeState {
   walkPetToTile(uid: string, col: number, row: number): boolean {
     const pet = this.pets.get(uid)
     if (!pet) return false
-    return petWalkToTile(pet, col, row, this.tileMap, this.blockedTiles, this.doorTiles)
+    return petWalkToTile(pet, col, row, this.tileMap, this.blockedTiles, this.petDoorTiles)
   }
 
   /** Show an end-of-day banner over the whole canvas for `durationSec` seconds. */
@@ -1073,7 +1083,7 @@ export class OfficeState {
       { c: 1, r: 1 }, { c: -1, r: 1 }, { c: 1, r: -1 }, { c: -1, r: -1 },
     ]
     for (const o of offsets) {
-      if (petWalkToTile(pet, ch.tileCol + o.c, ch.tileRow + o.r, this.tileMap, this.blockedTiles, this.doorTiles)) {
+      if (petWalkToTile(pet, ch.tileCol + o.c, ch.tileRow + o.r, this.tileMap, this.blockedTiles, this.petDoorTiles)) {
         return true
       }
     }
@@ -1201,7 +1211,7 @@ export class OfficeState {
       ? allPlayZoneTiles.filter((t) => petBoundary.has(`${t.col},${t.row}`))
       : allPlayZoneTiles
     for (const pet of this.pets.values()) {
-      updatePet(pet, dt, petWalkable, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.doorTiles, petTiles, playZoneTiles, petBoundary)
+      updatePet(pet, dt, petWalkable, this.tileMap, this.blockedTiles, activeAgentPositions, this.officeIdleTime, this.petDoorTiles, petTiles, playZoneTiles, petBoundary)
     }
   }
 

@@ -1575,6 +1575,50 @@ async function loadFurnitureAssets() {
             })()
           : null;
 
+        // Door sheets ship as a horizontal 1×3 strip: closed | open-north |
+        // open-south (doors swing away from the approaching actor). The loader
+        // slices the strip into 3 sprites: the closed entry is catalog-visible
+        // (with isDoor/isPetDoor from the sidecar) and the open variants attach
+        // to it client-side via groupId + state ('open_n' / 'open_s').
+        if (meta && meta.doorStates === 3) {
+          const srcCellW = Math.floor(png.width / 3);
+          const srcCellH = png.height;
+          const CLIENT_TILE_PX = 48;
+          const footprintW = Number.isFinite(meta.footprintW) && meta.footprintW > 0
+            ? meta.footprintW
+            : Math.max(1, Math.round(srcCellW / TILE_PIXELS));
+          const footprintH = Number.isFinite(meta.footprintH) && meta.footprintH > 0
+            ? meta.footprintH
+            : Math.max(1, Math.round(srcCellH / TILE_PIXELS));
+          const outW = footprintW * CLIENT_TILE_PX;
+          const outH = footprintH * CLIENT_TILE_PX;
+          const states = [
+            { state: 'closed', id: name,              sx: 0 },
+            { state: 'open_n', id: `${name}_open_n`,  sx: srcCellW },
+            { state: 'open_s', id: `${name}_open_s`,  sx: srcCellW * 2 },
+          ];
+          for (const { state, id, sx } of states) {
+            if (catalog.some((e) => e.id === id)) continue;
+            sprites[id] = pngToSpriteDataResampled(png, sx, 0, srcCellW, srcCellH, outW, outH);
+            catalog.push({
+              id,
+              label: meta.label || meta.name || name,
+              category: meta.category || 'misc',
+              width: outW,
+              height: outH,
+              footprintW,
+              footprintH,
+              isDesk: false,
+              groupId: name,
+              state,
+              ...(meta.canPlaceOnWalls ? { canPlaceOnWalls: true } : {}),
+              ...(typeof meta.backgroundTiles === 'number' ? { backgroundTiles: meta.backgroundTiles } : {}),
+              ...(meta.isPetDoor ? { isPetDoor: true } : meta.isDoor ? { isDoor: true } : {}),
+            });
+          }
+          continue;
+        }
+
         // AI-generated props ship as 2×2 rotation sheets (top-L=front, top-R=right,
         // bot-L=back, bot-R=left). Loader slices into 4 sprites and exposes them as
         // a rotation group: only the `_front` variant is catalog-visible; the editor's

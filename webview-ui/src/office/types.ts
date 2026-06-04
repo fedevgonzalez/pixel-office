@@ -91,6 +91,16 @@ export interface FurnitureInstance {
    *  lamp furniture so the renderer can swap to a glowing ON variant at night
    *  while keeping the unlit OFF variant in `sprite` for the day. */
   onSprite?: SpriteData
+  /** Door swing sprites (doors only). The renderer swaps to one of these when
+   *  an actor stands on a trigger tile, picking the side AWAY from the actor. */
+  openNorthSprite?: SpriteData
+  openSouthSprite?: SpriteData
+  /** "col,row" tile keys that trigger the door-open swap (footprint plus the
+   *  approach tile on each side). Present only on door instances. */
+  triggerTiles?: string[]
+  /** Pixel y of the door passage center — actors above it open the door SOUTH
+   *  (pushed away from them), actors below open it NORTH. */
+  doorCenterY?: number
 }
 
 export interface ToolActivity {
@@ -214,6 +224,14 @@ export interface FurnitureCatalogEntry {
   canPlaceOnWalls?: boolean
   /** Whether this item is a door (agents enter/exit through it) */
   isDoor?: boolean
+  /** Pet door: walkable for pets ONLY — characters never path through it, and
+   *  agents never spawn at it. Implies isDoor-style wall traversal for pets. */
+  isPetDoor?: boolean
+  /** Door swing states. Doors open AWAY from the approaching actor: NORTH =
+   *  swung into the room above, SOUTH = swung toward the camera. Doors without
+   *  open sprites render closed and are hidden from the editor palette. */
+  openNorthSprite?: SpriteData
+  openSouthSprite?: SpriteData
   /** Whether this item is a break room item (agents go here when idle) */
   isBreakRoom?: boolean
   /** Whether this item is an interaction point (coffee machine, water cooler) */

@@ -90,7 +90,7 @@ export function layoutToFurnitureInstances(
     // wall sprite's z baseline and the wall draws over the door — an invisible
     // doorway that makes actors look like they phase through brick. Lift the
     // door just past the wall while staying behind actors on the row below.
-    if (tileMap && entry.isDoor) {
+    if (tileMap && (entry.isDoor || entry.isPetDoor)) {
       const bottomRow = item.row + entry.footprintH - 1
       if (tileMap[bottomRow]?.[item.col] === TileType.WALL) {
         zY = (bottomRow + 1) * TILE_SIZE + WALL_DECOR_Z_EPSILON
@@ -115,7 +115,27 @@ export function layoutToFurnitureInstances(
       if (onSprite) onSprite = getColorizedSprite(`${key}-on`, onSprite, item.color)
     }
 
-    instances.push({ sprite, x, y, zY, ...(onSprite ? { onSprite } : {}) })
+    // Door swing data: trigger tiles are the footprint plus the approach tile
+    // above and below each footprint column. doorCenterY = passage center (the
+    // bottom footprint row) so the renderer can pick the swing side away from
+    // the approaching actor. Doors without open sprites stay static (closed).
+    let doorData: Pick<FurnitureInstance, 'openNorthSprite' | 'openSouthSprite' | 'triggerTiles' | 'doorCenterY'> | undefined
+    if ((entry.isDoor || entry.isPetDoor) && (entry.openNorthSprite || entry.openSouthSprite)) {
+      const triggerTiles: string[] = []
+      for (let dc = 0; dc < entry.footprintW; dc++) {
+        for (let dr = -1; dr <= entry.footprintH; dr++) {
+          triggerTiles.push(`${item.col + dc},${item.row + dr}`)
+        }
+      }
+      doorData = {
+        openNorthSprite: entry.openNorthSprite,
+        openSouthSprite: entry.openSouthSprite,
+        triggerTiles,
+        doorCenterY: (item.row + entry.footprintH - 0.5) * TILE_SIZE,
+      }
+    }
+
+    instances.push({ sprite, x, y, zY, ...(onSprite ? { onSprite } : {}), ...(doorData ?? {}) })
   }
   return instances
 }

@@ -10,6 +10,8 @@ import {
   PC_SPRITE,
   LAMP_SPRITE,
   DOOR_SPRITE,
+  DOOR_OPEN_NORTH_SPRITE,
+  DOOR_OPEN_SOUTH_SPRITE,
   COFFEE_MACHINE_SPRITE,
   BREAK_COUCH_SPRITE,
   TABLE_2X1_SPRITE,
@@ -41,11 +43,13 @@ export interface LoadedAssetData {
     isDesk: boolean
     groupId?: string
     orientation?: string  // 'front' | 'back' | 'left' | 'right'
-    state?: string        // 'on' | 'off'
+    state?: string        // 'on' | 'off' | door states: 'closed' | 'open_n' | 'open_s'
     canPlaceOnSurfaces?: boolean
     backgroundTiles?: number
     canPlaceOnWalls?: boolean
     providesSurface?: boolean
+    isDoor?: boolean
+    isPetDoor?: boolean
   }>
   sprites: Record<string, SpriteData>
 }
@@ -66,7 +70,7 @@ export const FURNITURE_CATALOG: CatalogEntryWithCategory[] = [
   { type: FurnitureType.CHAIR,      label: 'Chair',      footprintW: 1, footprintH: 1, sprite: CHAIR_SPRITE,        isDesk: false, category: 'chairs' },
   { type: FurnitureType.PC,         label: 'PC',         footprintW: 1, footprintH: 1, sprite: PC_SPRITE,           isDesk: false, category: 'electronics', canPlaceOnSurfaces: true },
   { type: FurnitureType.LAMP,       label: 'Lamp',       footprintW: 1, footprintH: 2, sprite: LAMP_SPRITE,         isDesk: false, category: 'decor', canPlaceOnSurfaces: true },
-  { type: FurnitureType.DOOR,       label: 'Door',       footprintW: 1, footprintH: 2, sprite: DOOR_SPRITE,         isDesk: false, category: 'misc', isDoor: true, canPlaceOnWalls: true, backgroundTiles: 2 },
+  { type: FurnitureType.DOOR,       label: 'Door',       footprintW: 1, footprintH: 2, sprite: DOOR_SPRITE,         isDesk: false, category: 'misc', isDoor: true, canPlaceOnWalls: true, backgroundTiles: 2, openNorthSprite: DOOR_OPEN_NORTH_SPRITE, openSouthSprite: DOOR_OPEN_SOUTH_SPRITE },
   { type: FurnitureType.COFFEE_MACHINE, label: 'Coffee Machine', footprintW: 1, footprintH: 1, sprite: COFFEE_MACHINE_SPRITE, isDesk: false, category: 'break_room', isBreakRoom: true, isInteractionPoint: true, canPlaceOnSurfaces: true },
   { type: FurnitureType.BREAK_COUCH, label: 'Break Couch', footprintW: 2, footprintH: 1, sprite: BREAK_COUCH_SPRITE, isDesk: false, category: 'break_room', isBreakRoom: true },
   { type: FurnitureType.TABLE_2X1,   label: 'Table 2x1',   footprintW: 2, footprintH: 1, sprite: TABLE_2X1_SPRITE,    isDesk: true,  category: 'desks' },
@@ -152,8 +156,25 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
       ...(asset.backgroundTiles ? { backgroundTiles: asset.backgroundTiles } : {}),
       ...(asset.canPlaceOnWalls ? { canPlaceOnWalls: true } : {}),
       ...(asset.providesSurface ? { providesSurface: true } : {}),
+      ...(asset.isDoor ? { isDoor: true } : {}),
+      ...(asset.isPetDoor ? { isPetDoor: true } : {}),
     }
   }).filter((e): e is CatalogEntryWithCategory => e !== null)
+
+  // Door swing states: assets with state 'open_n'/'open_s' carry the swing
+  // sprites for the closed door entry whose type === their groupId. Attach the
+  // sprites to the closed entry; the open variants never appear in the palette.
+  const doorOpenIds = new Set<string>()
+  for (const asset of assets.catalog) {
+    if (!asset.groupId || (asset.state !== 'open_n' && asset.state !== 'open_s')) continue
+    doorOpenIds.add(asset.id)
+    const closedEntry = loadedEntries.find((e) => e.type === asset.groupId)
+    const sprite = assets.sprites[asset.id]
+    if (closedEntry && sprite) {
+      if (asset.state === 'open_n') closedEntry.openNorthSprite = sprite
+      else closedEntry.openSouthSprite = sprite
+    }
+  }
 
   // Combined: bundled hardcoded entries first, then loaded entries.
   const allEntries: CatalogEntryWithCategory[] = [...FURNITURE_CATALOG, ...loadedEntries]
@@ -263,8 +284,16 @@ export function buildDynamicCatalog(assets: LoadedAssetData): boolean {
   // Store full internal catalog (all variants — for getCatalogEntry lookups)
   internalCatalog = allEntries
 
-  // Visible catalog: exclude non-front variants and "on" state variants
-  const visibleEntries = allEntries.filter((e) => !nonFrontIds.has(e.type) && !onStateIds.has(e.type))
+  // Visible catalog: exclude non-front variants, "on" state variants, door
+  // open-state variants, and doors that lack functional swing sprites — a door
+  // that can't open is disabled from the palette (already-placed ones still
+  // render closed via the internal catalog).
+  const visibleEntries = allEntries.filter((e) =>
+    !nonFrontIds.has(e.type) &&
+    !onStateIds.has(e.type) &&
+    !doorOpenIds.has(e.type) &&
+    !((e.isDoor || e.isPetDoor) && !e.openNorthSprite && !e.openSouthSprite),
+  )
 
   // Strip orientation/state suffix from labels for grouped variants
   for (const entry of visibleEntries) {

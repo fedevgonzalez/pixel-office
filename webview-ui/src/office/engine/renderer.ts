@@ -207,12 +207,42 @@ export function renderScene(
 ): void {
   const drawables: ZDrawable[] = []
 
+  // Actor tile positions, used to swing doors open while someone passes.
+  // Map key = "col,row", value = the actor's pixel y (to pick the swing side).
+  const actorTiles = new Map<string, number>()
+  for (const ch of characters) {
+    actorTiles.set(`${ch.tileCol},${ch.tileRow}`, ch.y)
+  }
+  if (pets) {
+    for (const pet of pets) {
+      actorTiles.set(`${pet.tileCol},${pet.tileRow}`, pet.y)
+    }
+  }
+
   // Furniture
   const lampsOn = nightLevel >= DN_LAMP_ON_DARKNESS
   for (const f of furniture) {
     // Lamp furniture carries a glowing ON sprite shown only when the scene is
     // dark; otherwise the unlit OFF sprite in `f.sprite` is used.
-    const spriteData = lampsOn && f.onSprite ? f.onSprite : f.sprite
+    let spriteData = lampsOn && f.onSprite ? f.onSprite : f.sprite
+    // Door swing: while an actor stands on a trigger tile, the door opens AWAY
+    // from them — actor above the passage center pushes it SOUTH, actor below
+    // pushes it NORTH. Falls back to whichever open sprite exists.
+    if (f.triggerTiles && f.doorCenterY !== undefined) {
+      let actorY: number | undefined
+      for (const key of f.triggerTiles) {
+        const y = actorTiles.get(key)
+        if (y !== undefined && (actorY === undefined || Math.abs(y - f.doorCenterY) < Math.abs(actorY - f.doorCenterY))) {
+          actorY = y
+        }
+      }
+      if (actorY !== undefined) {
+        const open = actorY <= f.doorCenterY
+          ? (f.openSouthSprite ?? f.openNorthSprite)
+          : (f.openNorthSprite ?? f.openSouthSprite)
+        if (open) spriteData = open
+      }
+    }
     const cached = getCachedSprite(spriteData, zoom)
     const fx = offsetX + f.x * zoom
     const fy = offsetY + f.y * zoom
