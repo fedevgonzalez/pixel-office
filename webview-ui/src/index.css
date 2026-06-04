@@ -99,6 +99,7 @@ html, body, #root {
   height: 100%;
   overflow: hidden;
   font-family: 'FS Pixel Sans', sans-serif;
+  background: var(--pixel-bg);
 }
 
 button:focus-visible,

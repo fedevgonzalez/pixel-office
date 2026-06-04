@@ -280,7 +280,9 @@ function App() {
   if (!layoutReady) {
     // Screenshot mode: render a bare dark stage so CI tooling that waits on
     // data-screenshot-ready never captures the "Loading..." placeholder.
-    if (isScreenshotMode) {
+    // Kiosk mode: same bare dark stage — a "Loading..." badge on the wall
+    // display is just visual noise during boot.
+    if (isScreenshotMode || isKioskMode) {
       return <div style={{ width: '100%', height: '100%', background: 'var(--pixel-bg)' }} />
     }
     return (

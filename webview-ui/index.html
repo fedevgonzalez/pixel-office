@@ -6,6 +6,9 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>webview-ui</title>
+    <!-- Paint dark immediately, before the CSS bundle loads — avoids the white
+         flash on kiosk boot. Keep in sync with --pixel-bg in src/index.css. -->
+    <style>html, body { background: #1f1a24; }</style>
   </head>
   <body>
     <div id="root"></div>

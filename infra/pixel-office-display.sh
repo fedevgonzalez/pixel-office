@@ -70,7 +70,7 @@ XEOF
     # Full software rendering (--disable-gpu): AMD Rembrandt GPU compositor
     # leaks ~500MB/min of native memory. Software rendering eliminates the leak
     # entirely — acceptable for a 15fps pixel art canvas at 1920x1200.
-    printf 'dbus-run-session -- google-chrome-stable --kiosk --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --disable-gpu --disable-software-rasterizer --disable-audio-output --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
+    printf 'dbus-run-session -- google-chrome-stable --kiosk --default-background-color=1f1a24 --noerrdialogs --disable-translate --disable-infobars --disable-session-crashed-bubble --disable-features=TranslateUI --no-first-run --start-fullscreen --start-maximized --window-size=1920,1200 --window-position=0,0 --autoplay-policy=no-user-gesture-required --no-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-networking --disable-sync --disable-default-apps --disable-component-update --disable-gpu --disable-software-rasterizer --disable-audio-output --js-flags="--max-old-space-size=384" "%s"\n' "$PIXEL_OFFICE_URL" >> "$XINITRC"
     chmod +x "$XINITRC"
 
     # Start X on vt1
