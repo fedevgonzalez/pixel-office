@@ -4,9 +4,94 @@ import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
 import { getSpriteRenderSize } from '../sprites/spriteCache.js'
 import { LAMP_OFF_SPRITE, LAMP_SPRITE, WALL_SCONCE_OFF_SPRITE, WALL_SCONCE_ON_SPRITE } from '../sprites/spriteData.js'
-import { getActiveFloorThemeId } from '../floorTiles.js'
+import { getActiveFloorThemeId, getFloorSprite } from '../floorTiles.js'
+import { wallColorToHex } from '../wallTiles.js'
 import { isExteriorTile, isNorthWall } from './tileKinds.js'
 import { WALL_DECOR_Z_EPSILON } from '../../constants.js'
+
+// ── Open-door doorway see-through ──────────────────────────────
+// The built-in open-door sprites paint the doorway with these placeholder
+// colors. Per placement they are remapped to the INSIDE floor's color (dimmed)
+// so an open door shows the room beyond instead of a black hole. The camera
+// always looks north, so the visible side is the floor above the wall.
+const DOORWAY_PLACEHOLDER_DARK = '#171310'
+const DOORWAY_PLACEHOLDER_FLOOR = '#241c14'
+const DOORWAY_DIM = 0.5          // doorway interior: floor color at 50%
+const DOORWAY_FLOOR_DIM = 0.68   // floor strip at the threshold: a bit brighter
+const DOORWAY_FALLBACK_HEX = '#6b5640' // warm tan when no floor info exists
+
+function dimHex(hex: string, factor: number): string {
+  const r = Math.round(parseInt(hex.slice(1, 3), 16) * factor)
+  const g = Math.round(parseInt(hex.slice(3, 5), 16) * factor)
+  const b = Math.round(parseInt(hex.slice(5, 7), 16) * factor)
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+}
+
+/** Average opaque color of a sprite — representative color of a floor texture. */
+const spriteAvgCache = new WeakMap<SpriteData, string>()
+function spriteAverageHex(sprite: SpriteData): string {
+  const cached = spriteAvgCache.get(sprite)
+  if (cached) return cached
+  let r = 0, g = 0, b = 0, n = 0
+  for (const row of sprite) {
+    for (const c of row) {
+      if (!c || c.length < 7) continue
+      r += parseInt(c.slice(1, 3), 16)
+      g += parseInt(c.slice(3, 5), 16)
+      b += parseInt(c.slice(5, 7), 16)
+      n++
+    }
+  }
+  const hex = n === 0
+    ? DOORWAY_FALLBACK_HEX
+    : `#${Math.round(r / n).toString(16).padStart(2, '0')}${Math.round(g / n).toString(16).padStart(2, '0')}${Math.round(b / n).toString(16).padStart(2, '0')}`
+  spriteAvgCache.set(sprite, hex)
+  return hex
+}
+
+/** Representative rendered color of the floor tile at (col,row). Painted tile
+ *  color wins; otherwise the average of the tile's theme texture; tan fallback. */
+function floorTileHex(
+  col: number,
+  row: number,
+  tileMap: TileTypeVal[][],
+  tileColors?: Array<FloorColor | null>,
+  tileThemes?: Array<string | null>,
+  cols?: number,
+): string {
+  const t = tileMap[row]?.[col]
+  if (t === undefined || t === TileType.WALL || t === TileType.VOID) return DOORWAY_FALLBACK_HEX
+  const idx = cols !== undefined ? row * cols + col : -1
+  const painted = idx >= 0 ? tileColors?.[idx] : undefined
+  if (painted) return wallColorToHex(painted)
+  const theme = (idx >= 0 ? tileThemes?.[idx] : null) ?? getActiveFloorThemeId()
+  const floorSprite = getFloorSprite((t as number) - 1, theme)
+  if (floorSprite) return spriteAverageHex(floorSprite)
+  return DOORWAY_FALLBACK_HEX
+}
+
+/** Remap the doorway placeholder colors of an open-door sprite to the given
+ *  floor hex (dimmed). Cached per (sprite, hex). */
+const doorwayRecolorCache = new Map<string, SpriteData>()
+const doorwaySpriteIds = new WeakMap<SpriteData, number>()
+let nextDoorwaySpriteId = 1
+function recolorDoorway(sprite: SpriteData, floorHex: string): SpriteData {
+  let id = doorwaySpriteIds.get(sprite)
+  if (!id) {
+    id = nextDoorwaySpriteId++
+    doorwaySpriteIds.set(sprite, id)
+  }
+  const key = `${id}|${floorHex}`
+  const cached = doorwayRecolorCache.get(key)
+  if (cached) return cached
+  const dark = dimHex(floorHex, DOORWAY_DIM)
+  const floor = dimHex(floorHex, DOORWAY_FLOOR_DIM)
+  const out = sprite.map((row) => row.map((c) =>
+    c === DOORWAY_PLACEHOLDER_DARK ? dark : c === DOORWAY_PLACEHOLDER_FLOOR ? floor : c,
+  ))
+  doorwayRecolorCache.set(key, out)
+  return out
+}
 
 /** Convert flat tile array from layout into 2D grid */
 export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
@@ -28,6 +113,11 @@ export function layoutToTileMap(layout: OfficeLayout): TileTypeVal[][] {
 export function layoutToFurnitureInstances(
   furniture: PlacedFurniture[],
   tileMap?: TileTypeVal[][],
+  /** Optional per-tile paint + theme (and layout cols to index them): lets
+   *  open-door sprites show the inside floor through the doorway. */
+  tileColors?: Array<FloorColor | null>,
+  tileThemes?: Array<string | null>,
+  layoutCols?: number,
 ): FurnitureInstance[] {
   // Pre-compute surface zY per tile so stackable items can sort in front of their host surface
   const surfaceZByTile = new Map<string, number>()
@@ -135,9 +225,16 @@ export function layoutToFurnitureInstances(
           triggerTiles.push(`${item.col + dc},${item.row + dr}`)
         }
       }
+      // Doorway see-through: remap the open sprites' doorway placeholders to
+      // the floor just INSIDE the wall (the camera looks north), dimmed.
+      let insideHex = DOORWAY_FALLBACK_HEX
+      if (tileMap) {
+        const insideRow = item.row + entry.footprintH - 2
+        insideHex = floorTileHex(item.col, insideRow, tileMap, tileColors, tileThemes, layoutCols)
+      }
       doorData = {
-        openNorthSprite: entry.openNorthSprite,
-        openSouthSprite: entry.openSouthSprite,
+        openNorthSprite: entry.openNorthSprite && recolorDoorway(entry.openNorthSprite, insideHex),
+        openSouthSprite: entry.openSouthSprite && recolorDoorway(entry.openSouthSprite, insideHex),
         triggerTiles,
         doorCenterY: (item.row + entry.footprintH - 0.5) * TILE_SIZE,
       }
