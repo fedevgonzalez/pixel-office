@@ -390,6 +390,11 @@ export const KIOSK_STATS_GAP_PX = 18
 /** Distance from the top-left corner of the viewport */
 export const KIOSK_STATS_OFFSET_PX = 18
 
+// ── Kiosk Boot Loader ─────────────────────────────────────────
+/** Minimum time (ms) the boot loader stays on screen in kiosk mode, so the
+ *  wall display never flashes a half-loaded office during boot. */
+export const KIOSK_MIN_BOOT_LOADER_MS = 15_000
+
 // ── Kiosk Usage (account quota blocks, in the sidebar footer) ─
 /** A usage source is considered stale after this many ms without an update;
  *  the sidebar dims it. */

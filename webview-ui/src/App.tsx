@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import { OfficeState } from './office/engine/officeState.js'
 import { OfficeCanvas } from './office/components/OfficeCanvas.js'
 import { ToolOverlay } from './office/components/ToolOverlay.js'
@@ -12,7 +12,7 @@ import type { PlacedPet, PetColors, WorldBackgroundTheme, CustomThemePreset } fr
 import { isRotatable } from './office/layout/furnitureCatalog.js'
 import { ws } from './wsClient.js'
 import { useExtensionMessages } from './hooks/useExtensionMessages.js'
-import { PULSE_ANIMATION_DURATION_SEC } from './constants.js'
+import { PULSE_ANIMATION_DURATION_SEC, KIOSK_MIN_BOOT_LOADER_MS } from './constants.js'
 import { useEditorActions } from './hooks/useEditorActions.js'
 import { useEditorKeyboard } from './hooks/useEditorKeyboard.js'
 import { useScreenWakeLock } from './hooks/useScreenWakeLock.js'
@@ -143,6 +143,15 @@ function App() {
   const { agents, selectedAgent, agentTools, agentStatuses, subagentTools, subagentCharacters, layoutReady, loadedAssets, petTemplates, customThemes, dailySummaryActive, agentContext, agentFinishedAt, usageSources } = useExtensionMessages(getOfficeState, editor.setLastSavedLayout, isEditDirty)
 
   const dayNight = useDayNight()
+
+  // Kiosk boot: hold the loader on screen for a minimum time so the wall
+  // display never flashes a half-loaded office while assets/agents settle.
+  const [kioskBootDelayDone, setKioskBootDelayDone] = useState(!isKioskMode)
+  useEffect(() => {
+    if (!isKioskMode) return undefined
+    const t = setTimeout(() => setKioskBootDelayDone(true), KIOSK_MIN_BOOT_LOADER_MS)
+    return () => clearTimeout(t)
+  }, [])
 
   // Kiosk camera focus: only zoom in on agents that need user attention
   // (pending permission). Otherwise the camera shows the full office so pets,
@@ -277,7 +286,7 @@ function App() {
     return false
   })()
 
-  if (!layoutReady) {
+  if (!layoutReady || !kioskBootDelayDone) {
     // Screenshot mode: render a bare dark stage so CI tooling that waits on
     // data-screenshot-ready never captures the loading placeholder.
     if (isScreenshotMode) {

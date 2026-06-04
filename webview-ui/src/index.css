@@ -13,7 +13,7 @@
   --loader-frame-size: 48px;
   --loader-frame-count: 8;
   --loader-scale: 3;
-  --loader-cycle-duration: 2s;
+  --loader-cycle-duration: 1.2s;
   --pixel-surface: rgba(0, 0, 0, 0.25);
   /* Soft elevated surfaces — used inside modals as cards, swatch tiles, etc. */
   --pixel-surface-soft: rgba(255, 245, 235, 0.05);
