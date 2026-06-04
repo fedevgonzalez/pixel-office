@@ -7,7 +7,7 @@ import { LAMP_OFF_SPRITE, LAMP_SPRITE, WALL_SCONCE_OFF_SPRITE, WALL_SCONCE_ON_SP
 import { getActiveFloorThemeId, getFloorSprite, getColorizedFloorSprite } from '../floorTiles.js'
 import { wallColorToHex } from '../wallTiles.js'
 import { isExteriorTile, isNorthWall } from './tileKinds.js'
-import { WALL_DECOR_Z_EPSILON } from '../../constants.js'
+import { WALL_DECOR_Z_EPSILON, DOOR_PASSAGE_Z_OFFSET, DOORWAY_FLOOR_Z_EPSILON } from '../../constants.js'
 
 // ── Open-door doorway see-through ──────────────────────────────
 // The built-in open-door sprites paint the doorway with these placeholder
@@ -85,7 +85,7 @@ function floorTileInfo(
  *  actual brick/grass/carpet rather than a flat approximation. Falls back to
  *  a flat dimmed fill when no floor sprite is available. Cached per
  *  (door sprite, floor sprite, hex). */
-const doorwayRecolorCache = new Map<string, SpriteData>()
+const doorwayRecolorCache = new Map<string, { open: SpriteData; floorPatch: SpriteData }>()
 const doorwaySpriteIds = new WeakMap<SpriteData, number>()
 let nextDoorwaySpriteId = 1
 function spriteId(sprite: SpriteData): number {
@@ -102,7 +102,7 @@ function recolorDoorway(
   /** Door sprite native px per tile (sprite width / footprintW) — maps doorway
    *  pixels onto the floor texture's own native resolution. */
   doorPxPerTile: number,
-): SpriteData {
+): { open: SpriteData; floorPatch: SpriteData } {
   const key = `${spriteId(sprite)}|${floor.sprite ? spriteId(floor.sprite) : 0}|${floor.hex}`
   const cached = doorwayRecolorCache.get(key)
   if (cached) return cached
@@ -120,13 +120,21 @@ function recolorDoorway(
     if (!c) return dim === DOORWAY_DIM ? flatDark : flatFloor
     return dimHex(c, dim)
   }
-  const out = sprite.map((row, y) => row.map((c, x) =>
+  // The OPEN sprite keeps the frame/panel but the doorway hole goes TRANSPARENT;
+  // the textured floor lives in a separate floorPatch sprite (hole pixels only).
+  // The renderer sandwiches them: floorPatch < crossing actor < open door — so
+  // an actor walks INSIDE the doorway, framed by the door, over the real floor.
+  const open = sprite.map((row) => row.map((c) =>
+    c === DOORWAY_PLACEHOLDER_DARK || c === DOORWAY_PLACEHOLDER_FLOOR ? '' : c,
+  ))
+  const floorPatch = sprite.map((row, y) => row.map((c, x) =>
     c === DOORWAY_PLACEHOLDER_DARK
       ? sample(x, y, DOORWAY_DIM)
       : c === DOORWAY_PLACEHOLDER_FLOOR
         ? sample(x, y, DOORWAY_FLOOR_DIM)
-        : c,
+        : '',
   ))
+  const out = { open, floorPatch }
   doorwayRecolorCache.set(key, out)
   return out
 }
@@ -229,7 +237,10 @@ export function layoutToFurnitureInstances(
     if (tileMap && (entry.isDoor || entry.isPetDoor)) {
       const bottomRow = item.row + entry.footprintH - 1
       if (tileMap[bottomRow]?.[item.col] === TileType.WALL) {
-        zY = (bottomRow + 1) * TILE_SIZE + WALL_DECOR_Z_EPSILON
+        // Above the wall AND above an actor standing in the doorway (so they
+        // render inside the open doorway, framed by the door), but below an
+        // actor on the row in front. See DOOR_PASSAGE_Z_OFFSET.
+        zY = (bottomRow + 1) * TILE_SIZE + DOOR_PASSAGE_Z_OFFSET
       }
     }
 
@@ -255,7 +266,7 @@ export function layoutToFurnitureInstances(
     // above and below each footprint column. doorCenterY = passage center (the
     // bottom footprint row) so the renderer can pick the swing side away from
     // the approaching actor. Doors without open sprites stay static (closed).
-    let doorData: Pick<FurnitureInstance, 'openNorthSprite' | 'openSouthSprite' | 'triggerTiles' | 'doorCenterY'> | undefined
+    let doorData: Pick<FurnitureInstance, 'openNorthSprite' | 'openSouthSprite' | 'openNorthFloorSprite' | 'openSouthFloorSprite' | 'triggerTiles' | 'doorCenterY' | 'doorFloorZY'> | undefined
     if ((entry.isDoor || entry.isPetDoor) && (entry.openNorthSprite || entry.openSouthSprite)) {
       const triggerTiles: string[] = []
       for (let dc = 0; dc < entry.footprintW; dc++) {
@@ -263,19 +274,25 @@ export function layoutToFurnitureInstances(
           triggerTiles.push(`${item.col + dc},${item.row + dr}`)
         }
       }
-      // Doorway see-through: fill the open sprites' doorway placeholders with
-      // the floor texture just INSIDE the wall (the camera looks north), dimmed.
+      // Doorway see-through: the open sprites' doorway holes go transparent and
+      // a separate floor-textured patch (sampled from the floor just INSIDE the
+      // wall — the camera looks north) renders behind the crossing actor.
       let inside: { hex: string; sprite?: SpriteData } = { hex: DOORWAY_FALLBACK_HEX }
       if (tileMap) {
         const insideRow = item.row + entry.footprintH - 2
         inside = floorTileInfo(item.col, insideRow, tileMap, tileColors, tileThemes, layoutCols)
       }
       const doorPxPerTile = (entry.sprite[0]?.length ?? 0) / entry.footprintW
+      const north = entry.openNorthSprite && recolorDoorway(entry.openNorthSprite, inside, doorPxPerTile)
+      const south = entry.openSouthSprite && recolorDoorway(entry.openSouthSprite, inside, doorPxPerTile)
       doorData = {
-        openNorthSprite: entry.openNorthSprite && recolorDoorway(entry.openNorthSprite, inside, doorPxPerTile),
-        openSouthSprite: entry.openSouthSprite && recolorDoorway(entry.openSouthSprite, inside, doorPxPerTile),
+        openNorthSprite: north?.open,
+        openSouthSprite: south?.open,
+        openNorthFloorSprite: north?.floorPatch,
+        openSouthFloorSprite: south?.floorPatch,
         triggerTiles,
         doorCenterY: (item.row + entry.footprintH - 0.5) * TILE_SIZE,
+        doorFloorZY: (item.row + entry.footprintH) * TILE_SIZE + DOORWAY_FLOOR_Z_EPSILON,
       }
     }
 

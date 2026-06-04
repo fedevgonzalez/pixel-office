@@ -227,7 +227,10 @@ export function renderScene(
     let spriteData = lampsOn && f.onSprite ? f.onSprite : f.sprite
     // Door swing: while an actor stands on a trigger tile, the door opens AWAY
     // from them — actor above the passage center pushes it SOUTH, actor below
-    // pushes it NORTH. Falls back to whichever open sprite exists.
+    // pushes it NORTH. Falls back to whichever open sprite exists. The open
+    // sprite's doorway hole is transparent; its floor patch draws separately
+    // BELOW the crossing actor so they walk inside the doorway over real floor.
+    let doorFloorSprite: SpriteData | undefined
     if (f.triggerTiles && f.doorCenterY !== undefined) {
       let actorY: number | undefined
       for (const key of f.triggerTiles) {
@@ -237,10 +240,16 @@ export function renderScene(
         }
       }
       if (actorY !== undefined) {
-        const open = actorY <= f.doorCenterY
+        const southSide = actorY <= f.doorCenterY
+        const open = southSide
           ? (f.openSouthSprite ?? f.openNorthSprite)
           : (f.openNorthSprite ?? f.openSouthSprite)
-        if (open) spriteData = open
+        if (open) {
+          spriteData = open
+          doorFloorSprite = southSide
+            ? (f.openSouthFloorSprite ?? f.openNorthFloorSprite)
+            : (f.openNorthFloorSprite ?? f.openSouthFloorSprite)
+        }
       }
     }
     const cached = getCachedSprite(spriteData, zoom)
@@ -252,6 +261,15 @@ export function renderScene(
         c.drawImage(cached, fx, fy)
       },
     })
+    if (doorFloorSprite && f.doorFloorZY !== undefined) {
+      const floorCached = getCachedSprite(doorFloorSprite, zoom)
+      drawables.push({
+        zY: f.doorFloorZY,
+        draw: (c) => {
+          c.drawImage(floorCached, fx, fy)
+        },
+      })
+    }
   }
 
   // Characters

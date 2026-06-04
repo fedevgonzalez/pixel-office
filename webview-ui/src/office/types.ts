@@ -96,9 +96,16 @@ export interface FurnitureInstance {
    *  while keeping the unlit OFF variant in `sprite` for the day. */
   onSprite?: SpriteData
   /** Door swing sprites (doors only). The renderer swaps to one of these when
-   *  an actor stands on a trigger tile, picking the side AWAY from the actor. */
+   *  an actor stands on a trigger tile, picking the side AWAY from the actor.
+   *  Their doorway hole is TRANSPARENT — the floor shows via the floor patch. */
   openNorthSprite?: SpriteData
   openSouthSprite?: SpriteData
+  /** Floor-textured doorway patches (hole pixels only) — drawn at doorFloorZY,
+   *  UNDER the crossing actor, so they walk inside the doorway over real floor. */
+  openNorthFloorSprite?: SpriteData
+  openSouthFloorSprite?: SpriteData
+  /** zY for the doorway floor patch (just above the wall sprite). */
+  doorFloorZY?: number
   /** "col,row" tile keys that trigger the door-open swap (footprint plus the
    *  approach tile on each side). Present only on door instances. */
   triggerTiles?: string[]

@@ -66,6 +66,14 @@ export const WALL_FACE_BAND_NATIVE = 0
 // the wall's z baseline ((row+1)*TILE_SIZE) so it draws ON the face instead of
 // behind it, while staying below floor actors ((row+1)*TILE_SIZE + ~24).
 export const WALL_DECOR_Z_EPSILON = 0.5
+// Through-wall doors sort ABOVE an actor standing in the doorway (actor zY at
+// the door tile ≈ wallBase + TILE/2), so the actor renders inside the open
+// doorway, framed by the door — but BELOW an actor on the row in front
+// (wallBase + TILE), who must occlude the door. 3/4 tile sits between both.
+export const DOOR_PASSAGE_Z_OFFSET = 36
+// The doorway floor patch draws just above the wall sprite, under everything
+// else, so the actor crossing renders on top of the floor seen through the door.
+export const DOORWAY_FLOOR_Z_EPSILON = 0.25
 export const SELECTED_OUTLINE_ALPHA = 1.0
 export const HOVERED_OUTLINE_ALPHA = 0.5
 export const GHOST_PREVIEW_SPRITE_ALPHA = 0.5
