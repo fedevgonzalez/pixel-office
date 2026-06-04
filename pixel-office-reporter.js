@@ -871,7 +871,9 @@ function formatReset(iso) {
 }
 
 function reloginSource(acct, primary = 're-login') {
-  return { id: acct.id, label: acct.label, primary, color: '#e0573f' };
+  const s = { id: acct.id, label: acct.label, primary, color: '#e0573f' };
+  if (typeof acct.order === 'number') s.order = acct.order;
+  return s;
 }
 
 // Last successfully-built source per account, with its timestamp. On a failed
@@ -905,7 +907,11 @@ function windowMetric(short, w) {
 function accountSource(acct, usage) {
   const metrics = [windowMetric('5h', usage.five_hour), windowMetric('7d', usage.seven_day)].filter(Boolean);
   if (!metrics.length) return null;
-  return { id: acct.id, label: acct.label, metrics };
+  const s = { id: acct.id, label: acct.label, metrics };
+  // Optional display order from the account store (lower = higher on the
+  // kiosk panel; the server defaults missing order to 0).
+  if (typeof acct.order === 'number') s.order = acct.order;
+  return s;
 }
 
 // Build usage sources for every stored account.

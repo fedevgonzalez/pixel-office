@@ -143,6 +143,9 @@ function sanitizeUsageSource(s) {
     out.percent = Math.max(0, Math.min(1, s.percent));
   }
   if (typeof s.color === 'string' && /^#[0-9a-f]{3,8}$/i.test(s.color)) out.color = s.color;
+  // Optional display order — lower sorts first; missing = 0 (top group).
+  // Producers push a source DOWN with a positive order (or up with negative).
+  if (typeof s.order === 'number' && Number.isFinite(s.order)) out.order = s.order;
   return out;
 }
 
@@ -200,6 +203,14 @@ function getActiveUsageSources() {
     if (now - v.updatedAt >= USAGE_STALE_MS) continue;
     live.push(v);
   }
+  // Deterministic order — reporters re-insert their sources on every update
+  // (Map insertion order would reshuffle the panel constantly). Sort by the
+  // producer-defined `order` (missing = 0), then label, then id.
+  live.sort((a, b) =>
+    ((a.order ?? 0) - (b.order ?? 0)) ||
+    a.label.localeCompare(b.label) ||
+    a.id.localeCompare(b.id),
+  );
   const multiOwner = new Set(live.map((s) => s.owner)).size > 1;
   return live.map((s) => {
     const out = { id: multiOwner ? `${s.owner}:${s.id}` : s.id, label: s.label, updatedAt: s.updatedAt };
