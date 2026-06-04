@@ -203,16 +203,29 @@ function getActiveUsageSources() {
     if (now - v.updatedAt >= USAGE_STALE_MS) continue;
     live.push(v);
   }
+  // Dedupe by bare source id across owners: the same account reported from
+  // two machines is ONE underlying quota. Prefer the entry with real metrics
+  // (a healthy reporter) over a primary-only placeholder (e.g. "re-login"),
+  // then the freshest.
+  const byId = new Map();
+  for (const s of live) {
+    const prev = byId.get(s.id);
+    if (!prev) { byId.set(s.id, s); continue; }
+    const sBetter =
+      (!!s.metrics !== !!prev.metrics) ? !!s.metrics : s.updatedAt > prev.updatedAt;
+    if (sBetter) byId.set(s.id, s);
+  }
+  const deduped = [...byId.values()];
   // Deterministic order — reporters re-insert their sources on every update
   // (Map insertion order would reshuffle the panel constantly). Sort by the
   // producer-defined `order` (missing = 0), then label, then id.
-  live.sort((a, b) =>
+  deduped.sort((a, b) =>
     ((a.order ?? 0) - (b.order ?? 0)) ||
     a.label.localeCompare(b.label) ||
     a.id.localeCompare(b.id),
   );
-  const multiOwner = new Set(live.map((s) => s.owner)).size > 1;
-  return live.map((s) => {
+  const multiOwner = new Set(deduped.map((s) => s.owner)).size > 1;
+  return deduped.map((s) => {
     const out = { id: multiOwner ? `${s.owner}:${s.id}` : s.id, label: s.label, updatedAt: s.updatedAt };
     if (s.metrics !== undefined) out.metrics = s.metrics;
     if (s.primary !== undefined) out.primary = s.primary;

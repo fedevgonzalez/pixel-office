@@ -802,6 +802,9 @@ async function refreshOAuth(refreshToken) {
     if (!res.ok) {
       const body = await res.text().catch(() => '');
       log(`Token refresh failed: HTTP ${res.status} ${body.slice(0, 120)}`);
+      // invalid_grant = the refresh token is permanently dead (consumed or
+      // revoked). Signal the caller to stop retrying this chain.
+      if (res.status === 400 && body.includes('invalid_grant')) return { dead: true };
       return null;
     }
     const d = await res.json().catch(() => null);
@@ -950,10 +953,17 @@ async function computeUsageSources() {
       }
     } else {
       // Absent account: adopt the chain once (rotate → reporter-owned), then
-      // renew only on expiry.
+      // renew only on expiry. A refresh that fails with invalid_grant means
+      // the chain is permanently dead (consumed/revoked) — drop the refresh
+      // token so we stop hammering the endpoint every poll; the chain heals
+      // automatically next time the account is ACTIVE (live Keychain sync).
       if (acct.refreshToken && acct.independent !== true) {
         const r = await refreshOAuth(acct.refreshToken);
-        if (r) {
+        if (r && r.dead) {
+          acct.refreshToken = null;
+          mutated = true;
+          log(`Token chain for '${acct.id}' is dead (invalid_grant) — pausing until next login on this machine`);
+        } else if (r) {
           acct.accessToken = r.accessToken;
           acct.refreshToken = r.refreshToken;
           acct.expiresAt = r.expiresAt;
@@ -966,7 +976,11 @@ async function computeUsageSources() {
         accessToken = acct.accessToken;
       } else if (acct.refreshToken) {
         const r = await refreshOAuth(acct.refreshToken);
-        if (r) {
+        if (r && r.dead) {
+          acct.refreshToken = null;
+          mutated = true;
+          log(`Token chain for '${acct.id}' is dead (invalid_grant) — pausing until next login on this machine`);
+        } else if (r) {
           acct.accessToken = r.accessToken;
           acct.refreshToken = r.refreshToken;
           acct.expiresAt = r.expiresAt;
