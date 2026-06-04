@@ -14,6 +14,8 @@
   --loader-frame-count: 8;
   --loader-scale: 3;
   --loader-cycle-duration: 1.2s;
+  --loader-caption-font-size: 18px;
+  --loader-caption-gap: 56px;
   --pixel-surface: rgba(0, 0, 0, 0.25);
   /* Soft elevated surfaces — used inside modals as cards, swatch tiles, etc. */
   --pixel-surface-soft: rgba(255, 245, 235, 0.05);
@@ -299,6 +301,26 @@ button[aria-busy='true'] {
   image-rendering: pixelated;
   transform: scale(var(--loader-scale));
   animation: pixel-loader-fill var(--loader-cycle-duration) steps(var(--loader-frame-count)) infinite;
+}
+/* Caption under the mug; ::after cycles the dots "..." -> ".." -> "." in sync
+   with the fill animation. Fixed-width so the text doesn't shift. */
+.pixel-loader-caption {
+  margin-top: var(--loader-caption-gap);
+  font-size: var(--loader-caption-font-size);
+  color: var(--pixel-text-dim);
+  letter-spacing: 1px;
+}
+.pixel-loader-caption::after {
+  content: '...';
+  display: inline-block;
+  width: 3ch;
+  text-align: left;
+  animation: pixel-loader-dots var(--loader-cycle-duration) steps(1) infinite;
+}
+@keyframes pixel-loader-dots {
+  0% { content: '...'; }
+  33% { content: '..'; }
+  66% { content: '.'; }
 }
 
 /* Gallery card hover with subtle step transition. */

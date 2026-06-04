@@ -20,7 +20,7 @@ import { ZoomControls } from './components/ZoomControls.js'
 import { BottomToolbar } from './components/BottomToolbar.js'
 import { DebugView } from './components/DebugView.js'
 import { Toast } from './components/Toast.js'
-import { isKioskMode, isScreenshotMode } from './wsClient.js'
+import { isKioskMode, isScreenshotMode, loaderText } from './wsClient.js'
 import { useDayNight } from './hooks/useDayNight.js'
 
 // Game state lives outside React — updated imperatively by message handlers
@@ -293,13 +293,16 @@ function App() {
       return <div style={{ width: '100%', height: '100%', background: 'var(--pixel-bg)' }} />
     }
     // Boot loader: pixel-art coffee mug filling up (styles in index.css).
+    // Caption text is customizable via ?loaderText= (e.g. the kiosk passes
+    // its own language); animated dots live in CSS.
     return (
       <div
         role="status"
-        aria-label="Loading"
-        style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--pixel-bg)' }}
+        aria-label={loaderText}
+        style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--pixel-bg)' }}
       >
         <div className="pixel-loader-coffee" />
+        <div className="pixel-loader-caption">{loaderText}</div>
       </div>
     )
   }

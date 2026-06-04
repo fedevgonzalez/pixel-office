@@ -89,3 +89,5 @@ export const isKioskMode = new URLSearchParams(window.location.search).has('kios
 export const isScreenshotMode = new URLSearchParams(window.location.search).has('screenshot')
 // No-agents mode: ?no-agents — skip adding agents (for clean layout screenshots)
 export const isNoAgentsMode = new URLSearchParams(window.location.search).has('no-agents')
+// Boot loader caption: ?loaderText=Cargando — overrides the default "Loading"
+export const loaderText = new URLSearchParams(window.location.search).get('loaderText') ?? 'Loading'
