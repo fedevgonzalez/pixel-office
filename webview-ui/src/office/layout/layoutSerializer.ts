@@ -4,7 +4,7 @@ import { getCatalogEntry } from './furnitureCatalog.js'
 import { getColorizedSprite } from '../colorize.js'
 import { getSpriteRenderSize } from '../sprites/spriteCache.js'
 import { LAMP_OFF_SPRITE, LAMP_SPRITE, WALL_SCONCE_OFF_SPRITE, WALL_SCONCE_ON_SPRITE } from '../sprites/spriteData.js'
-import { getActiveFloorThemeId, getFloorSprite } from '../floorTiles.js'
+import { getActiveFloorThemeId, getFloorSprite, getColorizedFloorSprite } from '../floorTiles.js'
 import { wallColorToHex } from '../wallTiles.js'
 import { isExteriorTile, isNorthWall } from './tileKinds.js'
 import { WALL_DECOR_Z_EPSILON } from '../../constants.js'
@@ -16,8 +16,8 @@ import { WALL_DECOR_Z_EPSILON } from '../../constants.js'
 // always looks north, so the visible side is the floor above the wall.
 const DOORWAY_PLACEHOLDER_DARK = '#171310'
 const DOORWAY_PLACEHOLDER_FLOOR = '#241c14'
-const DOORWAY_DIM = 0.5          // doorway interior: floor color at 50%
-const DOORWAY_FLOOR_DIM = 0.68   // floor strip at the threshold: a bit brighter
+const DOORWAY_DIM = 0.7          // doorway interior: floor color at 70%
+const DOORWAY_FLOOR_DIM = 0.85   // floor strip at the threshold: a bit brighter
 const DOORWAY_FALLBACK_HEX = '#6b5640' // warm tan when no floor info exists
 
 function dimHex(hex: string, factor: number): string {
@@ -63,8 +63,18 @@ function floorTileHex(
   if (t === undefined || t === TileType.WALL || t === TileType.VOID) return DOORWAY_FALLBACK_HEX
   const idx = cols !== undefined ? row * cols + col : -1
   const painted = idx >= 0 ? tileColors?.[idx] : undefined
-  if (painted) return wallColorToHex(painted)
   const theme = (idx >= 0 ? tileThemes?.[idx] : null) ?? getActiveFloorThemeId()
+  // Painted tiles render texture × tint — average the actual COLORIZED sprite,
+  // not the flat tint (a dark tint like b:-44 alone reads near-black even
+  // though the rendered floor is a mid brown).
+  if (painted) {
+    const colorized = getColorizedFloorSprite((t as number) - 1, painted, theme)
+    const hex = spriteAverageHex(colorized)
+    // getColorizedFloorSprite returns a magenta error tile when sprites
+    // haven't loaded yet — fall back to the flat tint approximation then.
+    if (hex !== DOORWAY_FALLBACK_HEX && hex !== '#ff00ff') return hex
+    return wallColorToHex(painted)
+  }
   const floorSprite = getFloorSprite((t as number) - 1, theme)
   if (floorSprite) return spriteAverageHex(floorSprite)
   return DOORWAY_FALLBACK_HEX
