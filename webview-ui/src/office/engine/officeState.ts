@@ -141,7 +141,7 @@ export class OfficeState {
     for (const ch of this.characters.values()) {
       if (ch.seatId && this.seats.has(ch.seatId)) {
         const seat = this.seats.get(ch.seatId)!
-        if (!seat.assigned) {
+        if (!seat.assigned && seat.isWorkSeat) {
           seat.assigned = true
           // Snap character to seat position
           ch.tileCol = seat.seatCol
@@ -295,7 +295,9 @@ export class OfficeState {
 
   private findFreeSeat(): string | null {
     for (const [uid, seat] of this.seats) {
-      if (!seat.assigned) return uid
+      // Working agents only sit at desks — leisure seats (yard bench, lounge
+      // chairs without a desk) are break destinations, not workstations.
+      if (!seat.assigned && seat.isWorkSeat) return uid
     }
     return null
   }
@@ -358,10 +360,25 @@ export class OfficeState {
    */
   getBreakRoomTiles(): Array<{ col: number; row: number }> {
     const points = this.layout.interactionPoints
-    if (points !== undefined) {
-      return this.interactionPointTiles(points, 'char')
+    const tiles = points !== undefined
+      ? this.interactionPointTiles(points, 'char')
+      : this.breakRoomTilesFromFurniture()
+    // Leisure seats (chairs without an adjacent desk — yard benches, lounge
+    // chairs) are always break destinations, in BOTH modes: they are physical
+    // sit-spots, not interaction points, so the points-first contract above
+    // doesn't cover them. Free agents hang out there; working agents never
+    // get assigned to them (findFreeSeat skips non-work seats).
+    const seen = new Set(tiles.map((t) => `${t.col},${t.row}`))
+    for (const seat of this.seats.values()) {
+      if (seat.isWorkSeat) continue
+      const key = `${seat.seatCol},${seat.seatRow}`
+      if (seen.has(key)) continue
+      if (isWalkable(seat.seatCol, seat.seatRow, this.tileMap, this.blockedTiles, this.doorTiles)) {
+        tiles.push({ col: seat.seatCol, row: seat.seatRow })
+        seen.add(key)
+      }
     }
-    return this.breakRoomTilesFromFurniture()
+    return tiles
   }
 
   /**

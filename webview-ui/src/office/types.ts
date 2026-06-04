@@ -76,6 +76,10 @@ export interface Seat {
   seatRow: number
   /** Direction character faces when sitting (toward adjacent desk) */
   facingDir: Direction
+  /** True when the seat faces an adjacent desk — only these are assignable as
+   *  WORK seats. Desk-less seats (park benches, lounge chairs) are leisure
+   *  spots: break destinations, never work assignments. */
+  isWorkSeat: boolean
   assigned: boolean
 }
 

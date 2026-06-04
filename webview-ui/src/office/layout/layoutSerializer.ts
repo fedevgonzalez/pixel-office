@@ -397,15 +397,16 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
         // 2) Adjacent desk direction
         // 3) Default forward (DOWN)
         let facingDir: Direction = Direction.DOWN
+        let hasAdjacentDesk = false
+        for (const d of dirs) {
+          if (deskTiles.has(`${tileCol + d.dc},${tileRow + d.dr}`)) {
+            hasAdjacentDesk = true
+            if (!entry.orientation) facingDir = d.facing
+            break
+          }
+        }
         if (entry.orientation) {
           facingDir = orientationToFacing(entry.orientation)
-        } else {
-          for (const d of dirs) {
-            if (deskTiles.has(`${tileCol + d.dc},${tileRow + d.dr}`)) {
-              facingDir = d.facing
-              break
-            }
-          }
         }
 
         // First seat uses chair uid (backward compat), subsequent use uid:N
@@ -416,6 +417,9 @@ export function layoutToSeats(furniture: PlacedFurniture[]): Map<string, Seat> {
           seatRow: tileRow,
           facingDir,
           assigned: false,
+          // Only desk-facing seats are WORK seats. A bench in the yard or a
+          // lounge chair without a desk is a leisure spot — never a workstation.
+          isWorkSeat: hasAdjacentDesk,
         })
         seatCount++
       }
