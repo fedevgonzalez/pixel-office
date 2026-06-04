@@ -1580,6 +1580,18 @@ async function loadFurnitureAssets() {
         // slices the strip into 3 sprites: the closed entry is catalog-visible
         // (with isDoor/isPetDoor from the sidecar) and the open variants attach
         // to it client-side via groupId + state ('open_n' / 'open_s').
+        // Doorway sentinel: PURE CYAN pixels in the open cells mark the doorway
+        // opening. They are remapped here to the engine's doorway placeholder
+        // (#171310), which the client repaints per placement with the floor
+        // color of the room beyond — an open door shows the floor through it.
+        if (meta && meta.doorStates === 3) {
+          const d = png.data;
+          for (let i = 0; i < d.length; i += 4) {
+            if (d[i + 3] >= PNG_ALPHA_THRESHOLD && d[i] < 90 && d[i + 1] > 180 && d[i + 2] > 180) {
+              d[i] = 0x17; d[i + 1] = 0x13; d[i + 2] = 0x10;
+            }
+          }
+        }
         if (meta && meta.doorStates === 3) {
           const srcCellW = Math.floor(png.width / 3);
           const srcCellH = png.height;
